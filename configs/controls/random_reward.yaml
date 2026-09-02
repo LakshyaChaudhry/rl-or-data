@@ -1,0 +1,8 @@
+arm: grpo_random_reward                # control C1 (SPEC §8)
+model_id: Qwen/Qwen3-4B-Base
+data_condition: train_mixed_100
+training: configs/locked/training.yaml
+cap_yaml: configs/locked/cap.yaml
+reward: random_bernoulli_0_5           # implemented in train/rewards.py, NOT in core/
+vllm: {mode: colocate, gpu_memory_utilization: 0.3}
+seed: 1

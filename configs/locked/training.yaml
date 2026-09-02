@@ -1,0 +1,23 @@
+# locked (SPEC §9) — shared by every arm
+lora: {r: 64, alpha: 16, dropout: 0.0, target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]}
+optimizer: {name: adamw, weight_decay: 0.0, grad_clip: 1.0}
+schedule: {name: cosine, warmup_ratio: 0.1}
+precision: bf16
+grpo:
+  steps: 300
+  prompts_per_step: 8
+  generations_per_prompt: 8
+  temperature: 1.0
+  top_p: 1.0
+  learning_rate: 5.0e-5
+  beta_kl: 0.04          # record the actual TRL default used
+  clip_eps: 0.2
+  loss_type: grpo        # not dr_grpo / dapo
+  total_sampled_completions: 19200   # 300 * 8 * 8 — the matched budget for RFT arms
+rft:
+  samples_per_prompt: 192            # 19200 / 100 prompts
+  sweep: {learning_rate: [1.0e-5, 5.0e-5, 1.0e-4], epochs: [2, 4, 8]}
+  batch_size: 16
+  selection_split: val_mixed_100
+seeds: [1, 2, 3]
+checkpoint_every_steps: 25

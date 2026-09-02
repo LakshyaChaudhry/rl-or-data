@@ -1,0 +1,12 @@
+# Problem pool generation (SPEC §4, §6). Consumed by `rlordata gen`.
+seed: 20260901                       # locked
+n_problems: 6000
+range_scale:
+  S: {lo_min: 1, hi_max: 50}
+  M: {lo_min: 1, hi_max: 200}
+  L: {lo_min: 1, hi_max: 1000}
+range_scale_weights: {S: 0.4, M: 0.4, L: 0.2}
+n_filters: {min: 1, max: 4}
+n_transforms: {min: 0, max: 3}
+paraphrases_per_operator: 3          # minimum
+output: data/pool/pool.jsonl

@@ -1,0 +1,19 @@
+# Tiering by base-model pass@8 (SPEC §6.1). Needs a GPU. Consumed by `rlordata tier`.
+model_id: Qwen/Qwen3-4B-Base         # locked
+model_kind: base
+k: 8
+temperature: 1.0
+top_p: 1.0
+seed: 1
+cap_yaml: configs/locked/cap.yaml    # must exist (Phase 1 output) before tiering runs
+tiers: {easy_min_pass8: 6, medium_min_pass8: 2}   # hard = <= 1
+splits:
+  train_easy_100: {easy: 100}
+  train_mixed_100: {easy: 33, medium: 33, hard: 34}
+  val_mixed_100: {easy: 33, medium: 33, hard: 34}
+  test_300: {easy: 100, medium: 100, hard: 100}
+  # priority 2
+  # train_medium_100: {medium: 100}
+  # train_hard_100: {hard: 100}
+input: data/pool/pool.jsonl
+output_dir: data/splits/

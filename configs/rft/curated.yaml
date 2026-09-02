@@ -1,0 +1,7 @@
+arm: rft_curated
+model_id: Qwen/Qwen3-4B-Base
+data_condition: train_mixed_100
+training: configs/locked/training.yaml
+cap_yaml: configs/locked/cap.yaml
+select: {mode: curated, max_per_problem: null}
+seed: 1

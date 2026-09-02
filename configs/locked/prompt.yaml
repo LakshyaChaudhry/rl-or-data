@@ -1,0 +1,7 @@
+# locked (SPEC §5)
+template: |
+  Solve the following problem. Think step by step, then give the final answer on the last line in the form "Answer: <integer>".
+
+  Problem: {problem_text}
+answer_regex: '^Answer:\s*(-?\d+)\s*$'
+thinking: false

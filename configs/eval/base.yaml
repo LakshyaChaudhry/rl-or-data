@@ -1,0 +1,15 @@
+# Base and reference-model evals (SPEC §10). Consumed by `rlordata eval`.
+splits: [val_mixed_100, test_300, ood_hard_200]
+cap_yaml: configs/locked/cap.yaml
+models:
+  - {id: Qwen/Qwen3-4B-Base, kind: base, arm: base}
+  - {id: Qwen/Qwen3-4B, kind: instruct, arm: ref}
+  - {id: Qwen/Qwen2.5-7B-Instruct, kind: instruct, arm: ref}
+  - {id: meta-llama/Llama-3.1-8B-Instruct, kind: instruct, arm: ref}
+  - {id: google/gemma-4-E4B-it, kind: instruct, arm: ref}   # verify exact id
+decoding:
+  greedy: {temperature: 0.0, n: 1}
+  mean_at_k: {temperature: 1.0, top_p: 1.0, n: 8}
+  pass_at_k: {temperature: 1.0, top_p: 1.0, n: 64, subset: test_300_first100, ks: [1, 2, 4, 8, 16, 32, 64]}
+seed: 1
+output_dir: runs/eval/
