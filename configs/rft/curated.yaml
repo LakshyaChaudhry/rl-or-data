@@ -1,7 +1,7 @@
 arm: rft_curated
 model_id: Qwen/Qwen3-4B-Base
-data_condition: train_mixed_100
+data_condition: train_curated
 training: configs/locked/training.yaml
 cap_yaml: configs/locked/cap.yaml
-select: {mode: curated, max_per_problem: null}
+select: {mode: curated, max_per_problem: null}   # samples: 192/prompt from base, sampled once, shared across RFT arms (SPEC §8)
 seed: 1

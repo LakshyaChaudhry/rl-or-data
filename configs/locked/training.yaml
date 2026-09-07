@@ -19,5 +19,6 @@ rft:
   sweep: {learning_rate: [1.0e-5, 5.0e-5, 1.0e-4], epochs: [2, 4, 8]}
   batch_size: 16
   selection_split: val_mixed_100
-seeds: [1, 2, 3]
+seeds: [1, 2, 3]                    # H3 pair (grpo_curated, rft_curated) adds [4, 5] if budget allows
+report_budgets: [prompts, completions_available, completions_consumed, training_tokens, optimizer_steps]  # SPEC §8, v1.1
 checkpoint_every_steps: 25

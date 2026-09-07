@@ -1,0 +1,7 @@
+arm: rft_easy
+model_id: Qwen/Qwen3-4B-Base
+data_condition: train_easy_100
+training: configs/locked/training.yaml
+cap_yaml: configs/locked/cap.yaml
+select: {mode: all, max_per_problem: null}   # samples: 192/prompt from base, sampled once, shared across RFT arms (SPEC §8)
+seed: 1

@@ -12,6 +12,8 @@ PRECISE (SPEC §8)
     RFT-all:      keep (problem, completion) pairs with reward == 1.
     RFT-curated:  let pass8 = number correct among the FIRST 8 samples (fixed order, seed-controlled);
                   keep a problem only if 1 <= pass8 <= 7; then keep its correct completions.
+                  (v1.1) This defines the frozen `train_curated` prompt set, which GRPO-Curated also uses.
+                  Return the selected problem_ids alongside the examples so tiers.py can persist the set.
     Dedup exact-duplicate completions per problem. Optionally cap correct completions per problem
     at `max_per_problem` (config; default None) to avoid easy prompts dominating the SFT set —
     if you cap, cap identically for both arms and record it.

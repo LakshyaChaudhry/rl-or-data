@@ -5,8 +5,9 @@ range_scale:
   S: {lo_min: 1, hi_max: 50}
   M: {lo_min: 1, hi_max: 200}
   L: {lo_min: 1, hi_max: 1000}
-range_scale_weights: {S: 0.4, M: 0.4, L: 0.2}
+range_scale_weights: {S: 0.5, M: 0.5}   # L is reserved for ood_hard (SPEC §6, v1.1)
 n_filters: {min: 1, max: 4}
 n_transforms: {min: 0, max: 3}
+total_steps: {min: 2, max: 5}        # locked (v1.1): training/eval pool never contains 6-8 step problems
 paraphrases_per_operator: 3          # minimum
 output: data/pool/pool.jsonl

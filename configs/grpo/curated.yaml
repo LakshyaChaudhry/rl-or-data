@@ -1,0 +1,8 @@
+arm: grpo
+model_id: Qwen/Qwen3-4B-Base
+data_condition: train_curated
+training: configs/locked/training.yaml
+cap_yaml: configs/locked/cap.yaml
+reward: verify_binary                  # rlordata.core.verify
+vllm: {mode: colocate, gpu_memory_utilization: 0.3}
+seed: 1

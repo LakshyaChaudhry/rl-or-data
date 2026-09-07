@@ -1,20 +1,22 @@
 # SPEC.md — Is it the RL or the data?
 
-**A matched-budget comparison of rejection-sampling SFT and GRPO on procedurally generated counting tasks, in the low-data regime of Bauer et al. (Snorkel, MLSys 2026).**
+**Under matched prompt and rollout budgets, what portion of low-data RLVR gains comes from data selection versus the RL objective itself? A controlled study on procedurally generated counting tasks in the regime of Bauer et al. (Snorkel, MLSys 2026).**
 
-Status: LOCKED v1.0 (2026-09-01). Changes to any section marked 🔒 require an entry in the Changelog (§12) with a reason and date, and may never be made after looking at test-set results.
+Status: LOCKED v1.1 (2026-09-07). Changes to any section marked 🔒 require an entry in the Changelog (§12) with a reason and date, and may never be made after looking at test-set results.
 
 ---
 
 ## 1. Research question
 
-Under a matched budget — same prompts, same verifier, same number of sampled completions — does GRPO outperform rejection-sampling fine-tuning (RFT) on procedurally generated multi-step counting problems? And is the "mixed-difficulty data is ~5× more sample-efficient" effect reported by Bauer et al. a property of RL, or a property of the data that SFT would exhibit too?
+Under matched prompt and rollout budgets, what portion of low-data RLVR gains comes from **data selection** versus the **RL objective itself**? The procedural counting task is the first controlled testbed for this question, not the whole identity of the project; a second task can be added later without changing the framing.
+
+Concretely: with the same underlying prompts, the same verifier, and the same number of sampled completions, does GRPO outperform rejection-sampling fine-tuning (RFT)? And is the "mixed-difficulty data is ~5× more sample-efficient" effect reported by Bauer et al. a property of RL, or a property of the data that SFT would exhibit too?
 
 ### Hypotheses (pre-registered)
 
-- **H1 (data effect):** Mixed-difficulty training data beats easy-only data at equal size *for every arm*, including RFT. If true, the Bauer et al. effect is a data effect.
-- **H2 (implicit filtering):** RFT-curated (prompts filtered to 1–7 correct out of 8, replicating GRPO's implicit prompt filter) closes most of the gap between RFT-all and GRPO. If true, GRPO's advantage is mostly data selection (cf. Lu et al. 2026, DC-SFT, in VLMs).
-- **H3 (on-policy/negatives effect):** GRPO exceeds RFT-curated by more than the seed spread on held-out and OOD-hard. If true, learning from negatives and iterative on-policy updates contribute beyond data selection.
+- **H1 (data effect):** Mixed-difficulty training data improves held-out performance relative to easy-only data *for both* RFT and GRPO. Test: (RFT-Mixed − RFT-Easy) and (GRPO-Mixed − GRPO-Easy), each vs. seed spread. If both are positive, the Bauer et al. effect is broader than RLVR.
+- **H2 (implicit filtering):** RFT trained on prompts selected by the *same current-policy criterion that makes GRPO groups informative* (1–7 correct of 8) recovers a substantial fraction of GRPO's advantage. Test: (RFT-Curated − RFT-Mixed) relative to (GRPO-Curated − RFT-Mixed). If large, RL's edge is mostly an expensive data-selection mechanism (cf. Lu et al. 2026, DC-SFT, in VLMs).
+- **H3 (on-policy / negative-feedback effect):** GRPO-Curated outperforms RFT-Curated by more than run-to-run variability despite identical prompt and sampling budgets. Residual gain can only come from what RFT lacks: negative samples, relative reward, on-policy generation, repeated policy-dependent exploration. **This is the headline comparison.**
 
 Any pattern of outcomes is reportable. The write-up is written for whichever pattern the data shows.
 
@@ -70,7 +72,7 @@ Answer extraction: last line matching `^Answer:\s*(-?\d+)\s*$`. Anything else sc
 
 ## 6. 🔒 Data and splits
 
-Generate a pool of 6,000 problems (seed 20260901) across the full knob space, then:
+Generate a **training/eval pool** of 6,000 problems (seed 20260901) restricted to `range_scale ∈ {S, M}` and `total_steps ∈ {2..5}`. Complexity extrapolation is measured on a separately generated pool with `range_scale = L` and `total_steps ∈ {6..8}` (`ood_hard_200`). Training never sees 6–8-step or L-range problems. Then:
 
 1. **Tiering by the base model's own pass rate.** Sample K=8 completions per problem from `Qwen3-4B-Base` at T=1.0 (§7 decoding) and record `pass8 ∈ {0..8}`. Tiers: **easy** ≥ 6/8, **medium** 2–5/8, **hard** ≤ 1/8. (This replaces the anchor paper's 10-frontier-model tiering; the difference is documented in the write-up.)
 2. **Splits (disjoint by problem_id and pipeline structure):**
@@ -78,9 +80,10 @@ Generate a pool of 6,000 problems (seed 20260901) across the full knob space, th
    - `train_mixed_100`: 33 easy / 33 medium / 34 hard.
    - `val_mixed_100`: 100, 33/33/34, used for all model selection.
    - `test_300`: 100/100/100 stratified. **Never used for any decision.**
-   - `ood_hard_200`: generated separately with `range_scale=L` and `total_steps ∈ {6,7,8}`, tiered post hoc but not filtered.
+   - `train_curated`: the subset of `train_mixed_100` with **1 ≤ pass8 ≤ 7**, using the first 8 of the base model's samples in generation order. Frozen at initialization; never re-selected as any policy improves. Its size and tier composition are reported (expected ~50–75 prompts).
+   - `ood_hard_200`: generated separately with `range_scale=L` and `total_steps ∈ {6,7,8}`, tiered post hoc but not filtered. This is the **complexity-extrapolation** set; `test_300` is the **in-distribution fresh-instance** set.
    - Optional (priority 2): `train_medium_100`, `train_hard_100`, `train_easy_500`, `train_mixed_500`.
-3. **Transfer sets (fixed before training):** one Reasoning Gym task chosen in Phase 1 from {`basic_arithmetic`, `number_filtering`, `count_primes`} — whichever the base scores 20–60% on — 300 instances; GSM8K test subset, first 500 by index. Same prompt template and cap.
+3. **Generalization is measured in two tiers.** Primary: in-distribution fresh instances (`test_300`) and complexity extrapolation (`ood_hard_200`) — the specific question is whether RFT and GRPO *differ* in extrapolation, since Bauer et al. already report RLVR extrapolating upward. Secondary (eval-only, cheap, expected small): one Reasoning Gym task chosen in Phase 1 from {`basic_arithmetic`, `number_filtering`, `count_primes`} — whichever the base scores 20–60% on — 300 instances; GSM8K test subset, first 500 by index. Same prompt template and cap. Cross-domain transfer is not a headline claim.
 
 ## 7. 🔒 Decoding and the token cap
 
@@ -91,22 +94,33 @@ Generate a pool of 6,000 problems (seed 20260901) across the full knob space, th
 
 ## 8. 🔒 Arms
 
-All arms train LoRA on `Qwen3-4B-Base` with the shared hyperparameters in §9, on the same prompt set, using the same verifier.
+All arms train LoRA on `Qwen3-4B-Base` with the shared hyperparameters in §9 and the same verifier. The matrix crosses **prompt distribution** with **training signal**:
 
-| # | Arm | What it adds vs. previous rung | Budget definition |
+| Arm | Prompt set | Training signal | Purpose |
 |---|---|---|---|
-| 0 | Base | — | — |
-| 1 | RFT-all | Sample K per prompt from base; keep verified-correct completions; SFT. | Total sampled completions = GRPO's total (§9): 300 steps × 8 prompts × 8 gen = 19,200 → K = 192 per prompt for a 100-prompt set. SFT epochs/LR chosen on val (§10). |
-| 2 | RFT-curated | Same samples as Arm 1; keep only prompts whose base pass@8 (first 8 of the 192) is in [1, 7]; SFT on their correct completions. | Same as Arm 1. |
-| 3 | GRPO | Same prompts; group-relative advantages; learns from negatives; iterative on-policy updates. | 19,200 sampled completions. |
-| 3b (priority 2) | Iterated RFT (ReST-style) | 3 rounds of sample → filter → SFT from the current policy; isolates on-policy re-sampling from advantage weighting. | 19,200 total across rounds. |
-| 4 (stretch) | On-policy distillation | Student rollouts scored per-token by `Qwen3.5-9B` log-probs. | Same rollout count. |
-| C1 | GRPO, random reward | Reward ~ Bernoulli(0.5), independent of correctness. Spurious-reward control. | Same as Arm 3. |
-| C2 | GRPO, format-only reward | Reward = 1 iff answer line parses. | Same as Arm 3. |
+| Base | — | none | reference |
+| RFT-Easy | `train_easy_100` | verified-correct completions (off-policy SFT) | H1 |
+| RFT-Mixed | `train_mixed_100` | verified-correct completions | H1, H2 |
+| RFT-Curated | `train_curated` | verified-correct completions | H2, H3 |
+| GRPO-Easy | `train_easy_100` | binary verifiable reward, group-relative | H1 |
+| GRPO-Mixed | `train_mixed_100` | binary verifiable reward | H1, H2 |
+| GRPO-Curated | `train_curated` | binary verifiable reward | **H3 headline vs RFT-Curated**; also a check that explicit pre-filtering changes little for GRPO (it should not, if implicit filtering is real) |
+| C1 | `train_mixed_100` | random reward ~ Bernoulli(0.5) | spurious-reward control |
+| C2 | `train_mixed_100` | 1 iff answer line parses | format-only control |
+| Priority 2: Iterated RFT (ReST-style, 3 rounds) | `train_curated` | verified-correct, re-sampled from the current policy each round | isolates on-policy re-sampling from advantage weighting |
+| Stretch: On-policy distillation | `train_curated` | per-token teacher log-probs (`Qwen3.5-9B`) | — |
 
-Primary budget unit = **sampled completions (verifier calls)**. Training FLOPs and wall-clock are reported as secondary.
+**Core grid** = 6 trained arms × 3 seeds = 18 runs (9 GRPO, 9 RFT), plus Base, reference models, and C1/C2 (1 seed). If budget allows, the H3 pair (GRPO-Curated, RFT-Curated) runs **5 seeds**.
 
-**Core grid** = Arms {1, 2, 3} × {train_easy_100, train_mixed_100} × seeds {1, 2, 3} = 18 runs, plus Arm 0, reference models, and C1/C2 on mixed_100 with 1 seed.
+### Budgets (three, all reported)
+
+1. **Prompt budget:** the underlying prompt set is identical for the arm pair being compared (Easy/Easy, Mixed/Mixed, Curated/Curated).
+2. **Generation (rollout) budget:** GRPO consumes 300 steps × 8 prompts × 8 generations = **19,200 sampled completions**. Every RFT arm is given the same 19,200: K = 192 samples per prompt from the base model on `train_mixed_100` (RFT-Easy samples on `train_easy_100`), sampled once and reused; `train_curated` uses the samples belonging to its prompts. Report both budget *available* and budget *consumed* (RFT arms discard incorrect completions; curated arms use fewer prompts).
+3. **Gradient/token budget:** GRPO trains on all 8 completions per group; RFT trains only on correct ones. These cannot be equalized without changing the method — that asymmetry *is* the mechanism under test. Report training tokens consumed and optimizer steps per arm, and present results both per source prompt and per rollout.
+
+RFT gets the positive trajectories obtainable under the matched generation budget; GRPO additionally exploits relative outcomes across successes and failures. H3 asks whether that additional information matters.
+
+**Selection is frozen.** The curated set is chosen once from base-model samples. GRPO's implicit, adaptive filtering (zero-advantage groups) happens inside the algorithm on the same frozen prompt set; that is part of what "the RL objective" means here. Static vs. adaptive prompt selection is an optional later ablation, not part of the primary comparison.
 
 ## 9. 🔒 Shared training hyperparameters (match anchor paper)
 
@@ -117,14 +131,15 @@ Primary budget unit = **sampled completions (verifier calls)**. Training FLOPs a
 | LR schedule | cosine, 10% warmup |
 | GRPO | 300 steps; 8 prompts/step; G=8 generations/prompt; T=1.0; lr 5e-5; KL coef β=0.04 (TRL default at time of writing — record actual); clip ε=0.2; loss = standard GRPO (not Dr.GRPO/DAPO) |
 | RFT SFT | lr ∈ {1e-5, 5e-5, 1e-4}, epochs ∈ {2, 4, 8}, batch 16, completion-only loss; best-on-val config reported, all configs logged |
-| Seeds | 1, 2, 3 control sampling, data order, LoRA init |
+| Seeds | 1, 2, 3 control sampling, data order, LoRA init; 4, 5 added to the H3 pair if budget allows |
 | Checkpointing | every 25 steps to S3; final = last step (no early stopping on test) |
 
 ## 10. 🔒 Evaluation protocol
 
 - **Primary:** greedy accuracy on `test_300` (overall and per tier) and on `ood_hard_200`.
 - **Secondary:** mean@8 at T=1.0; pass@k for k ∈ {1,2,4,8,16,32,64} from n=64 samples on a fixed 100-problem subset of test_300 (unbiased estimator, Chen et al. 2021); mean completion length; truncation rate; extraction-failure rate.
-- **Uncertainty:** per-problem bootstrap 95% CI (10,000 resamples) for each run; mean ± std across the 3 seeds for each arm; paired seed-wise differences between arms.
+- **Uncertainty:** per-problem bootstrap 95% CI (10,000 resamples) for each run; mean ± std across seeds for each arm **with every individual seed shown**; paired seed-wise differences between arms.
+- **Budget reporting:** every results table carries the three budgets from §8 (prompts, completions available/consumed, training tokens and optimizer steps).
 - **Model selection:** only on `val_mixed_100`. Test is evaluated once per final checkpoint.
 - **Transfer:** RG task and GSM8K-500, greedy, before/after, all arms.
 - **Reference models:** same test_300 / ood_hard_200, same template, same cap, greedy and mean@8.
@@ -146,10 +161,11 @@ An arm-vs-arm difference "counts" if (a) |Δ greedy accuracy on test_300| > 2 ×
 
 **Deliverables:** public repo (generator, verifier, harness, configs, run logs); LoRA adapters on HF; write-up (workshop format) with plots, seeds, CIs, truncation rates, compute log, negative results; lab notebook excerpts.
 
-**Timeline (target):** W1 Sep 1–7 data + harness + cloud + base evals + cap. W2 Sep 8–14 RFT arms + SFT sweep. W3 Sep 15–21 GRPO (reference loop on 0.6B → TRL grid). W4 Sep 22–28 seeds, controls, OOD, transfer, draft. October: paper.
+**Timeline (target, revised 2026-09-07 for ~10 h/week):** Sep 7–20 (light): verify/logprobs/evaluate, generator merged and reviewed, AWS quota, pre-registration §1–2. Sep 21–Oct 4: base + reference evals, cap, tiering, splits, pre-registration §3; RFT arms + SFT sweep. Oct 5–18: reference GRPO loop on 0.6B → TRL GRPO grid. Oct 19–31: seeds, controls, extrapolation, secondary transfer, first results. November: write-up.
 
 **Changelog**
 - v1.0 (2026-09-01): initial lock.
+- v1.1 (2026-09-07), before any training run: (a) research question generalized so counting is the testbed, not the identity; (b) arms restructured to a prompt-distribution × signal matrix — added GRPO-Curated, dropped RFT-Curated-on-easy; (c) training pool restricted to S/M ranges and 2–5 steps so `ood_hard_200` is a clean complexity-extrapolation test; (d) three budgets (prompt, rollout, gradient/token) defined and all reported; (e) H3 pair gets 5 seeds if budget allows; (f) timeline revised for ~10 h/week. Prompted by an external review; the review's 100×8=800 rollout figure was rejected — GRPO's budget is 19,200 (§8) and matching RFT to 800 would have under-budgeted it 24×.
 
 ## 13. Component contracts (summary; signatures live in `src/rlordata/core/`)
 

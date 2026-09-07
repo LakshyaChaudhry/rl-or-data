@@ -12,6 +12,8 @@ splits:
   train_mixed_100: {easy: 33, medium: 33, hard: 34}
   val_mixed_100: {easy: 33, medium: 33, hard: 34}
   test_300: {easy: 100, medium: 100, hard: 100}
+  # v1.1: derived, not sampled — subset of train_mixed_100 with 1 <= pass8 <= 7 (first 8 samples, generation order); frozen
+  train_curated: {derived_from: train_mixed_100, pass8_min: 1, pass8_max: 7}
   # priority 2
   # train_medium_100: {medium: 100}
   # train_hard_100: {hard: 100}
