@@ -1,4 +1,4 @@
-.PHONY: setup-mac setup-gpu test lint fmt gen eval-base clean
+.PHONY: setup-mac setup-gpu test lint fmt gen gen-ood sample-pool eval-base clean
 
 setup-mac:
 	bash setup/setup_mac.sh
@@ -21,6 +21,15 @@ fmt:
 # Implemented by tasks/01 (generator + tiering needs a GPU for the pass@8 step; the pool itself is CPU-only)
 gen:
 	uv run rlordata gen --config configs/data/pool.yaml
+
+# tasks/01b: the complexity-extrapolation set (SPEC §6), generated separately with its own seed
+gen-ood:
+	uv run rlordata gen --config configs/data/ood.yaml
+
+# tasks/01b: 20 random pool problems with answers and per-step set sizes, for hand-review
+sample-pool:
+	uv run python scripts/sample_pool.py --pool data/pool/pool.jsonl --n 20 --seed 20260908 \
+		--out notebook/samples/pool_v1.2_sample20_seed20260908.md
 
 # Implemented by tasks/02
 eval-base:
