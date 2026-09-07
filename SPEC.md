@@ -2,7 +2,7 @@
 
 **Under matched prompt and rollout budgets, what portion of low-data RLVR gains comes from data selection versus the RL objective itself? A controlled study on procedurally generated counting tasks in the regime of Bauer et al. (Snorkel, MLSys 2026).**
 
-Status: LOCKED v1.1 (2026-09-07). Changes to any section marked 🔒 require an entry in the Changelog (§12) with a reason and date, and may never be made after looking at test-set results.
+Status: LOCKED v1.2 (2026-09-08). Changes to any section marked 🔒 require an entry in the Changelog (§12) with a reason and date, and may never be made after looking at test-set results.
 
 ---
 
@@ -52,9 +52,13 @@ Follows the Bauer et al. generator description. Each problem is:
 4. One final **operation**: count, unique-count, zero-count, sum, product-mod-m (to keep integers bounded), mean (integer-rounded), median, mode, min, max, range, bitwise-AND/OR/XOR over the set.
 5. A deterministic integer answer computed by executing the pipeline in Python.
 
-**Structural complexity knobs:** `range_scale` (span of `[lo, hi]`: S ≤ 50, M ≤ 200, L ≤ 1000), `n_filters` (1–4), `n_transforms` (0–3), `total_steps = n_filters + n_transforms + 1` (2–8), operator families in use.
+**Structural complexity knobs:** `range_scale` = span `hi − lo` of `[lo, hi]`, with **disjoint bands**: S ∈ [10, 50], M ∈ [51, 200], L ∈ [201, 1000] (lo ≥ 1); `n_filters` (1–4), `n_transforms` (0–3), `total_steps = n_filters + n_transforms + 1` (2–8), operator families in use.
 
-**Rendering:** natural-language template, e.g. "Consider the integers from 1 to 100, inclusive. First, keep only the numbers that are even. Then, keep only the numbers that are divisible by 3. Of these numbers, count how many values remain." Templates are paraphrased across ≥3 surface forms per operator so the model cannot key on exact wording.
+**Every step must do work (v1.2).** A pipeline is rejected if any filter or transform leaves the multiset unchanged (no-op), if two consecutive filters are identical, if fewer than 3 values reach the final operation, if the final op is `mode` and no val final op is `unique-count` and no value repeats. Because `lo ≥ 1`, the `positive` and `negative` filters can never do work in this pool and are **excluded from the main-pool taxonomy** (documented divergence from Bauer et al.'s operator list).
+
+**Balanced pool (v1.2).** Generation is stratified: equal target counts per (`range_scale` × `total_steps`) cell, retrying until each cell is full, so rejection does not skew the pool toward short pipelines or small ranges. Cell counts are printed and stored with the pool.
+
+**Rendering:** natural-language template, e.g. "Consider the integers from 1 to 100, inclusive. First, keep only the numbers that are even. Then, keep only the numbers that are divisible by 3. Of these numbers, count how many values remain." Templates are paraphrased across ≥3 surface forms per operator so the model cannot key on exact wording. Connectives are chosen by position ("First" for step 1, "Then"/"Next" in the middle, "Finally" for the last op); only the operation phrase is paraphrased.
 
 **Guarantees the generator must provide:** deterministic given `(seed, config)`; every problem carries a `problem_id = sha256(canonical_pipeline_json)`; the answer is recomputed by an *independent* reference implementation in tests; splits are disjoint by `problem_id` and additionally by pipeline structure (no test pipeline appears in train with only the range changed).
 
@@ -165,6 +169,7 @@ An arm-vs-arm difference "counts" if (a) |Δ greedy accuracy on test_300| > 2 ×
 
 **Changelog**
 - v1.0 (2026-09-01): initial lock.
+- v1.2 (2026-09-08), after reviewing the first generator output, before any tiering or training: §4 gains disjoint span bands per range scale, the every-step-must-do-work rejection rules, degenerate-final-op rejection, stratieneration per (scale × steps) cell, position-aware connectives, and removal of the dead `positive`/`negative` filters from the main pool. Motivated by no-op filters inflating `total_steps` (which would corrupt the complexity-extrapolation axis) and by tiny ranges producing single-element sets.
 - v1.1 (2026-09-07), before any training run: (a) research question generalized so counting is the testbed, not the identity; (b) arms restructured to a prompt-distribution × signal matrix — added GRPO-Curated, dropped RFT-Curated-on-easy; (c) training pool restricted to S/M ranges and 2–5 steps so `ood_hard_200` is a clean complexity-extrapolation test; (d) three budgets (prompt, rollout, gradient/token) defined and all reported; (e) H3 pair gets 5 seeds if budget allows; (f) timeline revised for ~10 h/week. Prompted by an external review; the review's 100×8=800 rollout figure was rejected — GRPO's budget is 19,200 (§8) and matching RFT to 800 would have under-budgeted it 24×.
 
 ## 13. Component contracts (summary; signatures live in `src/rlordata/core/`)

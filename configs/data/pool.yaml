@@ -1,11 +1,21 @@
 # Problem pool generation (SPEC §4, §6). Consumed by `rlordata gen`.
 seed: 20260901                       # locked
 n_problems: 6000
-range_scale:
-  S: {lo_min: 1, hi_max: 50}
-  M: {lo_min: 1, hi_max: 200}
-  L: {lo_min: 1, hi_max: 1000}
-range_scale_weights: {S: 0.5, M: 0.5}   # L is reserved for ood_hard (SPEC §6, v1.1)
+lo_min: 1
+range_scale:                          # v1.2: scale = span hi-lo, disjoint bands
+  S: {span_min: 10, span_max: 50}
+  M: {span_min: 51, span_max: 200}
+  L: {span_min: 201, span_max: 1000}  # reserved for ood_hard (SPEC §6)
+scales_in_pool: [S, M]
+stratify: true                        # v1.2: equal counts per (scale x total_steps) cell
+reject:                               # v1.2 (SPEC §4)
+  noop_steps: true
+  duplicate_consecutive_filters: true
+  min_values_at_final_op: 3
+  mode_without_repeat: true
+  unique_count_withepeat: true
+  max_abs_answer: 1000000000
+excluded_filters: [positive, negative]
 n_filters: {min: 1, max: 4}
 n_transforms: {min: 0, max: 3}
 total_steps: {min: 2, max: 5}        # locked (v1.1): training/eval pool never contains 6-8 step problems

@@ -1,6 +1,7 @@
 # OOD-hard set (SPEC §6): larger ranges, more steps. Generated separately, never used for training/selection.
 seed: 20260902
 n_problems: 200
-range_scale_weights: {L: 1.0}
+scales_in_pool: [L]
+stratify: true                        # equal counts per total_steps in {6,7,8}
 total_steps: [6, 7, 8]
 output: data/pool/ood_hard_200.jsonl
