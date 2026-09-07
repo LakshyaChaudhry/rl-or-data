@@ -24,11 +24,17 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     # Dispatch is filled in by the agent as each task lands. Keep this file thin.
-    dispatch = {}
+    dispatch: dict = {}
     try:
-        from rlordata.data import generator  # noqa: F401
+        from rlordata.data import generator
 
         dispatch["gen"] = generator.cli_main
+    except (ImportError, AttributeError):
+        pass
+    try:
+        from rlordata.data import tiers
+
+        dispatch["tier"] = tiers.cli_main
     except (ImportError, AttributeError):
         pass
     if args.cmd not in dispatch:

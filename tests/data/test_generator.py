@@ -271,7 +271,7 @@ def test_canonical_id_ignores_key_order_and_changes_on_edit() -> None:
 
 
 def test_split_disjointness_by_id_and_structure() -> None:
-    cfg = _small_pool_config(n=800, seed=7)
+    cfg = _small_pool_config(n=2500, seed=7)
     pool = generate_pool(cfg, seed=7)
     # Synthetic pass8: cycle so all tiers are populated.
     enriched: list[Problem] = []
