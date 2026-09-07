@@ -13,7 +13,6 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
-import pytest
 import yaml
 
 from rlordata.data.generator import (

@@ -216,20 +216,17 @@ _OP_TEMPLATES: dict[str, list[str]] = {
         "What is the product of the remaining values modulo {m}?",
     ],
     "mean": [
-        "Of these numbers, compute the mean and round to the nearest integer "
-        "(round half to even).",
+        "Of these numbers, compute the mean and round to the nearest integer (round half to even).",
         "Finally, report the integer mean of the remaining values, using round-half-to-even.",
         "What is the mean of the remaining numbers, rounded to an integer with round half to even?",
     ],
     "median": [
-        "Of these numbers, compute the median "
-        "(for an even count, use the lower median).",
+        "Of these numbers, compute the median (for an even count, use the lower median).",
         "Finally, report the median of the remaining values; if the count is even, use the lower median.",
         "What is the median of the remaining numbers (lower median when the length is even)?",
     ],
     "mode": [
-        "Of these numbers, compute the mode "
-        "(if there is a tie, choose the smallest value).",
+        "Of these numbers, compute the mode (if there is a tie, choose the smallest value).",
         "Finally, report the mode of the remaining values; break ties by taking the smallest.",
         "What is the mode of the remaining numbers (smallest value on ties)?",
     ],
@@ -600,9 +597,7 @@ def _sample_range(
     return lo, hi
 
 
-def _sample_filter(
-    rng: np.random.Generator, lo: int, hi: int
-) -> dict[str, Any]:
+def _sample_filter(rng: np.random.Generator, lo: int, hi: int) -> dict[str, Any]:
     name = str(rng.choice(FILTER_NAMES))
     filt: dict[str, Any] = {"name": name}
     if name in ("divisible_by", "not_divisible_by"):
@@ -662,9 +657,7 @@ def _sample_counts(
     return candidates[idx]
 
 
-def _try_sample_pipeline(
-    rng: np.random.Generator, config: dict[str, Any]
-) -> dict[str, Any] | None:
+def _try_sample_pipeline(rng: np.random.Generator, config: dict[str, Any]) -> dict[str, Any] | None:
     range_scale = config.get("range_scale", DEFAULT_RANGE_SCALE)
     weights_cfg = config["range_scale_weights"]
     scales = list(weights_cfg.keys())
