@@ -1,0 +1,15 @@
+# tasks/02 §5: base-model accuracy on the Reasoning Gym candidates (SPEC §6.3) to pick the one in 20–60 %,
+# plus GSM8K test first 500. Greedy only (the pick is a base-accuracy threshold). Same TEMPLATE, same cap.
+# number_filtering is not listed: its answers are lists, not integers (see rlordata/data/transfer.py).
+# Requires: uv pip install -e ".[transfer]"   (reasoning-gym), and `datasets` for GSM8K.
+splits: [rg_basic_arithmetic_300, rg_count_primes_300, gsm8k_500]
+cap_yaml: configs/locked/cap.yaml
+models:
+  - {id: Qwen/Qwen3-4B-Base, kind: base, arm: base}
+decoding:
+  greedy: {temperature: 0.0, n: 1}
+seed: 1
+output_dir: runs/transfer_pick/
+est_tokens_per_sec: 3000
+dtype: bfloat16
+gpu_memory_utilization: 0.9
