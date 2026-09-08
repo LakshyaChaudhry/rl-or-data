@@ -27,7 +27,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from rlordata.core.verify import ANSWER_RE  # noqa: E402
+from rlordata.core.verify import extract_answer  # noqa: E402
 
 _TRAILING = re.compile(r"^Answer:\s*(-?\d+)\S.*$|^Answer:\s*(-?\d+)\s+\S.*$", re.MULTILINE)
 _NONINT = re.compile(r"^Answer:\s*(?!-?\d+\s*$).+$", re.MULTILINE)
@@ -38,8 +38,8 @@ _PROSE = re.compile(r"(?i)\bthe (final )?answer is\b")
 
 
 def bucket(completion: str, truncated: bool) -> str:
-    if ANSWER_RE.search(completion):
-        return "parsed"  # should not happen for extraction_failed samples
+    if extract_answer(completion) is not None:
+        return "parsed_by_current_rule"  # stored verdict predates the current rule; rescore
     if truncated:
         return "truncated"
     if _TRAILING.search(completion):

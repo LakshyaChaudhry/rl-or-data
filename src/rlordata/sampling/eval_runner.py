@@ -34,7 +34,7 @@ import yaml
 
 from rlordata.artifacts import sync_run_dir
 from rlordata.core.evaluate import compute_metrics, pass_at_k
-from rlordata.core.verify import ANSWER_RE, verify_batch
+from rlordata.core.verify import ANSWER_RULE_TEXT, EXTRACTION_RULE, verify_batch
 from rlordata.data.candidates import VAL_CANDIDATES_NAME, val_candidates
 from rlordata.data.generator import read_jsonl
 from rlordata.envfile import gpu_rate_usd_per_hour, load_env
@@ -269,7 +269,8 @@ def resolved_unit_config(
         "cap_is_provisional": bool(sampler_desc.get("cap_is_provisional", False)),
         "max_prompt_tokens": MAX_PROMPT_TOKENS,
         "prompt_template": TEMPLATE,
-        "answer_regex": ANSWER_RE.pattern,
+        "answer_regex": ANSWER_RULE_TEXT,
+        "extraction_rule": EXTRACTION_RULE,
         "sampler": sampler_desc,
     }
 

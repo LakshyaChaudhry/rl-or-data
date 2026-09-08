@@ -21,7 +21,7 @@ import numpy as np
 import yaml
 
 from rlordata.artifacts import sync_run_dir
-from rlordata.core.verify import ANSWER_RE
+from rlordata.core.verify import ANSWER_RULE_TEXT, EXTRACTION_RULE
 from rlordata.data.generator import canonical_id, read_jsonl, write_jsonl
 from rlordata.envfile import gpu_rate_usd_per_hour, load_env
 from rlordata.run_dir import finish_run, format_cost, start_run
@@ -442,7 +442,8 @@ def cli_main(args: Any) -> int:
             "cap_is_provisional": False,
             "max_prompt_tokens": MAX_PROMPT_TOKENS,
             "prompt_template": TEMPLATE,
-            "answer_regex": ANSWER_RE.pattern,
+            "answer_regex": ANSWER_RULE_TEXT,
+            "extraction_rule": EXTRACTION_RULE,
             "thinking": False,
             "tiers": {"easy_min_pass8": easy_min, "medium_min_pass8": medium_min},
             "splits": config.get("splits"),
@@ -526,7 +527,8 @@ def cli_main(args: Any) -> int:
             "cap_is_provisional": allow_provisional,
             "max_prompt_tokens": MAX_PROMPT_TOKENS,
             "prompt_template": TEMPLATE,
-            "answer_regex": ANSWER_RE.pattern,
+            "answer_regex": ANSWER_RULE_TEXT,
+            "extraction_rule": EXTRACTION_RULE,
             "thinking": False,
             "tiers": {"easy_min_pass8": easy_min, "medium_min_pass8": medium_min},
             "splits": config.get("splits"),

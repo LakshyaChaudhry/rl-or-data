@@ -14,10 +14,12 @@ def test_exact_last_line(toy_problem):
     assert v.reward == 1.0 and v.extracted == 16 and not v.extraction_failed
 
 
-def test_trailing_period_fails(toy_problem):
+def test_trailing_period_accepted_v15(toy_problem):
+    # SPEC v1.5 (2026-09-08): a single trailing '.' or ',' after the integer is allowed.
+    # (v1.4 expected this to fail; expected value changed under the amendment, authorized by Laksh.)
     skip_unless_implemented(vf.extract_answer, "Answer: 16")
     v = vf.verify(toy_problem, "Answer: 16.")
-    assert v.reward == 0.0 and v.extraction_failed
+    assert v.reward == 1.0 and v.extracted == 16 and not v.extraction_failed
 
 
 def test_last_answer_line_wins(toy_problem):

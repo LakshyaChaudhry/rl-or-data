@@ -6,9 +6,10 @@ The provisional run already holds 8 T=1.0 completions for 500 pool problems, so 
 `make tier` would produce can be previewed here before spending GPU time. Three extraction rules are
 compared (the SPEC §5 rule is what the pipeline scores with; the others are for the amendment decision):
 
-  strict   SPEC §5: last line matching ^Answer:\\s*(-?\\d+)\\s*$
+  strict   the v1.4 rule: last line matching ^Answer:\\s*(-?\\d+)\\s*$
   boxed    strict + \\boxed{N}, **Answer:** N, Final Answer: N, and a trailing '.'/',' after the integer
   prose    boxed + 'the (final) answer is N'
+  current  whatever core.verify implements now (v1.5 == boxed, up to regex details)
 
 Every rule still demands the exact integer and takes the LAST match. Nothing here changes scoring.
 """
@@ -26,12 +27,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from rlordata.core.verify import ANSWER_RE  # noqa: E402
+from rlordata.core.verify import extract_answer  # noqa: E402
 from rlordata.data.tiers import tier_from_pass8  # noqa: E402
 
 _INT = r"(-?\d[\d,]*)"
+_V14_RE = re.compile(r"^Answer:\s*(-?\d+)\s*$", re.MULTILINE)  # the pre-v1.5 rule, for comparison
 RULES: dict[str, list[re.Pattern[str]]] = {
-    "strict": [ANSWER_RE],
+    "strict": [_V14_RE],
     "boxed": [
         re.compile(
             r"^\s*(?:\*\*)?(?:Final )?Answer:?(?:\*\*)?:?\s*\$?\\?(?:boxed\{)?\s*"
@@ -55,6 +57,8 @@ RULES: dict[str, list[re.Pattern[str]]] = {
 
 
 def extract(completion: str, rule: str) -> int | None:
+    if rule == "current":
+        return extract_answer(completion)
     last: tuple[int, int] | None = None  # (position, value)
     for pat in RULES[rule]:
         for m in pat.finditer(completion):
@@ -82,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
     ]
     problems = sorted({r["problem_id"] for r in rows})
     print(f"{len(rows)} samples over {len(problems)} problems")
-    for rule in RULES:
+    for rule in [*RULES, "current"]:
         pass8: Counter[str] = Counter({p: 0 for p in problems})
         n_extracted = 0
         n_correct = 0

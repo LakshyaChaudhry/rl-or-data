@@ -78,6 +78,7 @@ def test_protocol_identity_and_rate_flags(tmp_path: Path) -> None:
         "max_completion_tokens": 1024,
         "prompt_template": "T {problem_text}",
         "answer_regex": "^Answer",
+        "extraction_rule": "v1.5",
         "max_prompt_tokens": 1024,
     }
     good = {"accuracy": 0.5, "truncation_rate": 0.01, "extraction_failure_rate": 0.02}
@@ -91,9 +92,14 @@ def test_protocol_identity_and_rate_flags(tmp_path: Path) -> None:
     issues = sanity.check_run_dirs([a, c])
     assert any("max_completion_tokens differs" in i for i in issues)
     assert any("truncation rate 0.200 > 0.05" in i for i in issues)
-    d = _run_dir(tmp_path, "d", {**base, "prompt_template": "other", "cap_is_provisional": True})
+    d = _run_dir(
+        tmp_path,
+        "d",
+        {**base, "prompt_template": "other", "extraction_rule": "v1.4", "cap_is_provisional": True},
+    )
     issues = sanity.check_run_dirs([a, d])
     assert any("prompt_template differs" in i for i in issues)
+    assert any("extraction_rule differs" in i for i in issues)
     assert any("provisional cap" in i for i in issues)
     assert any("no metrics.json" in i for i in issues)
     e = _run_dir(tmp_path, "e", {"max_completion_tokens": 1024})

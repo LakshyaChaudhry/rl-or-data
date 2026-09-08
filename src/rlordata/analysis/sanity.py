@@ -33,7 +33,13 @@ from rlordata.types import Problem
 
 TRUNCATION_MAX = 0.05  # SPEC §7
 EXTRACTION_FAILURE_MAX = 0.05  # design choice; flagged, not headline-blocking
-PROTOCOL_FIELDS = ("max_completion_tokens", "prompt_template", "answer_regex", "max_prompt_tokens")
+PROTOCOL_FIELDS = (
+    "max_completion_tokens",
+    "prompt_template",
+    "answer_regex",
+    "extraction_rule",
+    "max_prompt_tokens",
+)
 # (subset, superset) pairs where overlap is by construction, not leakage.
 DERIVED_SPLITS: tuple[tuple[str, str], ...] = (("train_curated", "train_mixed_100"),)
 # Files in data/splits that are not splits.

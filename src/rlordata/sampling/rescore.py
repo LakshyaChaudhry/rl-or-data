@@ -25,7 +25,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from rlordata.core.verify import verify
+from rlordata.core.verify import EXTRACTION_RULE, verify
 from rlordata.run_dir import git_sha, now_iso
 from rlordata.sampling.eval_runner import metrics_for, read_samples, write_samples
 from rlordata.types import Problem, Sample
@@ -114,6 +114,7 @@ def rescore_samples(
         "extraction_failure_before": sum(s.extraction_failed for s in samples)
         / max(1, len(samples)),
         "extraction_failure_after": sum(s.extraction_failed for s in out) / max(1, len(samples)),
+        "extraction_rule": EXTRACTION_RULE,
         "verify_git_sha": git_sha(),
         "rescored_at": now_iso(),
     }
