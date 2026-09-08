@@ -1,0 +1,134 @@
+{
+  "output": "data/pool/ood_hard_200.jsonl",
+  "generated_at": "2026-09-07T23:06:17+00:00",
+  "git_sha": "dc344a5c518724b28779c0099ec77fa8a909f76d",
+  "rlordata_version": "0.1.0",
+  "numpy_version": "2.3.5",
+  "seed": 20260902,
+  "config_hash": "6d7e2d80b8868b227240f76973aeb18ad79355e7980ad43745d0a1cb243e7b2e",
+  "config": {
+    "n_problems": 200,
+    "lo_min": 1,
+    "range_scale": {
+      "S": {
+        "span_min": 10,
+        "span_max": 50,
+        "hi_max": 51
+      },
+      "M": {
+        "span_min": 51,
+        "span_max": 200,
+        "hi_max": 201
+      },
+      "L": {
+        "span_min": 201,
+        "span_max": 1000,
+        "hi_max": 1001
+      }
+    },
+    "scales_in_pool": [
+      "L"
+    ],
+    "stratify": true,
+    "total_steps": [
+      6,
+      7,
+      8
+    ],
+    "n_filters": {
+      "min": 1,
+      "max": 4
+    },
+    "n_transforms": {
+      "min": 0,
+      "max": 3
+    },
+    "excluded_filters": [
+      "negative",
+      "positive"
+    ],
+    "reject": {
+      "noop_steps": true,
+      "duplicate_consecutive_filters": true,
+      "min_values_at_final_op": 3,
+      "mode_without_repeat": true,
+      "unique_count_without_repeat": true,
+      "max_abs_answer": 1000000000
+    },
+    "paraphrases_per_operator": 3
+  },
+  "n_problems": 200,
+  "n_attempts": 2276,
+  "rejection_rate": 0.9121,
+  "rejection_reasons": {
+    "answer_too_large": 6,
+    "bitwise_negative": 1,
+    "duplicate_consecutive_filters": 243,
+    "empty_set": 1066,
+    "mode_without_repeat": 5,
+    "noop_filter": 460,
+    "noop_transform": 233,
+    "too_few_at_final_op": 58,
+    "unique_count_without_repeat": 4
+  },
+  "cells": [
+    {
+      "range_scale": "L",
+      "total_steps": 6,
+      "target": 67,
+      "accepted": 67,
+      "attempts": 329,
+      "rejected": 262,
+      "rejection_rate": 0.7964,
+      "reasons": {
+        "answer_too_large": 1,
+        "duplicate_consecutive_filters": 25,
+        "empty_set": 118,
+        "mode_without_repeat": 3,
+        "noop_filter": 46,
+        "noop_transform": 53,
+        "too_few_at_final_op": 15,
+        "unique_count_without_repeat": 1
+      }
+    },
+    {
+      "range_scale": "L",
+      "total_steps": 7,
+      "target": 67,
+      "accepted": 67,
+      "attempts": 580,
+      "rejected": 513,
+      "rejection_rate": 0.8845,
+      "reasons": {
+        "answer_too_large": 2,
+        "bitwise_negative": 1,
+        "duplicate_consecutive_filters": 70,
+        "empty_set": 251,
+        "noop_filter": 100,
+        "noop_transform": 69,
+        "too_few_at_final_op": 19,
+        "unique_count_without_repeat": 1
+      }
+    },
+    {
+      "range_scale": "L",
+      "total_steps": 8,
+      "target": 66,
+      "accepted": 66,
+      "attempts": 1367,
+      "rejected": 1301,
+      "rejection_rate": 0.9517,
+      "reasons": {
+        "answer_too_large": 3,
+        "duplicate_consecutive_filters": 148,
+        "empty_set": 697,
+        "mode_without_repeat": 2,
+        "noop_filter": 314,
+        "noop_transform": 111,
+        "too_few_at_final_op": 24,
+        "unique_count_without_repeat": 2
+      }
+    }
+  ],
+  "wall_clock_s": 0.215
+}
