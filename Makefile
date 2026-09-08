@@ -1,4 +1,4 @@
-.PHONY: setup-mac setup-gpu test test-all lint fmt gen gen-ood sample-pool cap-run cap tier tier-dry eval-base eval-dry sanity transfer-pick sync clean
+.PHONY: setup-mac setup-gpu test test-all lint fmt gen gen-ood gen-check sample-pool cap-run cap tier tier-dry eval-base eval-dry sanity transfer-pick sync clean
 
 setup-mac:
 	bash setup/setup_mac.sh
@@ -25,6 +25,11 @@ gen:
 # tasks/01b: the complexity-extrapolation set (SPEC §6), generated separately with its own seed
 gen-ood:
 	uv run rlordata gen --config configs/data/ood.yaml
+
+# The pool is committed. Regenerate from configs into a scratch dir and diff against data/pool/ (box-side
+# determinism check: numpy Generator streams are not guaranteed identical across numpy versions).
+gen-check:
+	uv run python scripts/check_pool.py
 
 # tasks/01b: 20 random pool problems with answers and per-step set sizes, for hand-review
 sample-pool:

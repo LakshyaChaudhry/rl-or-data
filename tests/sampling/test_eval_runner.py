@@ -260,12 +260,14 @@ def test_eval_stub_end_to_end_produces_every_file(world: World, capsys) -> None:
     assert metrics["truncation_flag_policy"] == "flag" and "per_tier_at_cap_rate" in metrics
 
 
-def test_test_300_is_evaluated_once_unless_forced(world: World, capsys) -> None:
+def test_finished_units_resume_and_test_300_needs_force(world: World, capsys) -> None:
     cfg = world.eval_config()
+    # second run: everything is done -> all skipped, exit 0, test_300 units say why
     rc = main(["eval", "--config", str(cfg), "--stub"])
-    err = capsys.readouterr().err
-    assert rc == 2 and "test_300" in err and "--force" in err
-    # resume: remove one val unit and every test_300 unit -> only those re-run, others untouched
+    out = capsys.readouterr().out
+    assert rc == 0 and "0 to run, 35 already done" in out
+    assert "test_300 is evaluated once per model" in out
+    # partial failure: remove one val unit and one model's test_300 -> only those re-run
     out_dir = Path(yaml.safe_load(cfg.read_text())["output_dir"])
     slug = model_slug("Qwen/Qwen3-4B-Base")
     keep = out_dir / slug / "ood_hard_200" / "greedy" / "meta.json"
@@ -273,17 +275,27 @@ def test_test_300_is_evaluated_once_unless_forced(world: World, capsys) -> None:
     import shutil
 
     shutil.rmtree(out_dir / slug / "val_mixed_100" / "greedy")
-    for m in yaml.safe_load(cfg.read_text())["models"]:
-        shutil.rmtree(out_dir / model_slug(m["id"]) / "test_300")
+    shutil.rmtree(out_dir / model_slug("Qwen/Qwen3-4B") / "test_300")
     rc = main(["eval", "--config", str(cfg), "--stub"])
     out = capsys.readouterr().out
-    assert rc == 0
-    assert "16 to run, 19 already done" in out
+    assert rc == 0 and "4 to run, 31 already done" in out
     assert keep.read_text() == before
     assert (out_dir / slug / "val_mixed_100" / "greedy" / "samples.jsonl").exists()
-    # --force re-runs everything, including test_300
+    assert (
+        out_dir / model_slug("Qwen/Qwen3-4B") / "test_300" / "pass_at_k" / "samples.jsonl"
+    ).exists()
+    # --models restricts the run; unknown id is an error
+    shutil.rmtree(out_dir / slug / "val_mixed_100" / "greedy")
+    rc = main(["eval", "--config", str(cfg), "--stub", "--models", "Qwen/Qwen3-4B-Base"])
+    out = capsys.readouterr().out
+    assert rc == 0 and "1 to run, 6 already done" in out
+    assert main(["eval", "--config", str(cfg), "--stub", "--models", "nope/x"]) == 2
+    capsys.readouterr()
+    # --force re-runs everything, including test_300, with a warning
     assert main(["eval", "--config", str(cfg), "--stub", "--force"]) == 0
-    assert "35 to run, 0 already done" in capsys.readouterr().out
+    captured = capsys.readouterr()
+    assert "35 to run, 0 already done" in captured.out
+    assert "--force re-samples" in captured.err and "test_300" in captured.err
 
 
 def test_dry_run_and_n_problems(world: World, tmp_path: Path, capsys) -> None:

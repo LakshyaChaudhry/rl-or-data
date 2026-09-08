@@ -13,7 +13,9 @@ plus ``<output_dir>/summary.md`` / ``summary.json`` (model × split × {greedy, 
 Protocol guards (CLAUDE.md): the cap comes from ``configs/locked/cap.yaml`` for every model
 (``sampling.cap.resolve_cap``); ``test_300`` is evaluated once per model and re-running it needs
 ``--force``; thinking is never enabled; instruct models get the locked TEMPLATE inside their chat
-template. ``--stub`` never touches a GPU and is the acceptance test for the pipeline layout.
+template. ``--stub`` never touches a GPU and is the acceptance test for the pipeline layout. Finished units
+(``samples.jsonl`` present) are skipped so an interrupted run resumes; ``--models a,b`` restricts a
+run to some model ids (one model per process avoids vLLM teardown issues between models).
 """
 
 from __future__ import annotations
@@ -746,25 +748,28 @@ def cli_main(args: Any) -> int:
     )
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # test_300 is evaluated once per model (SPEC §10 / tasks/02).
-    clashes = [
-        u
-        for u in units
-        if u.split == "test_300" and (u.out_dir(output_dir) / "samples.jsonl").exists()
-    ]
-    if clashes and not force:
-        for u in clashes:
-            print(
-                f"REFUSING: test_300 samples already exist at {u.out_dir(output_dir)}",
-                file=sys.stderr,
-            )
+    # Optional model filter (run one model per process; finished units are skipped anyway).
+    only = getattr(args, "models", None)
+    if only:
+        wanted = {m.strip() for m in str(only).split(",") if m.strip()}
+        unknown = wanted - {u.model.id for u in units}
+        if unknown:
+            print(f"--models: unknown model id(s) {sorted(unknown)}", file=sys.stderr)
+            return 2
+        units = [u for u in units if u.model.id in wanted]
+
+    # Resume semantics: a unit whose samples.jsonl exists is skipped. test_300 is evaluated once
+    # per model (SPEC §10 / tasks/02): its finished units are never re-sampled without --force,
+    # and --force says so loudly.
+    done = [u for u in units if (u.out_dir(output_dir) / "samples.jsonl").exists()]
+    test_done = [u for u in done if u.split == "test_300"]
+    if force and test_done:
         print(
-            "test_300 is evaluated once per model; pass --force to deliberately re-run.",
+            f"WARNING: --force re-samples {len(test_done)} finished test_300 unit(s); test_300 is meant to be "
+            "evaluated once per model (SPEC §10). Only do this deliberately.",
             file=sys.stderr,
         )
-        return 2
-
-    todo = [u for u in units if force or not (u.out_dir(output_dir) / "samples.jsonl").exists()]
+    todo = [u for u in units if force or u not in done]
     skipped = [u for u in units if u not in todo]
     rate = gpu_rate_usd_per_hour()
     est_hours = _estimate_gpu_hours(todo, cap, est_tps)
@@ -774,9 +779,15 @@ def cli_main(args: Any) -> int:
         f"seed={seed} cap={cap} sampler={'stub' if stub else 'vllm'} output={output_dir}"
     )
     for u in units:
-        mark = "run " if u in todo else "skip"
+        if u in todo:
+            mark = "run"
+        elif u.split == "test_300":
+            mark = "skip (done; test_300 is evaluated once per model — --force to redo)"
+        else:
+            mark = "skip (done)"
         print(
-            f"  {mark} {u.model.slug:<34} {u.split:<16} {u.decoding.name:<10} n_problems={len(u.problems):<4} n={u.decoding.n}"
+            f"  {u.model.slug:<34} {u.split:<16} {u.decoding.name:<10} n_problems={len(u.problems):<4} "
+            f"n={u.decoding.n}  {mark}"
         )
     print(
         f"cost estimate (START, worst case: every completion hits the cap; assumes {est_tps:.0f} tok/s): "

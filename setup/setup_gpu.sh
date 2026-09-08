@@ -41,6 +41,10 @@ if ! command -v uv >/dev/null 2>&1; then
   curl -LsSf https://astral.sh/uv/install.sh | sh
   export PATH="$HOME/.local/bin:$PATH"
 fi
+# The env is built with `uv pip install` (vLLM pins its own torch). Stop `uv run` from re-syncing it
+# against uv.lock (resolved on the Mac without the gpu extra), which could downgrade torch/numpy.
+export UV_NO_SYNC=1
+grep -q '^export UV_NO_SYNC=' ~/.bashrc || echo 'export UV_NO_SYNC=1' >> ~/.bashrc
 uv venv --python 3.11 .venv
 # Let vLLM pin the torch build it was compiled against (it ships CUDA wheels); installing torch first
 # from a different index produced ABI mismatches in the past.
@@ -60,8 +64,17 @@ PY
 uv run python -m rlordata.env_check
 make test
 
-# ---- model weights into HF_HOME (persistent when on the filesystem) ----
-uv run hf download Qwen/Qwen3-4B-Base --quiet || echo "Qwen3-4B-Base download failed; check network/HF_TOKEN"
+# ---- the problem pool is committed (data/pool/, reviewed on the Mac). Regenerate on this box and
+# ---- diff against it: catches numpy RNG drift between machines instead of silently using other data.
+make gen-check
+
+# ---- model weights into HF_HOME (persistent when on the filesystem). Pre-downloading keeps the GPU
+# ---- from sitting idle mid-eval while a 16 GB reference model streams in. Gated: Llama (Meta licence),
+# ---- Gemma (Google licence) — accept them on the Hub with the HF_TOKEN account first.
+uv run hf download Qwen/Qwen3-4B-Base --quiet || { echo "Qwen3-4B-Base download failed; check network/HF_TOKEN"; exit 1; }
+for m in Qwen/Qwen3-4B Qwen/Qwen2.5-7B-Instruct meta-llama/Llama-3.1-8B-Instruct google/gemma-4-E4B-it; do
+  uv run hf download "$m" --quiet || echo "WARNING: $m download failed (gated? HF_TOKEN?) — eval-base will fail on it; run the others with --models"
+done
 
 # ---- idle guard LAST (so setup itself does not count as idle time). Terminates via the Lambda API. Do not disable. ----
 bash setup/idle_shutdown.sh install

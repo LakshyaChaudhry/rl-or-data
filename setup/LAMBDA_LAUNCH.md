@@ -55,6 +55,12 @@ bash setup/setup_gpu.sh              # env, HF_HOME on the filesystem, make test
 
 ## 3. Run (tasks/02, in order — the cap must exist before anything else samples)
 
+`setup_gpu.sh` already verified the committed pool (`make gen-check`) and pre-downloaded the five
+models. Cheap smoke test of the real sampler before the 4B run (Qwen3-0.6B-Base, ~2 min):
+```
+uv run pytest -m gpu -q
+```
+Then:
 ```
 make cap-run        # provisional cap run: base, T=1, n=8, cap 4096, val_candidates
 make cap            # -> configs/locked/cap.yaml (refuses to overwrite)
@@ -66,6 +72,14 @@ make transfer-pick  # base greedy on RG basic_arithmetic / count_primes (300) + 
 make sync           # everything under runs/, data/splits, data/samples, configs/locked -> RLORDATA_ARTIFACTS
 ```
 Every eval/tier run syncs its own directory at exit; `make sync` is the belt to that suspenders.
+After `make tier`, commit `data/splits/` (the frozen protocol splits) the same way as `cap.yaml`.
+
+Resume: finished units (`samples.jsonl` present) are skipped, so re-running `make eval-base` after a
+crash only does the missing work; `test_300` is never re-sampled without `--force`. If vLLM does not
+free the GPU cleanly between models, run one model per process:
+```
+uv run rlordata eval --config configs/eval/base.yaml --models google/gemma-4-E4B-it
+```
 
 ## 4. Leaving the box
 

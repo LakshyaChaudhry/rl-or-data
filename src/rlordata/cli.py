@@ -38,6 +38,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parsers["eval"].add_argument("--splits-dir", default=None, help="override config splits_dir")
     parsers["eval"].add_argument("--pool", default=None, help="override config pool path")
+    parsers["eval"].add_argument(
+        "--models",
+        default=None,
+        help="comma-separated model ids to run (others skipped); e.g. one model per process",
+    )
     parsers["tier"].add_argument(
         "--samples-output", default=None, help="override config samples_output"
     )
