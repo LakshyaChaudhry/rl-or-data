@@ -58,6 +58,21 @@ def structure_id(pipeline: dict[str, Any]) -> str:
     return canonical_id(without_range)
 
 
+def interleave_tiers(problems: list[Problem]) -> list[Problem]:
+    """Round-robin the problems across tiers (easy, medium, hard, easy, ...), keeping the
+    within-tier order. Any prefix of the result is then tier-stratified to within one problem,
+    which is what "the first 100 of test_300 by index" (pass@k subset, SPEC §10) relies on."""
+    order = ("easy", "medium", "hard")
+    queues: dict[str, list[Problem]] = {t: [p for p in problems if p.tier == t] for t in order}
+    others = [p for p in problems if p.tier not in order]
+    out: list[Problem] = []
+    while any(queues.values()):
+        for t in order:
+            if queues[t]:
+                out.append(queues[t].pop(0))
+    return out + others
+
+
 def build_splits(
     pool_with_pass8: list[Problem],
     seed: int,
@@ -68,7 +83,9 @@ def build_splits(
 ) -> dict[str, list[Problem]]:
     """Build SPEC §6 splits; disjoint by ``problem_id`` and by ``structure_id``.
 
-    ``train_curated`` is derived from ``train_mixed_100`` (1 ≤ pass8 ≤ 7), not sampled.
+    ``train_curated`` is derived from ``train_mixed_100`` (1 ≤ pass8 ≤ 7), not sampled. Each
+    split is emitted tier-interleaved (:func:`interleave_tiers`) so that a by-index prefix is
+    stratified.
     """
     if split_spec is None:
         split_spec = {
@@ -161,7 +178,7 @@ def build_splits(
                     f"split {key}: need {need_n} {tier_name}, only got {picked} "
                     f"after structure/id disjointness"
                 )
-        splits[key] = chosen
+        splits[key] = interleave_tiers(chosen)
 
     for key, spec in split_spec.items():
         if "derived_from" not in spec:

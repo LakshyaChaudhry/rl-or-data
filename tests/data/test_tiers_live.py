@@ -158,3 +158,29 @@ def test_build_splits_independent_of_spec_key_order() -> None:
     assert {k: [p.problem_id for p in v] for k, v in a.items()} == {
         k: [p.problem_id for p in v] for k, v in b.items()
     }
+
+
+def test_splits_are_tier_interleaved_so_prefixes_are_stratified() -> None:
+    from rlordata.data.tiers import build_splits, interleave_tiers
+    from tests.helpers import TINY_SPLITS
+
+    pool = [
+        Problem(**{**p.to_dict(), "pass8": i % 9, "tier": tier_from_pass8(i % 9)})
+        for i, p in enumerate(small_pool(n=800))
+    ]
+    splits = build_splits(pool, seed=1, split_spec=TINY_SPLITS)
+    test = splits["test_300"]
+    assert [p.tier for p in test[:6]] == ["easy", "medium", "hard", "easy", "medium", "hard"]
+    first = Counter(p.tier for p in test[:20])  # "first N by index" is stratified to within 1
+    assert max(first.values()) - min(first.values()) <= 1
+    assert Counter(p.tier for p in test) == {"easy": 20, "medium": 20, "hard": 20}
+    val = splits["val_mixed_100"]
+    assert Counter(p.tier for p in val[:9]) == {"easy": 3, "medium": 3, "hard": 3}
+    # interleave keeps within-tier order and is a pure reordering
+    again = interleave_tiers(test)
+    assert again == test and sorted(p.problem_id for p in again) == sorted(
+        p.problem_id for p in test
+    )
+    assert [p.problem_id for p in again if p.tier == "hard"] == [
+        p.problem_id for p in test if p.tier == "hard"
+    ]
