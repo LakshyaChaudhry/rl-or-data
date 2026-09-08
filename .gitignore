@@ -7,6 +7,8 @@ outputs/
 runs/
 data/pool/
 data/samples/
+data/splits/
+data/splits_dry/
 *.jsonl.gz
 .env
 wandb/
