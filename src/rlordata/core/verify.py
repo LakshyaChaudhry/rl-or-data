@@ -44,7 +44,7 @@ def extract_answer(completion: str) -> int | None:
     if not matches:
         return None
     return int(matches[-1])
-    #raise NotImplementedError("Laksh: implement extract_answer")
+    # raise NotImplementedError("Laksh: implement extract_answer")
 
 
 def verify(problem: Problem, completion: str) -> Verdict:
@@ -55,7 +55,6 @@ def verify(problem: Problem, completion: str) -> Verdict:
     if extracted == problem.answer:
         return Verdict(reward=1.0, extracted=extracted, extraction_failed=False)
     return Verdict(reward=0.0, extracted=extracted, extraction_failed=False)
-
 
 
 def verify_batch(problems: list[Problem], completions: list[str]) -> list[Verdict]:

@@ -48,7 +48,6 @@ def completion_logprobs(
       * Multiply by the (shifted) completion mask so prompt and pad positions contribute 0.
     """
 
-
     assert input_ids.ndim == 2 and input_ids.shape == attention_mask.shape == completion_mask.shape
 
     logits = model(input_ids=input_ids, attention_mask=attention_mask).logits
@@ -59,7 +58,7 @@ def completion_logprobs(
     log_probs = torch.nn.functional.log_softmax(shift_logits, dim=-1)
     token_logprobs = log_probs.gather(dim=-1, index=shift_labels.unsqueeze(-1)).squeeze(-1)
     token_logprobs = token_logprobs * shift_comp
-    
+
     out = torch.zeros_like(input_ids, dtype=token_logprobs.dtype)
     out[:, 1:] = token_logprobs
     return out

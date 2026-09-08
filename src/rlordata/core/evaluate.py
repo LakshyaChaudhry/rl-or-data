@@ -46,13 +46,13 @@ def pass_at_k(n: int, c: int, k: int) -> float:
 
     if n - c < k:
         return 1.0
-    
+
     acc = 1.0
     for i in range(k):
         acc *= (n - c - i) / (n - i)
     return 1.0 - acc
-    
-    #raise NotImplementedError("Laksh: implement pass_at_k")
+
+    # raise NotImplementedError("Laksh: implement pass_at_k")
 
 
 def bootstrap_ci(
@@ -76,7 +76,7 @@ def bootstrap_ci(
     hi = float(np.quantile(means, 1 - alpha / 2))
     return lo, hi
 
-    #raise NotImplementedError("Laksh: implement bootstrap_ci")
+    # raise NotImplementedError("Laksh: implement bootstrap_ci")
 
 
 def compute_metrics(samples: list[Sample], seed: int = 0) -> Metrics:
@@ -119,4 +119,4 @@ def compute_metrics(samples: list[Sample], seed: int = 0) -> Metrics:
         per_tier=per_tier,
     )
 
-    #raise NotImplementedError("Laksh: implement compute_metrics")
+    # raise NotImplementedError("Laksh: implement compute_metrics")
