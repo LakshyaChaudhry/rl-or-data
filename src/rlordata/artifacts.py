@@ -13,6 +13,7 @@ lands in the same place.
 
     python -m rlordata.artifacts sync runs/eval/Qwen__Qwen3-4B-Base
     python -m rlordata.artifacts sync-all        # runs/, data/splits/, data/samples/, configs/locked/
+    python -m rlordata.artifacts restore runs data/samples   # new instance: copy the store back into the repo
 """
 
 from __future__ import annotations
@@ -125,6 +126,68 @@ def _sync_s3(src: Path, files: list[Path], dest_root: str, key: Path) -> str:
     return f"s3://{bucket}/{base}"
 
 
+def restore(
+    rel_paths: list[str],
+    dest_root: str | None = None,
+    *,
+    repo_root: str | Path | None = None,
+    overwrite: bool = False,
+) -> dict[str, int]:
+    """Copy repo-relative paths from the artifact store back into the repo (fresh instance).
+
+    Existing local files are kept unless ``overwrite``. Returns ``{"copied": n, "skipped": m}``.
+    """
+    dest_root = dest_root if dest_root is not None else artifacts_root()
+    if dest_root is None:
+        raise RuntimeError(f"{ENV_VAR} unset; nothing to restore from")
+    repo = Path(repo_root) if repo_root is not None else Path.cwd()
+    copied = skipped = 0
+    for rel in rel_paths:
+        rel_path = Path(rel)
+        if dest_root.startswith("s3://"):
+            pairs = _s3_list(dest_root, rel_path)
+        else:
+            src_root = Path(dest_root) / rel_path
+            if not src_root.exists():
+                print(f"[artifacts] nothing stored at {src_root}", file=sys.stderr)
+                continue
+            files = _iter_files(src_root)
+            pairs = [
+                (f, rel_path / f.relative_to(src_root) if src_root.is_dir() else rel_path)
+                for f in files
+            ]
+        for src, target_rel in pairs:
+            target = repo / target_rel
+            if target.exists() and not overwrite:
+                skipped += 1
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if isinstance(src, Path):
+                shutil.copy2(src, target)
+            else:  # (bucket, key) from S3
+                import boto3  # type: ignore[import-not-found]
+
+                boto3.client("s3").download_file(src[0], src[1], str(target))
+            copied += 1
+    print(f"[artifacts] restored {copied} file(s), kept {skipped} existing, from {dest_root}")
+    return {"copied": copied, "skipped": skipped}
+
+
+def _s3_list(dest_root: str, rel_path: Path) -> list[tuple[tuple[str, str], Path]]:
+    import boto3  # type: ignore[import-not-found]
+
+    bucket, prefix = _parse_s3(dest_root)
+    base = "/".join(p for p in (prefix, rel_path.as_posix()) if p)
+    client = boto3.client("s3")
+    out: list[tuple[tuple[str, str], Path]] = []
+    for page in client.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=base):
+        for obj in page.get("Contents", []):
+            key = obj["Key"]
+            rel = key[len(prefix) :].lstrip("/") if prefix else key
+            out.append(((bucket, key), Path(rel)))
+    return out
+
+
 def sync_all(
     dest_root: str | None = None,
     roots: tuple[str, ...] = DEFAULT_SYNC_ALL_ROOTS,
@@ -152,7 +215,18 @@ def main(argv: list[str] | None = None) -> int:
     p_sync.add_argument("--dest", default=None, help=f"override {ENV_VAR}")
     p_all = sub.add_parser("sync-all", help=f"sync {', '.join(DEFAULT_SYNC_ALL_ROOTS)}")
     p_all.add_argument("--dest", default=None)
+    p_restore = sub.add_parser(
+        "restore", help="copy repo-relative paths from the store back into the repo"
+    )
+    p_restore.add_argument("paths", nargs="+", help="e.g. runs data/samples data/splits")
+    p_restore.add_argument(
+        "--dest", default=None, help=f"override {ENV_VAR} (the store to read from)"
+    )
+    p_restore.add_argument("--overwrite", action="store_true", help="replace existing local files")
     args = parser.parse_args(argv)
+    if args.cmd == "restore":
+        counts = restore(args.paths, args.dest, overwrite=args.overwrite)
+        return 0 if counts["copied"] or counts["skipped"] else 1
     if args.cmd == "sync":
         results = [sync_run_dir(p, args.dest) for p in args.paths]
     else:

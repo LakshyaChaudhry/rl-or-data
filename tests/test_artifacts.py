@@ -93,3 +93,37 @@ def test_s3_uses_boto3_upload_file(tmp_path: Path, monkeypatch) -> None:
     ]
     with pytest.raises(ValueError):
         artifacts._parse_s3("s3://")
+
+
+def test_restore_copies_store_back_into_repo(tmp_path: Path, monkeypatch) -> None:
+    repo = tmp_path / "repo"
+    run = _make_run(repo)
+    store = tmp_path / "store"
+    artifacts.sync_run_dir(run, str(store), repo_root=repo)
+    (repo / "data" / "samples").mkdir(parents=True)
+    (repo / "data" / "samples" / "tiering_pass8.jsonl").write_text("{}\n")
+    artifacts.sync_run_dir(repo / "data" / "samples", str(store), repo_root=repo)
+    # a fresh clone: nothing local
+    fresh = tmp_path / "fresh"
+    fresh.mkdir()
+    counts = artifacts.restore(["runs", "data/samples", "data/splits"], str(store), repo_root=fresh)
+    assert counts == {"copied": 4, "skipped": 0}
+    assert (
+        fresh / "runs" / "eval" / "m" / "test_300" / "greedy" / "samples.jsonl"
+    ).read_text() == '{"a": 1}\n'
+    assert (fresh / "data" / "samples" / "tiering_pass8.jsonl").exists()
+    # existing files are kept unless --overwrite
+    (fresh / "data" / "samples" / "tiering_pass8.jsonl").write_text("local\n")
+    counts = artifacts.restore(["data/samples"], str(store), repo_root=fresh)
+    assert counts == {"copied": 0, "skipped": 1}
+    assert (fresh / "data" / "samples" / "tiering_pass8.jsonl").read_text() == "local\n"
+    counts = artifacts.restore(["data/samples"], str(store), repo_root=fresh, overwrite=True)
+    assert counts == {"copied": 1, "skipped": 0}
+    monkeypatch.chdir(fresh)
+    monkeypatch.setenv(artifacts.ENV_VAR, str(store))
+    assert artifacts.main(["restore", "runs"]) == 0
+    monkeypatch.delenv(artifacts.ENV_VAR)
+    import pytest
+
+    with pytest.raises(RuntimeError):
+        artifacts.restore(["runs"], None, repo_root=fresh)
