@@ -169,7 +169,13 @@ class StubSampler:
         if u < self.p_truncated:
             text = "Let me work through this carefully. " * 8 + "The remaining values are"
             return Completion(text=text, n_tokens=cap, truncated=True, finish_reason="length")
-        length = int(min(cap - 1, max(8, rng.lognormal(np.log(self.mean_len), 0.45))))
+        # Natural length is drawn independently of the cap; a completion longer than the cap is cut
+        # off and loses its answer line, exactly like a real model (so sampling at cap A and
+        # rescoring at a lower cap B agrees with sampling at B directly).
+        length = int(max(8, rng.lognormal(np.log(self.mean_len), 0.45)))
+        if length > cap:
+            text = "Let me work through this carefully. " * 8 + "The remaining values are"
+            return Completion(text=text, n_tokens=cap, truncated=True, finish_reason="length")
         if answer is None:
             wrong = 0
             body = f"Step 1: I could not identify the problem.\nAnswer: {wrong}"

@@ -1,4 +1,4 @@
-.PHONY: setup-mac setup-gpu test test-all lint fmt gen gen-ood gen-check sample-pool cap-run cap tier tier-dry eval-base eval-dry sanity transfer-pick sync clean
+.PHONY: setup-mac setup-gpu test test-all lint fmt gen gen-ood gen-check sample-pool cap-run cap tier tier-provisional tier-rescore rescore-cap-run tier-dry eval-base eval-dry sanity transfer-pick sync clean
 
 setup-mac:
 	bash setup/setup_mac.sh
@@ -49,6 +49,18 @@ cap:
 # pass@8 tiering of the pool (+ post-hoc ood_hard_200) -> data/splits/, data/samples/tiering_pass8.jsonl
 tier:
 	uv run rlordata tier --config configs/data/tiering.yaml
+
+# Sample the tiering completions before the cap is locked (batch-invariant, seeded: the first `cap`
+# tokens do not depend on max_tokens), then rebuild pass8 + splits offline once cap.yaml exists.
+tier-provisional:
+	uv run rlordata tier --config configs/data/tiering.yaml --provisional-cap 4096
+
+tier-rescore:
+	uv run rlordata tier --config configs/data/tiering.yaml --rescore-from data/samples/tiering_pass8.jsonl
+
+# Re-verify the provisional cap run with the current verifier (after an extractor change), before `make cap`.
+rescore-cap-run:
+	uv run python scripts/rescore_samples.py --run-dir runs/cap_provisional/Qwen__Qwen3-4B-Base/val_candidates/mean_at_k
 
 eval-base:
 	uv run rlordata eval --config configs/eval/base.yaml

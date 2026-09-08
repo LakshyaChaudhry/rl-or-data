@@ -47,6 +47,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--samples-output", default=None, help="override config samples_output"
     )
     parsers["tier"].add_argument("--run-dir", default=None, help="override config run_dir")
+    parsers["tier"].add_argument(
+        "--provisional-cap",
+        type=int,
+        default=None,
+        help="sample before cap.yaml exists (splits not final; rescore later)",
+    )
+    parsers["tier"].add_argument(
+        "--rescore-from",
+        default=None,
+        help="rebuild pass8 + splits from stored completions with the current verifier and the locked cap",
+    )
     return parser
 
 

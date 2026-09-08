@@ -264,6 +264,43 @@ def sample_pass8(
     return tiered, samples
 
 
+def _pass8_from_samples(
+    problems: list[Problem],
+    samples: list[Sample],
+    *,
+    k: int,
+    easy_min: int,
+    medium_min: int,
+    label: str,
+) -> list[Problem]:
+    """Tier ``problems`` from stored (rescored) samples; every problem must have exactly ``k``."""
+    counts: dict[str, int] = {}
+    n_seen: dict[str, int] = {}
+    for s in samples:
+        n_seen[s.problem_id] = n_seen.get(s.problem_id, 0) + 1
+        counts[s.problem_id] = counts.get(s.problem_id, 0) + int(s.correct)
+    bad = [p.problem_id for p in problems if n_seen.get(p.problem_id, 0) != k]
+    if bad:
+        raise SystemExit(
+            f"{label}: {len(bad)} problem(s) do not have exactly {k} stored samples (first {bad[0][:12]}); "
+            "the samples file does not match the pool"
+        )
+    return [
+        Problem(
+            **{
+                **p.to_dict(),
+                "pass8": counts.get(p.problem_id, 0),
+                "tier": tier_from_pass8(
+                    counts.get(p.problem_id, 0),
+                    easy_min_pass8=easy_min,
+                    medium_min_pass8=medium_min,
+                ),
+            }
+        )
+        for p in problems
+    ]
+
+
 def tier_counts(problems: list[Problem]) -> dict[str, int]:
     out: dict[str, int] = {}
     for p in problems:
@@ -297,6 +334,10 @@ def cli_main(args: Any) -> int:
     Otherwise the base policy is sampled k times per problem (vLLM, or the stub with ``--stub``),
     the completions are stored in generation order, the pool is tiered and the SPEC §6 splits are
     written. ``post_hoc_tier_inputs`` (e.g. ``ood_hard_200``) are tiered but not filtered.
+
+    ``--provisional-cap N`` samples before cap.yaml exists (splits not final);
+    ``--rescore-from samples.jsonl`` re-verifies stored completions with the current verifier and
+    the locked cap and rebuilds the splits without sampling.
     """
     load_env()
     with Path(args.config).open(encoding="utf-8") as f:
@@ -350,8 +391,100 @@ def cli_main(args: Any) -> int:
 
     samples: list[Sample] = []
     handle = None
+    rescore_from = getattr(args, "rescore_from", None)
+    provisional_cap = getattr(args, "provisional_cap", None)
+    if rescore_from:
+        # Offline path: pass8 from stored completions, re-verified with the current core.verify and
+        # the LOCKED cap (simulated on completions longer than it). No sampling.
+        from rlordata.sampling.rescore import answers_from_pools, rescore_file, sha256_file
+
+        cap = resolve_cap(None, cap_path=cap_path)  # the real cap must exist for real splits
+        src = Path(rescore_from)
+        answers = answers_from_pools([pool, *extra_pools.values()])
+        rescored, rescore_summary = rescore_file(src, answers=answers, cap=cap)
+        if src.resolve() != samples_out.resolve():
+            _write_samples_jsonl(rescored, samples_out)
+        samples = rescored
+        by_condition: dict[str, list[Sample]] = {}
+        for s in samples:
+            by_condition.setdefault(s.data_condition, []).append(s)
+        pool = _pass8_from_samples(
+            pool,
+            by_condition.get("pool", []),
+            k=k,
+            easy_min=easy_min,
+            medium_min=medium_min,
+            label="pool",
+        )
+        for name in list(extra_pools):
+            extra_pools[name] = _pass8_from_samples(
+                extra_pools[name],
+                by_condition.get(name, []),
+                k=k,
+                easy_min=easy_min,
+                medium_min=medium_min,
+                label=name,
+            )
+        run_id = f"tier_rescore_{model_id.replace('/', '__')}_k{k}_seed{seed}"
+        resolved = {
+            "kind": "tier_rescore",
+            "run_id": run_id,
+            "source_config": str(args.config),
+            "rescore_from": str(src),
+            "rescore_from_sha256": sha256_file(src.with_name(src.stem + ".raw.jsonl")),
+            "model": {"id": model_id, "kind": "base", "arm": "base"},
+            "k": k,
+            "temperature": temperature,
+            "top_p": top_p,
+            "seed": seed,
+            "max_completion_tokens": cap,
+            "cap_yaml": str(cap_path),
+            "cap_is_provisional": False,
+            "max_prompt_tokens": MAX_PROMPT_TOKENS,
+            "prompt_template": TEMPLATE,
+            "answer_regex": ANSWER_RE.pattern,
+            "thinking": False,
+            "tiers": {"easy_min_pass8": easy_min, "medium_min_pass8": medium_min},
+            "splits": config.get("splits"),
+            "input": str(pool_path),
+            "n_pool": len(pool),
+            "post_hoc_tier_inputs": {name: len(v) for name, v in extra_pools.items()},
+            "output_dir": str(out_dir),
+            "samples_output": str(samples_out),
+            "rescore": rescore_summary,
+        }
+        handle = start_run(
+            run_root / run_id,
+            resolved,
+            run_id=run_id,
+            extra_meta={"k": k, "rescore": rescore_summary},
+        )
+        print(
+            f"rescored {rescore_summary['n_samples']} stored completions with the current verifier at cap {cap}: "
+            f"verdicts changed {rescore_summary['n_verdicts_changed']}, cap-truncated {rescore_summary['n_cap_truncated']} "
+            f"({rescore_summary['frac_cap_truncated']:.2%}), accuracy {rescore_summary['accuracy_before']:.3f} -> "
+            f"{rescore_summary['accuracy_after']:.3f}, extraction failure {rescore_summary['extraction_failure_before']:.3f} -> "
+            f"{rescore_summary['extraction_failure_after']:.3f}"
+        )
+        _write_samples_jsonl(samples, handle.run_dir / "tiering_pass8.jsonl")
+        need_sampling = False
     if need_sampling:
-        if stub and load_locked_cap(cap_path) is None:
+        if provisional_cap is not None:
+            # Sample before the cap is locked. Valid because sampling is batch-invariant and seeded:
+            # a completion's first `cap` tokens do not depend on max_tokens, so `--rescore-from` can
+            # apply the locked cap afterwards. Splits written here are NOT final.
+            cap = resolve_cap(int(provisional_cap), cap_path=cap_path, allow_provisional=True)
+            allow_provisional = True
+            if getattr(args, "output_dir", None) is None:
+                out_dir = out_dir.parent / (out_dir.name.rstrip("/") + "_provisional")
+            print(
+                "="
+                * 78
+                + f"\nPROVISIONAL TIERING at cap {cap} ({cap_path} absent). Completions -> {samples_out}.\n"
+                f"Splits -> {out_dir} are NOT final: once cap.yaml exists run\n"
+                f"  rlordata tier --config {args.config} --rescore-from {samples_out}\n" + "=" * 78
+            )
+        elif stub and load_locked_cap(cap_path) is None:
             cap = PROVISIONAL_CAP
             allow_provisional = True
             print(
@@ -374,7 +507,11 @@ def cli_main(args: Any) -> int:
             allow_provisional_cap=allow_provisional,
             problems=all_problems,
         )
-        run_id = f"tier_{model_id.replace('/', '__')}_k{k}_seed{seed}" + ("_stub" if stub else "")
+        run_id = (
+            f"tier_{model_id.replace('/', '__')}_k{k}_seed{seed}"
+            + ("_stub" if stub else "")
+            + ("_provisional" if provisional_cap is not None and not stub else "")
+        )
         resolved = {
             "kind": "tier",
             "run_id": run_id,

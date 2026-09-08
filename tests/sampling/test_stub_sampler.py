@@ -17,6 +17,9 @@ def _sampler(problems, tmp_path: Path, **kw) -> StubSampler:
     cap_path = tmp_path / "cap.yaml"
     if not cap_path.exists():
         write_cap_yaml(cap_path, {"max_completion_tokens": CAP})
+    kw.setdefault(
+        "mean_len", 100.0
+    )  # keep natural lengths far below CAP so cap truncation is negligible
     return StubSampler.from_problems(
         problems,
         model_id="stub/base",
