@@ -13,7 +13,7 @@ reject:                               # v1.2 (SPEC §4)
   duplicate_consecutive_filters: true
   min_values_at_final_op: 3
   mode_without_repeat: true
-  unique_count_withepeat: true
+  unique_count_without_repeat: true
   max_abs_answer: 1000000000
 excluded_filters: [positive, negative]
 n_filters: {min: 1, max: 4}
