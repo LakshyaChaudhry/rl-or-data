@@ -10,7 +10,9 @@ for H2: Falsified if RFT-Curated ≈ RFT-Mixed — the same prompt filter that m
 for H3: Falsified if the difference on test_300 is within 2× the pooled seed std, or it flips sign on ood_hard_200, or RFT-Curated ≥ GRPO-Curated. Any of those means: once data selection is controlled, the RL objective adds nothing you can measure at this budget.
 
 ## 2. Success criterion (copied from SPEC §10, restated)
-- 
+- two bars that are both required:
+    1) big enough gap on the main test set - here the gap in the greedy accuracy on the test_300 set should be larger than twice the typical seed-to-seed gap/wobble of the two pooled arms, as smaller gaps could be attributed to just random seed noise
+    2) Same direction for the gap on hard OOD problems - here the gap should go in the same way on the OOD-hard-200 set.
 
 ## 3. Phase 1 facts that fix the protocol
 - Base greedy accuracy on val_mixed_100: ___ (CI ___)
