@@ -86,9 +86,11 @@ def test_real_sampler_is_deterministic_given_seed(tmp_path: Path) -> None:
         b = s.sample(prompts, n=2, temperature=1.0)
         ta = [[c.text for c in row] for row in a]
         tb = [[c.text for c in row] for row in b]
-        assert ta == tb, (
-            "identical seeded calls differ (numerical non-determinism); retry with VLLM_BATCH_INVARIANT=1"
+        assert s.batch_invariant, (
+            "sampler should have set VLLM_BATCH_INVARIANT=1 before importing vllm"
         )
+        assert s.describe()["batch_invariant"] is True
+        assert ta == tb, "identical seeded calls differ even in batch-invariant mode"
         g1 = s.sample(prompts, n=1, temperature=0.0)
         g2 = s.sample(prompts, n=1, temperature=0.0)
         assert [r[0].text for r in g1] == [r[0].text for r in g2], "greedy differs between calls"

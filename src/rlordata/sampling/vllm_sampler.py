@@ -19,8 +19,11 @@ Implementation notes (tasks/02a):
 - Prefix caching is OFF by default: with it on, a repeated call serves the prompt from the KV cache
   through a different attention path, and the bf16 logits differ enough that T=1.0 sampling diverges
   after a shared prefix (observed on the first Lambda run). Our prompts share only the short
-  template, so the cache buys nothing. If two identical calls still differ, run with
-  ``VLLM_BATCH_INVARIANT=1`` (vLLM's batch-invariant kernels; slower) — record it in the run notes.
+  template, so the cache buys nothing. That alone was not enough: the Hopper GEMM / attention
+  kernels are not bitwise deterministic, so the sampler also sets ``VLLM_BATCH_INVARIANT=1``
+  (vLLM's batch-invariant kernels) before importing vllm. With both, two seeded calls are bitwise
+  identical (verified on Lambda 1×H100, vLLM 0.28.0, 2026-09-08). ``batch_invariant=False`` opts
+  out; the effective value is recorded in ``describe()`` and therefore in every run's config.
 - Max prompt tokens 4096 (SPEC §7 v1.3, matches Bauer et al.; counting prompts are far shorter):
   ``max_model_len = 4096 + cap``; prompts longer than that raise instead of being truncated.
 - Thinking mode is never enabled here; instruct wrapping (thinking off) lives in ``prompts.py``.
@@ -74,6 +77,7 @@ class VLLMSampler:
         max_prompt_tokens: int = MAX_PROMPT_TOKENS,
         llm_kwargs: dict[str, Any] | None = None,
         enable_prefix_caching: bool = False,
+        batch_invariant: bool = True,
     ) -> None:
         if model_kind not in ("base", "instruct"):
             raise ValueError(f"model_kind must be 'base' or 'instruct', got {model_kind!r}")
@@ -91,6 +95,11 @@ class VLLMSampler:
         self.max_prompt_tokens = int(max_prompt_tokens)
         self.llm_kwargs = dict(llm_kwargs or {})
         self.enable_prefix_caching = bool(enable_prefix_caching)
+        # Must be set before vllm is imported (vllm.envs reads the environment lazily but the
+        # kernel selection happens at engine construction). setdefault: an explicit env wins.
+        if batch_invariant:
+            os.environ.setdefault("VLLM_BATCH_INVARIANT", "1")
+        self.batch_invariant = os.environ.get("VLLM_BATCH_INVARIANT", "0") == "1"
 
         from vllm import LLM, SamplingParams  # lazy: GPU box only
 
@@ -137,6 +146,7 @@ class VLLMSampler:
             "repetition_penalty": 1.0,
             "seed_scheme": "per_prompt: seed + prompt_index * n; vLLM child seeds add sample index",
             "enable_prefix_caching": self.enable_prefix_caching,
+            "batch_invariant": self.batch_invariant,
             "batch_invariant_env": os.environ.get("VLLM_BATCH_INVARIANT"),
             "vllm_version": self.vllm_version,
             "llm_kwargs": self.llm_kwargs,
