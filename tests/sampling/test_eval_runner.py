@@ -80,6 +80,50 @@ def _sample(pid: str, correct: bool, tier: str = "easy") -> Sample:
     )
 
 
+def test_metrics_per_tier_truncation_and_flag_policy() -> None:
+    def s(pid: str, tier: str, truncated: bool, ext: bool, n_tokens: int) -> Sample:
+        return Sample(
+            run_id="r",
+            config_hash="h",
+            seed=1,
+            arm="base",
+            data_condition="d",
+            problem_id=pid,
+            tier=tier,  # type: ignore[arg-type]
+            prompt="p",
+            completion="c",
+            extracted_answer=None if ext else 1,
+            correct=False,
+            reward=0.0,
+            n_tokens=n_tokens,
+            truncated=truncated,
+            extraction_failed=ext or truncated,
+        )
+
+    samples = (
+        [s("e1", "easy", False, False, 100), s("e1", "easy", False, False, 120)]
+        + [s("m1", "medium", True, True, 2048), s("m1", "medium", False, False, 500)]
+        + [s("h1", "hard", True, True, 2048), s("h1", "hard", True, True, 2048)]
+    )
+    m = metrics_for(samples, cap=2048, split="test_300")
+    assert m["per_tier_truncation_rate"] == {"easy": 0.0, "hard": 1.0, "medium": 0.5}
+    assert m["per_tier_extraction_failure_rate"] == {"easy": 0.0, "hard": 1.0, "medium": 0.5}
+    assert m["per_tier_at_cap_rate"] == {"easy": 0.0, "hard": 1.0, "medium": 0.5}
+    assert m["per_tier_n_samples"] == {"easy": 2, "hard": 2, "medium": 2}
+    assert m["at_cap_rate"] == pytest.approx(0.5) and m["truncation_rate"] == pytest.approx(0.5)
+    assert m["truncation_over_5pct"] is True and m["truncation_flag_policy"] == "flag"
+    assert m["flags"]["truncation_gt_5pct"] is True
+    # ood_hard_200: reported, never flagged
+    m_ood = metrics_for(samples, cap=2048, split="ood_hard_200")
+    assert (
+        m_ood["truncation_over_5pct"] is True and m_ood["truncation_flag_policy"] == "report_only"
+    )
+    assert m_ood["flags"]["truncation_gt_5pct"] is False
+    assert m_ood["per_tier_truncation_rate"] == m["per_tier_truncation_rate"]
+    # no cap given -> at-cap rates absent, nothing else changes
+    assert metrics_for(samples)["at_cap_rate"] is None
+
+
 def test_metrics_for_pass_at_k_and_flags() -> None:
     samples = (
         [_sample("a", True)] * 8
@@ -125,6 +169,12 @@ def test_eval_stub_end_to_end_produces_every_file(world: World, capsys) -> None:
     assert (
         "greedy [95% CI]" in table and "mean@8" in table and "pass@8" in table and "trunc%" in table
     )
+    assert "per-tier truncation % / extraction-failure %" in table and "at-cap%" in table
+    for r in summary["rows"]:
+        assert set(r["per_tier_truncation"]) >= {"greedy", "mean_at_k"}
+        assert set(r["per_tier_truncation"]["greedy"]) == {"easy", "medium", "hard"}
+        if r["split"] == "ood_hard_200":
+            assert r["flagged"] is False  # never flagged, only reported
 
     # one unit in detail: samples carry every CLAUDE.md field; metrics from core.evaluate
     d = out_dir / models[0].slug / "test_300" / "mean_at_k"
@@ -203,6 +253,11 @@ def test_eval_stub_end_to_end_produces_every_file(world: World, capsys) -> None:
     d_ood = out_dir / models[0].slug / "ood_hard_200" / "greedy"
     m_ood = json.loads((d_ood / "metrics.json").read_text())
     assert m_ood["n_problems"] == 30 and "untiered" not in m_ood["per_tier"]
+    assert m_ood["truncation_flag_policy"] == "report_only"
+    assert m_ood["flags"]["truncation_gt_5pct"] is False
+    assert set(m_ood["per_tier_truncation_rate"]) == set(m_ood["per_tier"])
+    assert m_ood["max_completion_tokens"] == 4096
+    assert metrics["truncation_flag_policy"] == "flag" and "per_tier_at_cap_rate" in metrics
 
 
 def test_test_300_is_evaluated_once_unless_forced(world: World, capsys) -> None:

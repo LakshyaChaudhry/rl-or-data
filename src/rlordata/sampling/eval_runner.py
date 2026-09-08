@@ -42,7 +42,9 @@ from rlordata.sampling.prompts import TEMPLATE, chat_template_kwargs, format_pro
 from rlordata.sampling.vllm_sampler import MAX_PROMPT_TOKENS, Completion
 from rlordata.types import Problem, Sample
 
-TRUNCATION_FLAG = 0.05  # SPEC §7: > 5 % truncation on test is flagged
+TRUNCATION_FLAG = 0.05  # SPEC §7: > 5 % truncation on test_300 is flagged
+# SPEC §7 v1.3: on ood_hard_200 truncation is reported per tier, not flagged (it is a finding, not a defect).
+REPORT_ONLY_TRUNCATION_SPLITS = ("ood_hard_200",)
 EXTRACTION_FLAG = (
     0.05  # design choice (tasks/02a §8 gives no number); reported, not headline-blocking
 )
@@ -344,13 +346,24 @@ def read_samples(path: Path) -> list[Sample]:
     return out
 
 
+def _rate(values: list[bool]) -> float:
+    return float(sum(values) / len(values)) if values else 0.0
+
+
 def metrics_for(
     samples: list[Sample],
     *,
     ks: Iterable[int] | None = None,
     seed: int = 0,
+    cap: int | None = None,
+    split: str | None = None,
 ) -> dict[str, Any]:
-    """``compute_metrics`` + unbiased pass@k (mean over problems) + threshold flags."""
+    """``compute_metrics`` + unbiased pass@k + per-tier truncation / extraction-failure / at-cap rates + flags.
+
+    ``cap`` enables the at-cap rate (completions whose length reached the cap exactly). ``split``
+    selects the truncation policy: flagged when > 5 %, except on ``REPORT_ONLY_TRUNCATION_SPLITS``
+    where it is reported but never flagged (SPEC §7 v1.3).
+    """
     m = compute_metrics(samples, seed=seed)
     counts: dict[str, tuple[int, int]] = {}
     for s in samples:
@@ -367,10 +380,16 @@ def metrics_for(
             )
     tier_n: dict[str, int] = {}
     seen: set[str] = set()
+    by_tier: dict[str, list[Sample]] = {}
     for s in samples:
+        by_tier.setdefault(s.tier, []).append(s)
         if s.problem_id not in seen:
             seen.add(s.problem_id)
             tier_n[s.tier] = tier_n.get(s.tier, 0) + 1
+    tiers = sorted(by_tier)
+    at_cap = None if cap is None else _rate([s.n_tokens >= cap for s in samples])
+    over = bool(m.truncation_rate > TRUNCATION_FLAG)
+    policy = "report_only" if split in REPORT_ONLY_TRUNCATION_SPLITS else "flag"
     out = asdict(m)
     out.update(
         {
@@ -378,8 +397,24 @@ def metrics_for(
             "samples_per_problem": n_per_problem,
             "pass_at_k": pass_k,
             "per_tier_n": tier_n,
+            "per_tier_n_samples": {t: len(by_tier[t]) for t in tiers},
+            "per_tier_truncation_rate": {
+                t: _rate([s.truncated for s in by_tier[t]]) for t in tiers
+            },
+            "per_tier_extraction_failure_rate": {
+                t: _rate([s.extraction_failed for s in by_tier[t]]) for t in tiers
+            },
+            "at_cap_rate": at_cap,
+            "per_tier_at_cap_rate": (
+                None
+                if cap is None
+                else {t: _rate([s.n_tokens >= cap for s in by_tier[t]]) for t in tiers}
+            ),
+            "max_completion_tokens": cap,
+            "truncation_over_5pct": over,
+            "truncation_flag_policy": policy,
             "flags": {
-                "truncation_gt_5pct": bool(m.truncation_rate > TRUNCATION_FLAG),
+                "truncation_gt_5pct": bool(over and policy == "flag"),
                 "extraction_failure_gt_5pct": bool(m.extraction_failure_rate > EXTRACTION_FLAG),
             },
         }
@@ -442,7 +477,13 @@ def run_unit(
         },
     )
     write_samples(samples, out_dir / "samples.jsonl")
-    metrics = metrics_for(samples, ks=unit.decoding.ks, seed=seed)
+    metrics = metrics_for(
+        samples,
+        ks=unit.decoding.ks,
+        seed=seed,
+        cap=int(resolved["max_completion_tokens"]),
+        split=unit.split,
+    )
     metrics.update(
         {
             "run_id": run_id,
@@ -473,12 +514,20 @@ def run_unit(
         truncation_rate=metrics["truncation_rate"],
         extraction_failure_rate=metrics["extraction_failure_rate"],
     )
-    flag = " TRUNCATION>5%" if metrics["flags"]["truncation_gt_5pct"] else ""
+    if metrics["flags"]["truncation_gt_5pct"]:
+        flag = " TRUNCATION>5%"
+    elif metrics["truncation_over_5pct"]:
+        flag = " trunc>5% (reported, not flagged on this split)"
+    else:
+        flag = ""
+    per_tier = " ".join(
+        f"{t[0]}={100 * r:.1f}%" for t, r in sorted(metrics["per_tier_truncation_rate"].items())
+    )
     print(
         f"  [{unit.model.slug} | {unit.split} | {unit.decoding.name}] n={metrics['n_problems']} "
         f"acc={metrics['accuracy']:.3f} [{metrics['ci_low']:.3f},{metrics['ci_high']:.3f}] "
-        f"trunc={metrics['truncation_rate']:.3f} extract_fail={metrics['extraction_failure_rate']:.3f} "
-        f"tok/s={metrics.get('n_samples', 0) and round(gen_tokens / max(sample_s, 1e-9))}{flag}"
+        f"trunc={metrics['truncation_rate']:.3f} (per tier: {per_tier}) at_cap={metrics['at_cap_rate']:.3f} "
+        f"extract_fail={metrics['extraction_failure_rate']:.3f}{flag}"
     )
     return metrics
 
@@ -497,7 +546,8 @@ def collect_metrics(output_dir: Path) -> list[dict[str, Any]]:
 
 
 def summarize(metrics: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
-    """One row per model × split: greedy [CI], mean@8, pass@8, trunc % (greedy / T=1), n."""
+    """Main table (model × split: greedy [CI], mean@8, pass@8, trunc %, at-cap %) plus a per-tier
+    truncation / extraction-failure table for every split and decoding (SPEC §7 v1.3)."""
     by_key: dict[tuple[str, str], dict[str, dict[str, Any]]] = {}
     for m in metrics:
         by_key.setdefault((m["model_id"], m["split"]), {})[m["decoding"]] = m
@@ -511,6 +561,8 @@ def summarize(metrics: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]
             p8 = mean8["pass_at_k"]["8"]
         elif passk and "8" in passk.get("pass_at_k", {}):
             p8 = passk["pass_at_k"]["8"]
+        flagged = any(v["flags"]["truncation_gt_5pct"] for v in decs.values())
+        reported = any(v.get("truncation_over_5pct") for v in decs.values()) and not flagged
         rows.append(
             {
                 "model_id": model_id,
@@ -523,9 +575,19 @@ def summarize(metrics: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]
                 "pass_at_k_n64": None if not passk else passk.get("pass_at_k"),
                 "trunc_greedy": None if not greedy else greedy["truncation_rate"],
                 "trunc_t1": None if not mean8 else mean8["truncation_rate"],
+                "at_cap_greedy": None if not greedy else greedy.get("at_cap_rate"),
+                "at_cap_t1": None if not mean8 else mean8.get("at_cap_rate"),
                 "extraction_fail_greedy": None if not greedy else greedy["extraction_failure_rate"],
+                "per_tier_truncation": {
+                    k: v.get("per_tier_truncation_rate") for k, v in decs.items()
+                },
+                "per_tier_extraction_failure": {
+                    k: v.get("per_tier_extraction_failure_rate") for k, v in decs.items()
+                },
+                "per_tier_at_cap": {k: v.get("per_tier_at_cap_rate") for k, v in decs.items()},
                 "config_hashes": {k: v["config_hash"][:12] for k, v in decs.items()},
-                "flagged": any(v["flags"]["truncation_gt_5pct"] for v in decs.values()),
+                "flagged": flagged,
+                "truncation_reported_not_flagged": reported,
             }
         )
 
@@ -536,16 +598,44 @@ def summarize(metrics: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]
         return "  - " if x is None else f"{100 * x:4.1f}"
 
     lines = [
-        f"{'model':<34} {'split':<16} {'n':>4} {'greedy [95% CI]':<22} {'mean@8':>7} {'pass@8':>7} {'trunc% g/T1':>12} flag",
-        "-" * 118,
+        f"{'model':<34} {'split':<16} {'n':>4} {'greedy [95% CI]':<22} {'mean@8':>7} {'pass@8':>7} "
+        f"{'trunc% g/T1':>12} {'at-cap% g/T1':>13} flag",
+        "-" * 132,
     ]
     for r in rows:
         ci = "" if r["greedy_ci"] is None else f" [{r['greedy_ci'][0]:.3f},{r['greedy_ci'][1]:.3f}]"
+        if r["flagged"]:
+            flag = "TRUNC>5%"
+        elif r["truncation_reported_not_flagged"]:
+            flag = "trunc>5% (reported)"
+        else:
+            flag = ""
         lines.append(
             f"{r['model_id']:<34} {r['split']:<16} {str(r['n_problems']):>4} {fmt(r['greedy']) + ci:<22} "
             f"{fmt(r['mean_at_8']):>7} {fmt(r['pass_at_8']):>7} {pct(r['trunc_greedy'])}/{pct(r['trunc_t1']):<6} "
-            f"{'TRUNC>5%' if r['flagged'] else ''}"
+            f"{pct(r['at_cap_greedy'])}/{pct(r['at_cap_t1']):<7} {flag}"
         )
+
+    # Per-tier table: truncation % / extraction-failure % per tier, per split and decoding.
+    seen_tiers = {t for r in rows for d in r["per_tier_truncation"].values() if d for t in d}
+    tiers = [t for t in ("easy", "medium", "hard") if t in seen_tiers] + sorted(
+        seen_tiers - {"easy", "medium", "hard"}
+    )
+    lines += [
+        "",
+        "per-tier truncation % / extraction-failure % (per split and decoding; ood_hard_200 is reported, never flagged)",
+        f"{'model':<34} {'split':<16} {'decoding':<10} " + " ".join(f"{t:>13}" for t in tiers),
+        "-" * (62 + 14 * max(1, len(tiers))),
+    ]
+    for r in rows:
+        for dec in sorted(r["per_tier_truncation"]):
+            tr = r["per_tier_truncation"][dec] or {}
+            ef = r["per_tier_extraction_failure"][dec] or {}
+            cells = " ".join(
+                f"{100 * tr[t]:5.1f}/{100 * ef.get(t, 0.0):<5.1f}" if t in tr else f"{'-':>13}"
+                for t in tiers
+            )
+            lines.append(f"{r['model_id']:<34} {r['split']:<16} {dec:<10} {cells}")
     return "\n".join(lines), rows
 
 

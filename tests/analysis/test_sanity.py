@@ -102,6 +102,28 @@ def test_protocol_identity_and_rate_flags(tmp_path: Path) -> None:
         {"truncation_rate": 0.0, "extraction_failure_rate": 0.5}, label="x"
     ) == ["x: extraction-failure rate 0.500 > 0.05"]
     assert sanity.check_protocol_identical([a]) == []
+    # ood_hard_200: truncation reported, never flagged (SPEC §7 v1.3); test_300 still flagged
+    ood = {
+        "split": "ood_hard_200",
+        "truncation_rate": 0.4,
+        "extraction_failure_rate": 0.0,
+        "per_tier_truncation_rate": {"easy": 0.1, "hard": 0.7},
+        "per_tier_extraction_failure_rate": {"easy": 0.1, "hard": 0.7},
+        "at_cap_rate": 0.4,
+    }
+    assert sanity.check_rates(ood, label="o") == []
+    assert sanity.check_rates({**ood, "split": "test_300"}, label="t") == [
+        "t: truncation rate 0.400 > 0.05 — not a headline number"
+    ]
+    report = sanity.truncation_report(ood, label="o")
+    assert (
+        "40.0% overall" in report
+        and "[reported, not flagged]" in report
+        and "hard trunc 70.0%" in report
+    )
+    f = _run_dir(tmp_path, "f", base, ood)
+    assert sanity.check_run_dirs([a, f]) == []
+    assert any("reported, not flagged" in line for line in sanity.run_dir_reports([a, f]))
 
 
 def test_cli_on_splits_dir(tmp_path: Path, capsys) -> None:

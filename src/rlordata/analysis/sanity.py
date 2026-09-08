@@ -4,7 +4,8 @@ Implemented (tasks/02a §8):
   - split disjointness (``problem_id`` and ``structure_id``) across train/val/test/ood
   - identical cap, prompt template, answer regex and prompt-length limit across the resolved
     configs of runs being compared
-  - truncation > 5 % and extraction-failure > 5 % flags on metrics.json
+  - truncation > 5 % and extraction-failure > 5 % flags on metrics.json; on ``ood_hard_200``
+    truncation is reported per tier, prominently, but never flagged (SPEC §7 v1.3)
 
 Still to implement (tasks/03+):
   - LoRA adapter actually loaded (parameter count delta, adapter hash)
@@ -27,6 +28,7 @@ import yaml
 
 from rlordata.data.generator import read_jsonl
 from rlordata.data.tiers import structure_id
+from rlordata.sampling.eval_runner import REPORT_ONLY_TRUNCATION_SPLITS
 from rlordata.types import Problem
 
 TRUNCATION_MAX = 0.05  # SPEC §7
@@ -129,19 +131,45 @@ def check_rates(
     truncation_max: float = TRUNCATION_MAX,
     extraction_failure_max: float = EXTRACTION_FAILURE_MAX,
     label: str = "",
+    split: str | None = None,
 ) -> list[str]:
-    """Flag truncation / extraction-failure rates above threshold (CLAUDE.md, SPEC §7)."""
+    """Flag truncation / extraction-failure rates above threshold (CLAUDE.md, SPEC §7).
+
+    ``split`` (default: ``metrics["split"]``) selects the policy: on ``REPORT_ONLY_TRUNCATION_SPLITS``
+    (ood_hard_200) truncation is never an issue; use :func:`truncation_report` to print it.
+    """
     issues: list[str] = []
     prefix = f"{label}: " if label else ""
+    split = split if split is not None else metrics.get("split")
     tr = float(metrics.get("truncation_rate", 0.0))
     ef = float(metrics.get("extraction_failure_rate", 0.0))
-    if tr > truncation_max:
+    if tr > truncation_max and split not in REPORT_ONLY_TRUNCATION_SPLITS:
         issues.append(
             f"{prefix}truncation rate {tr:.3f} > {truncation_max:.2f} — not a headline number"
         )
     if ef > extraction_failure_max:
         issues.append(f"{prefix}extraction-failure rate {ef:.3f} > {extraction_failure_max:.2f}")
     return issues
+
+
+def truncation_report(metrics: dict[str, Any], *, label: str = "") -> str:
+    """One prominent line: overall + per-tier truncation and extraction-failure, at-cap rate."""
+    prefix = f"{label}: " if label else ""
+    tiers = metrics.get("per_tier_truncation_rate") or {}
+    ext = metrics.get("per_tier_extraction_failure_rate") or {}
+    per_tier = ", ".join(
+        f"{t} trunc {100 * r:.1f}% / extract-fail {100 * ext.get(t, 0.0):.1f}%"
+        for t, r in sorted(tiers.items())
+    )
+    at_cap = metrics.get("at_cap_rate")
+    at_cap_s = "" if at_cap is None else f"; at cap {100 * at_cap:.1f}%"
+    policy = (
+        " [reported, not flagged]" if metrics.get("split") in REPORT_ONLY_TRUNCATION_SPLITS else ""
+    )
+    return (
+        f"{prefix}truncation {100 * float(metrics.get('truncation_rate', 0.0)):.1f}% overall"
+        f"{at_cap_s}{policy}" + (f" — {per_tier}" if per_tier else "")
+    )
 
 
 def check_run_dirs(run_dirs: Iterable[str | Path]) -> list[str]:
@@ -156,6 +184,17 @@ def check_run_dirs(run_dirs: Iterable[str | Path]) -> list[str]:
         with m.open(encoding="utf-8") as f:
             issues.extend(check_rates(json.load(f), label=str(d)))
     return issues
+
+
+def run_dir_reports(run_dirs: Iterable[str | Path]) -> list[str]:
+    """Per-run truncation reports (always printed; the only place ood_hard_200 truncation surfaces)."""
+    out: list[str] = []
+    for d in (Path(d) for d in run_dirs):
+        m = d / "metrics.json"
+        if m.exists():
+            with m.open(encoding="utf-8") as f:
+                out.append(truncation_report(json.load(f), label=str(d)))
+    return out
 
 
 def format_problems(title: str, issues: list[str]) -> str:
@@ -177,6 +216,8 @@ def main(argv: list[str] | None = None) -> int:
         print(format_problems(f"split disjointness ({args.splits_dir})", issues))
         all_issues += issues
     if args.run_dirs:
+        for line in run_dir_reports(args.run_dirs):
+            print(f"[sanity] {line}")
         issues = check_run_dirs(args.run_dirs)
         print(format_problems(f"protocol + rates ({len(args.run_dirs)} run dirs)", issues))
         all_issues += issues

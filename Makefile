@@ -36,9 +36,10 @@ sample-pool:
 cap-run:
 	uv run rlordata eval --config configs/eval/provisional_cap.yaml
 
-# Writes configs/locked/cap.yaml from the provisional run (refuses to overwrite). Commit the file afterwards.
+# Writes configs/locked/cap.yaml (SPEC §7 v1.3: max(2048, per-cell 1.25×p99)) from the provisional run; refuses to overwrite. Commit it afterwards.
 cap:
-	uv run python scripts/compute_cap.py --run-dir runs/cap_provisional/Qwen__Qwen3-4B-Base/val_candidates/mean_at_k
+	uv run python scripts/compute_cap.py --run-dir runs/cap_provisional/Qwen__Qwen3-4B-Base/val_candidates/mean_at_k \
+		--pool data/pool/pool.jsonl
 
 # pass@8 tiering of the pool (+ post-hoc ood_hard_200) -> data/splits/, data/samples/tiering_pass8.jsonl
 tier:

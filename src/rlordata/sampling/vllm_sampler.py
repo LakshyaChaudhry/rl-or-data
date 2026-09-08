@@ -16,7 +16,8 @@ Implementation notes (tasks/02a):
   ``seed = base_seed + prompt_index * n`` so every (prompt, sample) pair has its own seed and the
   result is deterministic given ``seed`` and prompt order.
 - No repetition penalty, ``top_p`` as given (SPEC §7). Greedy is ``temperature=0``.
-- Max prompt tokens 1024 (SPEC §7): prompts longer than that raise instead of being truncated.
+- Max prompt tokens 4096 (SPEC §7 v1.3, matches Bauer et al.; counting prompts are far shorter):
+  ``max_model_len = 4096 + cap``; prompts longer than that raise instead of being truncated.
 - Thinking mode is never enabled here; instruct wrapping (thinking off) lives in ``prompts.py``.
 """
 
@@ -29,7 +30,7 @@ from typing import Any, Literal
 
 from rlordata.sampling.cap import DEFAULT_CAP_PATH, resolve_cap
 
-MAX_PROMPT_TOKENS = 1024  # SPEC §7
+MAX_PROMPT_TOKENS = 4096  # SPEC §7 v1.3 (tasks/02b); was 1024 in v1.2
 LORA_MAX_RANK = 64  # SPEC §9 (r=64)
 ModelKind = Literal["base", "instruct"]
 

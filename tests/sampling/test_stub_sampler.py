@@ -128,4 +128,4 @@ def test_stub_obeys_cap_rule_and_prompt_limit(tmp_path: Path) -> None:
     )
     assert s.cap_is_provisional and s.describe()["sampler"] == "stub"
     with pytest.raises(ValueError):
-        s.sample(["word " * 1100], n=1, temperature=0.0)
+        s.sample(["word " * 4200], n=1, temperature=0.0)

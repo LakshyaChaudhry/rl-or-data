@@ -13,7 +13,7 @@ def test_module_imports_without_vllm() -> None:
     import rlordata.sampling.vllm_sampler as mod
 
     assert hasattr(mod, "VLLMSampler")
-    assert MAX_PROMPT_TOKENS == 1024
+    assert MAX_PROMPT_TOKENS == 4096  # SPEC §7 v1.3
     c = Completion(text="Answer: 1", n_tokens=3, truncated=False, finish_reason="stop")
     assert c.to_dict()["truncated"] is False
 
