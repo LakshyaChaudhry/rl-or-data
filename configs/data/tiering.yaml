@@ -18,4 +18,9 @@ splits:
   # train_medium_100: {medium: 100}
   # train_hard_100: {hard: 100}
 input: data/pool/pool.jsonl
+# SPEC §6: ood_hard_200 is "tiered post hoc but not filtered" — sampled with the same k/T/cap, all 200 kept,
+# written to <output_dir>/ood_hard_200.jsonl with pass8 + tier.
+post_hoc_tier_inputs: [data/pool/ood_hard_200.jsonl]
 output_dir: data/splits/
+samples_output: data/samples/tiering_pass8.jsonl   # all k completions per problem, generation order (train_curated, RFT)
+run_dir: runs/tier/

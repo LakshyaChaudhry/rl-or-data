@@ -1,0 +1,17 @@
+# Phase 1, step 1 (tasks/02 §2): the ONE sampling run allowed before configs/locked/cap.yaml exists.
+# Qwen3-4B-Base, T=1.0, n=8, provisional cap 4096, on val_candidates (500 random pool problems, seed 1,
+# defined in rlordata.data.candidates). scripts/compute_cap.py reads this run's directory and writes cap.yaml.
+# Once cap.yaml exists this config refuses to run (its cap differs from the locked one).
+splits: [val_candidates]
+pool: data/pool/pool.jsonl
+cap_yaml: configs/locked/cap.yaml
+provisional_cap: 4096
+models:
+  - {id: Qwen/Qwen3-4B-Base, kind: base, arm: base}
+decoding:
+  mean_at_k: {temperature: 1.0, top_p: 1.0, n: 8}
+seed: 1
+output_dir: runs/cap_provisional/
+est_tokens_per_sec: 3000
+dtype: bfloat16
+gpu_memory_utilization: 0.9

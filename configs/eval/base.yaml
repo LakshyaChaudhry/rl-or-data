@@ -1,15 +1,26 @@
 # Base and reference-model evals (SPEC §10). Consumed by `rlordata eval`.
 splits: [val_mixed_100, test_300, ood_hard_200]
+splits_dir: data/splits/
+pool: data/pool/pool.jsonl                 # only needed for the val_candidates pseudo-split
+ood_path: data/pool/ood_hard_200.jsonl     # fallback when data/splits/ood_hard_200.jsonl (post-hoc tiered) is absent
 cap_yaml: configs/locked/cap.yaml
 models:
   - {id: Qwen/Qwen3-4B-Base, kind: base, arm: base}
-  - {id: Qwen/Qwen3-4B, kind: instruct, arm: ref}
-  - {id: Qwen/Qwen2.5-7B-Instruct, kind: instruct, arm: ref}
-  - {id: meta-llama/Llama-3.1-8B-Instruct, kind: instruct, arm: ref}
-  - {id: google/gemma-4-E4B-it, kind: instruct, arm: ref}   # verify exact id
+  - {id: Qwen/Qwen3-4B, kind: instruct, arm: ref}                 # thinking off: enable_thinking=False (prompts.py)
+  - {id: Qwen/Qwen2.5-7B-Instruct, kind: instruct, arm: ref}      # no thinking mode
+  - {id: meta-llama/Llama-3.1-8B-Instruct, kind: instruct, arm: ref}   # gated; HF_TOKEN
+  # Gemma4ForConditionalGeneration is multimodal; text-only here. vLLM lists the architecture as
+  # supported (checked 2026-09-07). Disable the image/video/audio processors to save memory.
+  - id: google/gemma-4-E4B-it
+    kind: instruct
+    arm: ref
+    vllm_kwargs: {limit_mm_per_prompt: {image: 0, video: 0, audio: 0}}
 decoding:
   greedy: {temperature: 0.0, n: 1}
   mean_at_k: {temperature: 1.0, top_p: 1.0, n: 8}
   pass_at_k: {temperature: 1.0, top_p: 1.0, n: 64, subset: test_300_first100, ks: [1, 2, 4, 8, 16, 32, 64]}
 seed: 1
 output_dir: runs/eval/
+est_tokens_per_sec: 3000       # only for the START cost estimate (worst case: every completion hits the cap)
+dtype: bfloat16
+gpu_memory_utilization: 0.9

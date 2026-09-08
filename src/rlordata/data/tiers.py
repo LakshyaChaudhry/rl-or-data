@@ -1,15 +1,18 @@
-"""Difficulty tiering by base-model pass@8 and split construction (SPEC §6). AGENT-OWNED; tasks/01.
+"""Difficulty tiering by base-model pass@8 and split construction (SPEC §6). AGENT-OWNED; tasks/01, 02a.
 
 Contract:
     tier_from_pass8(pass8: int) -> Tier
     build_splits(pool_with_pass8, seed) -> dict[str, list[Problem]]
     structure_id(pipeline) — canonical_id of pipeline with range removed
-    cli_main(args) — ``rlordata tier`` (needs sampler from tasks/02 for live pass@8)
+    sample_pass8(problems, sampler, k=8, ...) -> (tiered problems, all k completions in order)
+    cli_main(args) — ``rlordata tier`` (live pass@8 through the sampler; ``--stub`` for dry runs)
 """
 
 from __future__ import annotations
 
 import json
+import shutil
+import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -17,8 +20,16 @@ from typing import Any
 import numpy as np
 import yaml
 
+from rlordata.artifacts import sync_run_dir
+from rlordata.core.verify import ANSWER_RE
 from rlordata.data.generator import canonical_id, read_jsonl, write_jsonl
-from rlordata.types import Problem, Tier
+from rlordata.envfile import gpu_rate_usd_per_hour, load_env
+from rlordata.run_dir import finish_run, format_cost, start_run
+from rlordata.sampling.cap import DEFAULT_CAP_PATH, PROVISIONAL_CAP, load_locked_cap, resolve_cap
+from rlordata.sampling.eval_runner import ModelSpec, build_samples, make_sampler
+from rlordata.sampling.prompts import TEMPLATE, format_prompt
+from rlordata.sampling.vllm_sampler import MAX_PROMPT_TOKENS
+from rlordata.types import Problem, Sample, Tier
 
 # Default thresholds (SPEC §6 / configs/data/tiering.yaml).
 _EASY_MIN = 6
@@ -123,10 +134,12 @@ def build_splits(
     for key in sampled_keys:
         spec = split_spec[key]
         chosen: list[Problem] = []
-        for tier_name, need in spec.items():
-            if tier_name not in ("easy", "medium", "hard"):
+        # Canonical tier order so the split never depends on the config's key order
+        # (a YAML round-trip with sorted keys used to change which problems were picked).
+        for tier_name in ("easy", "medium", "hard"):
+            if tier_name not in spec:
                 continue
-            need_n = int(need)
+            need_n = int(spec[tier_name])
             picked = 0
             remaining: list[Problem] = []
             for p in by_tier[tier_name]:
@@ -166,12 +179,109 @@ def build_splits(
     return splits
 
 
-def cli_main(args: Any) -> int:
-    """``rlordata tier --config configs/data/tiering.yaml``.
+# ---------------------------------------------------------------------------
+# Live pass@8 path (tasks/02a §6)
+# ---------------------------------------------------------------------------
 
-    Live pass@8 sampling requires ``rlordata.sampling.vllm_sampler`` (tasks/02).
-    Until then, if the input JSONL already has ``pass8`` set, we only build splits.
+
+def sample_pass8(
+    problems: list[Problem],
+    sampler: Any,
+    *,
+    k: int,
+    temperature: float,
+    top_p: float,
+    run_id: str,
+    config_hash: str,
+    seed: int,
+    arm: str = "base",
+    data_condition: str = "pool",
+    easy_min_pass8: int = _EASY_MIN,
+    medium_min_pass8: int = _MEDIUM_MIN,
+) -> tuple[list[Problem], list[Sample]]:
+    """Sample ``k`` completions per problem (base template, one sampler call), verify, tier.
+
+    Returns the problems with ``pass8`` / ``tier`` filled and every completion as a
+    ``types.Sample`` in generation order (``extra.sample_idx``), which ``train_curated`` and RFT
+    read later.
     """
+    assert k >= 1 and len(problems) > 0
+    if getattr(sampler, "model_kind", "base") != "base":
+        raise ValueError("tiering uses the base policy with the plain TEMPLATE (SPEC §6.1)")
+    prompts = [format_prompt(p, "base") for p in problems]
+    completions = sampler.sample(prompts, n=k, temperature=temperature, top_p=top_p)
+    samples = build_samples(
+        problems,
+        prompts,
+        completions,
+        run_id=run_id,
+        config_hash=config_hash,
+        seed=seed,
+        arm=arm,
+        data_condition=data_condition,
+        extra={
+            "model_id": sampler.model_id,
+            "decoding": "pass8",
+            "temperature": temperature,
+            "top_p": top_p,
+            "k": k,
+        },
+    )
+    counts: dict[str, int] = {}
+    for s in samples:
+        counts[s.problem_id] = counts.get(s.problem_id, 0) + int(s.correct)
+    tiered = [
+        Problem(
+            **{
+                **p.to_dict(),
+                "pass8": counts.get(p.problem_id, 0),
+                "tier": tier_from_pass8(
+                    counts.get(p.problem_id, 0),
+                    easy_min_pass8=easy_min_pass8,
+                    medium_min_pass8=medium_min_pass8,
+                ),
+            }
+        )
+        for p in problems
+    ]
+    return tiered, samples
+
+
+def tier_counts(problems: list[Problem]) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for p in problems:
+        out[p.tier] = out.get(p.tier, 0) + 1
+    return dict(sorted(out.items()))
+
+
+def pass8_histogram(problems: list[Problem], *, k: int = 8, width: int = 40) -> str:
+    counts = [0] * (k + 1)
+    for p in problems:
+        if p.pass8 is not None:
+            counts[int(p.pass8)] += 1
+    scale = max(1, max(counts))
+    lines = [f"pass@{k} histogram (n={sum(counts)}):"]
+    for i, c in enumerate(counts):
+        lines.append(f"  {i:>2}/{k}  {c:>6}  {'#' * int(round(width * c / scale))}")
+    return "\n".join(lines)
+
+
+def _write_samples_jsonl(samples: list[Sample], path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        for s in samples:
+            f.write(json.dumps(s.to_dict(), sort_keys=True) + "\n")
+
+
+def cli_main(args: Any) -> int:
+    """``rlordata tier --config configs/data/tiering.yaml [--stub] [--output-dir D] [--samples-output F]``.
+
+    If the input pool already carries ``pass8`` on every problem, only the splits are built.
+    Otherwise the base policy is sampled k times per problem (vLLM, or the stub with ``--stub``),
+    the completions are stored in generation order, the pool is tiered and the SPEC §6 splits are
+    written. ``post_hoc_tier_inputs`` (e.g. ``ood_hard_200``) are tiered but not filtered.
+    """
+    load_env()
     with Path(args.config).open(encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
@@ -181,33 +291,154 @@ def cli_main(args: Any) -> int:
     tiers_cfg = config.get("tiers", {})
     easy_min = int(tiers_cfg.get("easy_min_pass8", _EASY_MIN))
     medium_min = int(tiers_cfg.get("medium_min_pass8", _MEDIUM_MIN))
+    k = int(config.get("k", 8))
+    temperature = float(config.get("temperature", 1.0))
+    top_p = float(config.get("top_p", 1.0))
+    model_id = str(config.get("model_id", "Qwen/Qwen3-4B-Base"))
+    model_kind = str(config.get("model_kind", "base"))
+    if model_kind != "base":
+        raise SystemExit("tiering must use the base policy (SPEC §6.1)")
+    stub = bool(getattr(args, "stub", False))
+    dry_run = bool(getattr(args, "dry_run", False))
+    out_dir = Path(getattr(args, "output_dir", None) or config.get("output_dir", "data/splits/"))
+    samples_out = Path(
+        getattr(args, "samples_output", None)
+        or config.get("samples_output", "data/samples/tiering_pass8.jsonl")
+    )
+    run_root = Path(getattr(args, "run_dir", None) or config.get("run_dir", "runs/tier/"))
+    cap_path = Path(config.get("cap_yaml", DEFAULT_CAP_PATH))
+    post_hoc_inputs = [Path(p) for p in config.get("post_hoc_tier_inputs", []) or []]
+    extra_pools: dict[str, list[Problem]] = {}
+    for p in post_hoc_inputs:
+        if p.exists():
+            extra_pools[p.stem] = read_jsonl(p)
+        else:
+            print(f"post-hoc input {p} not found; skipping", file=sys.stderr)
 
     missing = [p for p in pool if p.pass8 is None]
-    if missing:
-        try:
-            from rlordata.sampling.vllm_sampler import VLLMSampler  # type: ignore
-        except (ImportError, AttributeError) as exc:
-            raise SystemExit(
-                "pass8 missing on pool and vllm_sampler is not implemented yet "
-                "(tasks/02). Pre-populate pass8 or finish the sampler first."
-            ) from exc
+    need_sampling = bool(missing) or any(
+        any(q.pass8 is None for q in v) for v in extra_pools.values()
+    )
+    n_to_sample = len(pool) if missing else 0
+    n_to_sample += sum(len(v) for v in extra_pools.values() if any(q.pass8 is None for q in v))
 
-        # Placeholder wiring for tasks/02: sampler API may refine this.
-        k = int(config.get("k", 8))
-        _ = VLLMSampler  # noqa: F841 — real call filled when sampler lands
-        raise SystemExit(
-            f"tier CLI sampler path not fully wired ({len(missing)} untiered, k={k}); "
-            "use a pool with pass8 for split-only runs until tasks/02."
+    print(
+        f"tier: pool={pool_path} n={len(pool)} k={k} T={temperature} top_p={top_p} seed={seed} "
+        f"model={model_id} sampler={'stub' if stub else 'vllm'} need_sampling={need_sampling} "
+        f"post_hoc={list(extra_pools)}"
+    )
+    if dry_run:
+        print(f"dry-run: would sample {n_to_sample} problems × {k}; not writing anything")
+        return 0
+
+    samples: list[Sample] = []
+    handle = None
+    if need_sampling:
+        if stub and load_locked_cap(cap_path) is None:
+            cap = PROVISIONAL_CAP
+            allow_provisional = True
+            print(
+                "=" * 78
+                + f"\nDRY RUN (stub sampler): {cap_path} missing; provisional cap {cap}. Not a result.\n"
+                + "=" * 78
+            )
+        else:
+            cap = resolve_cap(None, cap_path=cap_path)  # cap.yaml must exist before tiering
+            allow_provisional = False
+        if stub:
+            print("STUB SAMPLER: scripted completions, no GPU. Not a result.")
+        all_problems = pool + [q for v in extra_pools.values() for q in v]
+        sampler = make_sampler(
+            ModelSpec(id=model_id, kind="base", arm="base"),
+            stub=stub,
+            cap=cap,
+            seed=seed,
+            cap_path=cap_path,
+            allow_provisional_cap=allow_provisional,
+            problems=all_problems,
         )
+        run_id = f"tier_{model_id.replace('/', '__')}_k{k}_seed{seed}" + ("_stub" if stub else "")
+        resolved = {
+            "kind": "tier",
+            "run_id": run_id,
+            "source_config": str(args.config),
+            "model": {"id": model_id, "kind": "base", "arm": "base"},
+            "k": k,
+            "temperature": temperature,
+            "top_p": top_p,
+            "seed": seed,
+            "max_completion_tokens": cap,
+            "cap_yaml": str(cap_path),
+            "cap_is_provisional": allow_provisional,
+            "max_prompt_tokens": MAX_PROMPT_TOKENS,
+            "prompt_template": TEMPLATE,
+            "answer_regex": ANSWER_RE.pattern,
+            "thinking": False,
+            "tiers": {"easy_min_pass8": easy_min, "medium_min_pass8": medium_min},
+            "splits": config.get("splits"),
+            "input": str(pool_path),
+            "n_pool": len(pool),
+            "post_hoc_tier_inputs": {name: len(v) for name, v in extra_pools.items()},
+            "output_dir": str(out_dir),
+            "samples_output": str(samples_out),
+            "sampler": sampler.describe(),
+        }
+        handle = start_run(
+            run_root / run_id,
+            resolved,
+            run_id=run_id,
+            extra_meta={"n_to_sample": n_to_sample, "k": k},
+        )
+        rate = gpu_rate_usd_per_hour()
+        est_hours = n_to_sample * k * cap / 3000.0 / 3600.0
+        print(
+            f"cost estimate (START, worst case, 3000 tok/s): {n_to_sample * k} completions → {format_cost(est_hours, rate)}"
+        )
+        try:
+            if missing:
+                pool, pool_samples = sample_pass8(
+                    pool,
+                    sampler,
+                    k=k,
+                    temperature=temperature,
+                    top_p=top_p,
+                    run_id=run_id,
+                    config_hash=handle.config_hash,
+                    seed=seed,
+                    data_condition="pool",
+                    easy_min_pass8=easy_min,
+                    medium_min_pass8=medium_min,
+                )
+                samples.extend(pool_samples)
+            for name, probs in list(extra_pools.items()):
+                if any(q.pass8 is None for q in probs):
+                    tiered, extra_samples = sample_pass8(
+                        probs,
+                        sampler,
+                        k=k,
+                        temperature=temperature,
+                        top_p=top_p,
+                        run_id=run_id,
+                        config_hash=handle.config_hash,
+                        seed=seed,
+                        data_condition=name,
+                        easy_min_pass8=easy_min,
+                        medium_min_pass8=medium_min,
+                    )
+                    extra_pools[name] = tiered
+                    samples.extend(extra_samples)
+        finally:
+            sampler.close()
+        _write_samples_jsonl(samples, samples_out)
+        _write_samples_jsonl(samples, handle.run_dir / "tiering_pass8.jsonl")
+        print(f"wrote {len(samples)} completions (generation order) -> {samples_out}")
 
     enriched = [
         Problem(
             **{
                 **p.to_dict(),
                 "tier": tier_from_pass8(
-                    int(p.pass8),
-                    easy_min_pass8=easy_min,
-                    medium_min_pass8=medium_min,
+                    int(p.pass8), easy_min_pass8=easy_min, medium_min_pass8=medium_min
                 ),
             }
         )
@@ -220,16 +451,52 @@ def cli_main(args: Any) -> int:
         easy_min_pass8=easy_min,
         medium_min_pass8=medium_min,
     )
-
-    out_dir = Path(config.get("output_dir", "data/splits/"))
-    if args.dry_run:
-        summary = {k: len(v) for k, v in splits.items()}
-        print(json.dumps(summary, indent=2, sort_keys=True))
-        print("dry-run: not writing splits")
-        return 0
+    for name, probs in extra_pools.items():
+        splits[name] = [Problem(**{**q.to_dict(), "split": name}) for q in probs]
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    write_jsonl(enriched, out_dir / "pool_tiered.jsonl")
+    print(f"wrote tiered pool ({len(enriched)}) -> {out_dir / 'pool_tiered.jsonl'}")
     for name, problems in splits.items():
         write_jsonl(problems, out_dir / f"{name}.jsonl")
-        print(f"wrote {len(problems)} -> {out_dir / f'{name}.jsonl'}")
-    return 0
+        print(
+            f"wrote {len(problems):>5} -> {out_dir / f'{name}.jsonl'}  tiers={tier_counts(problems)}"
+        )
+
+    print(f"\npool tier counts: {tier_counts(enriched)}")
+    print(pass8_histogram(enriched, k=k))
+    for name, probs in extra_pools.items():
+        print(f"\n{name} tier counts (post hoc, unfiltered): {tier_counts(probs)}")
+        print(pass8_histogram(probs, k=k))
+    curated = splits.get("train_curated", [])
+    print(f"\ntrain_curated: {len(curated)} prompts, tiers={tier_counts(curated)}")
+
+    from rlordata.analysis.sanity import check_split_disjointness, format_problems
+
+    issues = check_split_disjointness(splits)
+    print(format_problems("split disjointness", issues))
+
+    summary = {
+        "pool_tier_counts": tier_counts(enriched),
+        "pass8_counts": {str(i): sum(1 for p in enriched if p.pass8 == i) for i in range(k + 1)},
+        "splits": {name: {"n": len(v), "tiers": tier_counts(v)} for name, v in splits.items()},
+        "disjointness_issues": issues,
+    }
+    if handle is not None:
+        with (handle.run_dir / "tier_summary.json").open("w", encoding="utf-8") as f:
+            json.dump(summary, f, indent=2, sort_keys=True)
+            f.write("\n")
+        for name in list(splits) + ["pool_tiered"]:
+            shutil.copy2(out_dir / f"{name}.jsonl", handle.run_dir / f"{name}.jsonl")
+        finish_run(
+            handle,
+            n_samples=len(samples),
+            status="finished" if not issues else "finished_with_issues",
+        )
+        print(
+            f"cost estimate (END, actual): {format_cost(handle.elapsed_s / 3600.0, gpu_rate_usd_per_hour())}"
+        )
+        sync_run_dir(handle.run_dir)
+        sync_run_dir(samples_out)
+    sync_run_dir(out_dir)
+    return 1 if issues else 0
