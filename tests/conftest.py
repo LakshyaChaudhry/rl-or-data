@@ -40,3 +40,20 @@ def toy_problem() -> Problem:
 def skip_unless_implemented(fn, *args, **kwargs):
     if not _implemented(fn, *args, **kwargs):
         pytest.skip(f"{fn.__name__} not implemented yet (Laksh)")
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _isolated_artifacts_store(tmp_path_factory: pytest.TempPathFactory):
+    """Never let a test sync into the real durable store.
+
+    CLI entry points call ``load_env()`` and the tier/eval runners sync their outputs to
+    ``RLORDATA_ARTIFACTS`` at exit; on the GPU box that is the NFS store, and stub/dry-run test
+    outputs (``runs/splits``, ``runs/greedy``, ``runs/tiering_pass8.jsonl`` ...) were landing next
+    to — and over — real runs. ``load_env`` never overrides an existing variable, so setting it
+    here wins. Session-scoped so it precedes module-scoped fixtures that run the CLI (a
+    function-scoped patch came too late: ``load_env`` had already put the real path in
+    ``os.environ`` for the whole process).
+    """
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("RLORDATA_ARTIFACTS", str(tmp_path_factory.mktemp("artifacts")))
+        yield

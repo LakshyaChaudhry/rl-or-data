@@ -153,3 +153,19 @@ def test_rescore_from_refuses_mismatched_samples(tmp_path: Path) -> None:
 
     with pytest.raises(SystemExit):
         main(["tier", "--config", str(w.tier_config), "--rescore-from", str(w.samples_path)])
+
+
+def test_rescore_refuses_to_raise_the_cap(tmp_path: Path) -> None:
+    """Samples truncated at a lower cap cannot be rescored to a higher one (tokens never generated)."""
+    import pytest
+
+    w = make_world(tmp_path, n_pool=400, n_ood=6)
+    assert w.tier_with_stub() == 0
+    samples = read_samples(w.samples_path)
+    answers = answers_from_pools([read_jsonl(w.pool_path), read_jsonl(w.ood_path)])
+    lowered = [replace(samples[0], truncated=True, n_tokens=300), *samples[1:]]
+    with pytest.raises(ValueError, match="can only simulate a lower cap"):
+        rescore_samples(lowered, answers=answers, cap=301)
+    # the same sample under an equal or lower cap is fine
+    rescore_samples(lowered, answers=answers, cap=300)
+    rescore_samples(lowered, answers=answers, cap=200)

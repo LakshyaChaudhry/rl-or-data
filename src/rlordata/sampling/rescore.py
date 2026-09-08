@@ -67,6 +67,13 @@ def rescore_samples(
             )
         truncated = bool(s.truncated)
         n_tokens = int(s.n_tokens)
+        if cap is not None and truncated and n_tokens < cap:
+            # Sampled at a LOWER cap than the one requested: the tokens between the two caps were
+            # never generated, so rescoring cannot raise the cap. Resample at the locked cap instead.
+            raise ValueError(
+                f"sample {s.problem_id[:12]} was truncated at {n_tokens} tokens, below the requested "
+                f"cap {cap}; rescoring can only simulate a lower cap, not raise one — resample"
+            )
         cap_hit = False
         if cap is not None and n_tokens > cap:
             truncated, n_tokens, cap_hit = True, int(cap), True
