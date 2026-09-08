@@ -26,6 +26,9 @@ def parse_env_text(text: str) -> dict[str, str]:
         value = value.strip()
         if value and value[0] in "\"'" and value[-1] == value[0] and len(value) >= 2:
             value = value[1:-1]
+        elif value.startswith("#"):
+            # `KEY=   # comment` — blank value, the rest is a comment.
+            value = ""
         else:
             # Unquoted: drop an inline comment.
             hash_pos = value.find(" #")

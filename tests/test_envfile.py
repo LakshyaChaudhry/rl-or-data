@@ -10,6 +10,11 @@ def test_parse_env_text_quotes_comments_and_export() -> None:
         "# comment\nA=1\nexport B='two words'\nC=\"x # not a comment\"\nD=val # trailing\nE=\n\nBAD LINE\n"
     )
     assert parsed == {"A": "1", "B": "two words", "C": "x # not a comment", "D": "val", "E": ""}
+    # .env.example style: blank value followed by an inline comment is blank, not the comment text
+    parsed = parse_env_text(
+        "RLORDATA_ARTIFACTS=                # durable store for runs/\nX=  #c\n"
+    )
+    assert parsed == {"RLORDATA_ARTIFACTS": "", "X": ""}
 
 
 def test_load_env_does_not_override_and_skips_blank(tmp_path: Path, monkeypatch) -> None:
