@@ -2,7 +2,7 @@
 
 **Under matched prompt and rollout budgets, what portion of low-data RLVR gains comes from data selection versus the RL objective itself? A controlled study on procedurally generated counting tasks in the regime of Bauer et al. (Snorkel, MLSys 2026).**
 
-Status: LOCKED v1.3 (2026-09-08). Changes to any section marked 🔒 require an entry in the Changelog (§12) with a reason and date, and may never be made after looking at test-set results.
+Status: LOCKED v1.4 (2026-09-08). Changes to any section marked 🔒 require an entry in the Changelog (§12) with a reason and date, and may never be made after looking at test-set results.
 
 ---
 
@@ -87,7 +87,7 @@ Generate a **training/eval pool** of 6,000 problems (seed 20260901) restricted t
    - `train_curated`: the subset of `train_mixed_100` with **1 ≤ pass8 ≤ 7**, using the first 8 of the base model's samples in generation order. Frozen at initialization; never re-selected as any policy improves. Its size and tier composition are reported (expected ~50–75 prompts).
    - `ood_hard_200`: generated separately with `range_scale=L` and `total_steps ∈ {6,7,8}`, tiered post hoc but not filtered. This is the **complexity-extrapolation** set; `test_300` is the **in-distribution fresh-instance** set.
    - Optional (priority 2): `train_medium_100`, `train_hard_100`, `train_easy_500`, `train_mixed_500`.
-3. **Generalization is measured in two tiers.** Primary: in-distribution fresh instances (`test_300`) and complexity extrapolation (`ood_hard_200`) — the specific question is whether RFT and GRPO *differ* in extrapolation, since Bauer et al. already report RLVR extrapolating upward. Secondary (eval-only, cheap, expected small): one Reasoning Gym task chosen in Phase 1 from {`basic_arithmetic`, `number_filtering`, `count_primes`} — whichever the base scores 20–60% on — 300 instances; GSM8K test subset, first 500 by index. Same prompt template and cap. Cross-domain transfer is not a headline claim.
+3. **Generalization is measured in two tiers.** Primary: in-distribution fresh instances (`test_300`) and complexity extrapolation (`ood_hard_200`) — the specific question is whether RFT and GRPO *differ* in extrapolation, since Bauer et al. already report RLVR extrapolating upward. Secondary (eval-only, cheap, expected small): one Reasoning Gym task chosen in Phase 1 from {`basic_arithmetic`, `count_primes`} — whichever the base scores 20–60% on — 300 instances; GSM8K test subset, first 500 by index. Same prompt template and cap. Cross-domain transfer is not a headline claim.
 
 ## 7. 🔒 Decoding and the token cap
 
@@ -169,6 +169,7 @@ An arm-vs-arm difference "counts" if (a) |Δ greedy accuracy on test_300| > 2 ×
 
 **Changelog**
 - v1.0 (2026-09-01): initial lock.
+- v1.4 (2026-09-08): §6.3 Reasoning Gym candidates reduced to {basic_arithmetic, count_primes}; number_filtering emits list-valued answers that cannot be scored by the §5 integer regex.
 - v1.3 (2026-09-08), before any GPU run: §7 cap changed to max(2048, per-cell data-derived) and max prompt tokens 1024 → 4096. Reason: (a) match Bauer et al. Table 1 by default; (b) the v1.2 rule calibrated on all correct completions, which are dominated by easy problems, so it could sit below what correct 5-step reasoning needs; per-cell calibration fixes that; (c) a fixed cap borrowed from a length-shaped reward could truncate binary-reward completions.
 - v1.2 (2026-09-08), after reviewing the first generator output, before any tiering or training: §4 gains disjoint span bands per range scale, the every-step-must-do-work rejection rules, degenerate-final-op rejection, stratified generation per (scale × steps) cell, position-aware connectives, and removal of the dead `positive`/`negative` filters from the main pool. Motivated by no-op filters inflating `total_steps` (which would corrupt the complexity-extrapolation axis) and by tiny ranges producing single-element sets. (Transcription errors in the v1.2 text as first applied were corrected on 2026-09-07 without changing meaning.)
 - v1.1 (2026-09-07), before any training run: (a) research question generalized so counting is the testbed, not the identity; (b) arms restructured to a prompt-distribution × signal matrix — added GRPO-Curated, dropped RFT-Curated-on-easy; (c) training pool restricted to S/M ranges and 2–5 steps so `ood_hard_200` is a clean complexity-extrapolation test; (d) three budgets (prompt, rollout, gradient/token) defined and all reported; (e) H3 pair gets 5 seeds if budget allows; (f) timeline revised for ~10 h/week. Prompted by an external review; the review's 100×8=800 rollout figure was rejected — GRPO's budget is 19,200 (§8) and matching RFT to 800 would have under-budgeted it 24×.
