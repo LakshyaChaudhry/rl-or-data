@@ -2,7 +2,7 @@
 
 **Under matched prompt and rollout budgets, what portion of low-data RLVR gains comes from data selection versus the RL objective itself? A controlled study on procedurally generated counting tasks in the regime of Bauer et al. (Snorkel, MLSys 2026).**
 
-Status: LOCKED v1.2 (2026-09-08). Changes to any section marked 🔒 require an entry in the Changelog (§12) with a reason and date, and may never be made after looking at test-set results.
+Status: LOCKED v1.3 (2026-09-08). Changes to any section marked 🔒 require an entry in the Changelog (§12) with a reason and date, and may never be made after looking at test-set results.
 
 ---
 
@@ -93,8 +93,8 @@ Generate a **training/eval pool** of 6,000 problems (seed 20260901) restricted t
 
 - Sampling (training rollouts, RFT sampling, mean@k, pass@k): T=1.0, top_p=1.0, no repetition penalty.
 - Greedy (primary metric): T=0.
-- **Cap rule:** `max_completion_tokens = ceil_to_256(1.25 × p99 length of *correct* base-model completions on val_mixed_100 at T=1.0)`, minimum 512. Computed once in Phase 1, written to `configs/locked/cap.yaml`, and then identical for every arm, every control, every reference model, training and evaluation. Truncation rate is reported in every results table. A run with truncation rate > 5% on test is flagged and its numbers are not headline numbers.
-- Max prompt tokens: 1024 (counting prompts are short).
+- **Cap rule (v1.3):** `max_completion_tokens = max(2048, ceil_to_256(1.25 × p99_max))`, where `p99_max` is the largest per-cell p99 length of *correct* base-model completions on val_mixed_100 at T=1.0, cells = `range_scale × total_steps`. The 2048 floor matches Bauer et al. (Table 1); the measured term raises the cap only if 2048 would truncate more than 1% of correct completions in any cell, and any raise is recorded in `cap.yaml` with the per-cell p99s. Computed once in Phase 1, written to `configs/locked/cap.yaml`, then identical for every arm, control, and reference model, training and evaluation. Truncation and extraction-failure rates are reported per tier and per split in every results table, alongside the fraction of correct completions above 2048. A run with truncation > 5% on test_300 is flagged and its numbers are not headline numbers; on ood_hard_200 truncation is reported, not flagged.
+- Max prompt tokens: 4096 (matches Bauer et al.; counting prompts are far shorter).
 
 ## 8. 🔒 Arms
 
@@ -169,6 +169,7 @@ An arm-vs-arm difference "counts" if (a) |Δ greedy accuracy on test_300| > 2 ×
 
 **Changelog**
 - v1.0 (2026-09-01): initial lock.
+- v1.3 (2026-09-08), before any GPU run: §7 cap changed to max(2048, per-cell data-derived) and max prompt tokens 1024 → 4096. Reason: (a) match Bauer et al. Table 1 by default; (b) the v1.2 rule calibrated on all correct completions, which are dominated by easy problems, so it could sit below what correct 5-step reasoning needs; per-cell calibration fixes that; (c) a fixed cap borrowed from a length-shaped reward could truncate binary-reward completions.
 - v1.2 (2026-09-08), after reviewing the first generator output, before any tiering or training: §4 gains disjoint span bands per range scale, the every-step-must-do-work rejection rules, degenerate-final-op rejection, stratified generation per (scale × steps) cell, position-aware connectives, and removal of the dead `positive`/`negative` filters from the main pool. Motivated by no-op filters inflating `total_steps` (which would corrupt the complexity-extrapolation axis) and by tiny ranges producing single-element sets. (Transcription errors in the v1.2 text as first applied were corrected on 2026-09-07 without changing meaning.)
 - v1.1 (2026-09-07), before any training run: (a) research question generalized so counting is the testbed, not the identity; (b) arms restructured to a prompt-distribution × signal matrix — added GRPO-Curated, dropped RFT-Curated-on-easy; (c) training pool restricted to S/M ranges and 2–5 steps so `ood_hard_200` is a clean complexity-extrapolation test; (d) three budgets (prompt, rollout, gradient/token) defined and all reported; (e) H3 pair gets 5 seeds if budget allows; (f) timeline revised for ~10 h/week. Prompted by an external review; the review's 100×8=800 rollout figure was rejected — GRPO's budget is 19,200 (§8) and matching RFT to 800 would have under-budgeted it 24×.
 
