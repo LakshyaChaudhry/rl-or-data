@@ -34,6 +34,7 @@ else
 fi
 grep -q '^export HF_HOME=' ~/.bashrc && sed -i '/^export HF_HOME=/d' ~/.bashrc
 echo "export HF_HOME=$HF_HOME" >> ~/.bashrc
+grep -q '^HF_HOME=' .env || echo "HF_HOME=$HF_HOME" >> .env   # rlordata CLIs load .env, so runs find the cache even in a fresh shell
 echo "HF_HOME=$HF_HOME"
 
 # ---- python env ----

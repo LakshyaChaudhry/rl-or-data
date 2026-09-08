@@ -16,6 +16,11 @@ Implementation notes (tasks/02a):
   ``seed = base_seed + prompt_index * n`` so every (prompt, sample) pair has its own seed and the
   result is deterministic given ``seed`` and prompt order.
 - No repetition penalty, ``top_p`` as given (SPEC §7). Greedy is ``temperature=0``.
+- Prefix caching is OFF by default: with it on, a repeated call serves the prompt from the KV cache
+  through a different attention path, and the bf16 logits differ enough that T=1.0 sampling diverges
+  after a shared prefix (observed on the first Lambda run). Our prompts share only the short
+  template, so the cache buys nothing. If two identical calls still differ, run with
+  ``VLLM_BATCH_INVARIANT=1`` (vLLM's batch-invariant kernels; slower) — record it in the run notes.
 - Max prompt tokens 4096 (SPEC §7 v1.3, matches Bauer et al.; counting prompts are far shorter):
   ``max_model_len = 4096 + cap``; prompts longer than that raise instead of being truncated.
 - Thinking mode is never enabled here; instruct wrapping (thinking off) lives in ``prompts.py``.
@@ -24,6 +29,7 @@ Implementation notes (tasks/02a):
 from __future__ import annotations
 
 import gc
+import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -67,6 +73,7 @@ class VLLMSampler:
         cap_path: str | Path = DEFAULT_CAP_PATH,
         max_prompt_tokens: int = MAX_PROMPT_TOKENS,
         llm_kwargs: dict[str, Any] | None = None,
+        enable_prefix_caching: bool = False,
     ) -> None:
         if model_kind not in ("base", "instruct"):
             raise ValueError(f"model_kind must be 'base' or 'instruct', got {model_kind!r}")
@@ -83,6 +90,7 @@ class VLLMSampler:
         self.gpu_memory_utilization = float(gpu_memory_utilization)
         self.max_prompt_tokens = int(max_prompt_tokens)
         self.llm_kwargs = dict(llm_kwargs or {})
+        self.enable_prefix_caching = bool(enable_prefix_caching)
 
         from vllm import LLM, SamplingParams  # lazy: GPU box only
 
@@ -95,6 +103,7 @@ class VLLMSampler:
             "gpu_memory_utilization": self.gpu_memory_utilization,
             "max_model_len": self.max_prompt_tokens + self.max_completion_tokens,
             "trust_remote_code": False,
+            "enable_prefix_caching": self.enable_prefix_caching,
         }
         if self.lora_path is not None:
             from vllm.lora.request import LoRARequest
@@ -127,6 +136,8 @@ class VLLMSampler:
             "gpu_memory_utilization": self.gpu_memory_utilization,
             "repetition_penalty": 1.0,
             "seed_scheme": "per_prompt: seed + prompt_index * n; vLLM child seeds add sample index",
+            "enable_prefix_caching": self.enable_prefix_caching,
+            "batch_invariant_env": os.environ.get("VLLM_BATCH_INVARIANT"),
             "vllm_version": self.vllm_version,
             "llm_kwargs": self.llm_kwargs,
         }

@@ -84,7 +84,14 @@ def test_real_sampler_is_deterministic_given_seed(tmp_path: Path) -> None:
     try:
         a = s.sample(prompts, n=2, temperature=1.0)
         b = s.sample(prompts, n=2, temperature=1.0)
-        assert [[c.text for c in row] for row in a] == [[c.text for c in row] for row in b]
+        ta = [[c.text for c in row] for row in a]
+        tb = [[c.text for c in row] for row in b]
+        assert ta == tb, (
+            "identical seeded calls differ (numerical non-determinism); retry with VLLM_BATCH_INVARIANT=1"
+        )
+        g1 = s.sample(prompts, n=1, temperature=0.0)
+        g2 = s.sample(prompts, n=1, temperature=0.0)
+        assert [r[0].text for r in g1] == [r[0].text for r in g2], "greedy differs between calls"
         assert all(len(row) == 2 for row in a)
         assert all(c.n_tokens <= 256 for row in a for c in row)
         assert all(c.truncated == (c.finish_reason == "length") for row in a for c in row)
