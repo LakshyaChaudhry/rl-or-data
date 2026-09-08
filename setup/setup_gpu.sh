@@ -45,11 +45,11 @@ fi
 # against uv.lock (resolved on the Mac without the gpu extra), which could downgrade torch/numpy.
 export UV_NO_SYNC=1
 grep -q '^export UV_NO_SYNC=' ~/.bashrc || echo 'export UV_NO_SYNC=1' >> ~/.bashrc
-uv venv --python 3.11 .venv
-# Let vLLM pin the torch build it was compiled against (it ships CUDA wheels); installing torch first
-# from a different index produced ABI mismatches in the past.
-uv pip install -e ".[ml,gpu,dev]"
-uv pip install -e ".[transfer]" || echo "reasoning-gym install failed; transfer-pick will skip RG tasks"
+# Install exactly the locked versions. uv.lock is a universal lock that pins vllm, torch, trl and
+# transformers consistently for Linux (vllm 0.28.0 / torch 2.13.0 at the time of writing). An
+# unconstrained `uv pip install vllm` on the first box resolved to a 2023 vLLM whose compiled
+# extension was built against an old torch (undefined symbol at import). Never install ad hoc here.
+uv sync --locked --all-extras --python 3.11
 
 # TRL supports a bounded range of vLLM versions. Verify before wasting a GPU-hour.
 uv run python - << 'PY'
