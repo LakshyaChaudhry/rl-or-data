@@ -34,7 +34,12 @@ import yaml
 
 from rlordata.artifacts import sync_run_dir
 from rlordata.core.evaluate import compute_metrics, pass_at_k
-from rlordata.core.verify import ANSWER_RULE_TEXT, EXTRACTION_RULE, verify_batch
+from rlordata.core.verify import (
+    ANSWER_RULE_TEXT,
+    EXTRACTION_RULE,
+    has_answer_line,
+    verify_batch,
+)
 from rlordata.data.candidates import VAL_CANDIDATES_NAME, val_candidates
 from rlordata.data.generator import read_jsonl
 from rlordata.envfile import gpu_rate_usd_per_hour, load_env
@@ -297,7 +302,11 @@ def build_samples(
     out: list[Sample] = []
     base_extra = dict(extra or {})
     for i, (problem, prompt, comps) in enumerate(zip(problems, prompts, completions, strict=True)):
-        verdicts = verify_batch([problem] * len(comps), [c.text for c in comps])
+        verdicts = verify_batch(
+            [problem] * len(comps),
+            [c.text for c in comps],
+            [bool(c.truncated) for c in comps],
+        )
         for j, (c, v) in enumerate(zip(comps, verdicts, strict=True)):
             out.append(
                 Sample(
@@ -406,6 +415,17 @@ def metrics_for(
             },
             "per_tier_extraction_failure_rate": {
                 t: _rate([s.extraction_failed for s in by_tier[t]]) for t in tiers
+            },
+            # SPEC §10: format compliance is reported, never rewarded — the fraction of answers
+            # read from an explicit answer line (§5 layers (a)/(b)) rather than the fallback (c).
+            "answer_line_rate": _rate(
+                [has_answer_line(s.completion, truncated=bool(s.truncated)) for s in samples]
+            ),
+            "per_tier_answer_line_rate": {
+                t: _rate(
+                    [has_answer_line(s.completion, truncated=bool(s.truncated)) for s in by_tier[t]]
+                )
+                for t in tiers
             },
             "at_cap_rate": at_cap,
             "per_tier_at_cap_rate": (

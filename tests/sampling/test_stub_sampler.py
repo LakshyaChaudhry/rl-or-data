@@ -59,7 +59,11 @@ def test_outcome_fractions_are_controllable(tmp_path: Path) -> None:
 
     def verdicts(sampler):
         out = sampler.sample(prompts, n=2, temperature=1.0)
-        return [(verify(p, c.text), c) for p, row in zip(probs, out, strict=True) for c in row]
+        return [
+            (verify(p, c.text, truncated=bool(c.truncated)), c)
+            for p, row in zip(probs, out, strict=True)
+            for c in row
+        ]
 
     all_trunc = _sampler(probs, tmp_path, p_truncated=1.0)
     for v, c in verdicts(all_trunc):
@@ -85,7 +89,11 @@ def test_outcome_fractions_are_controllable(tmp_path: Path) -> None:
     # default spread: some correct, some not, some truncated, some unparseable (over 60 × 8 draws)
     mixed = _sampler(probs, tmp_path)
     out = mixed.sample(prompts, n=8, temperature=1.0)
-    vs = [verify(p, c.text) for p, row in zip(probs, out, strict=True) for c in row]
+    vs = [
+        verify(p, c.text, truncated=bool(c.truncated))
+        for p, row in zip(probs, out, strict=True)
+        for c in row
+    ]
     rewards = [v.reward for v in vs]
     assert 0.2 < sum(rewards) / len(rewards) < 0.8
     assert any(c.truncated for row in out for c in row)

@@ -181,7 +181,9 @@ class StubSampler:
             body = f"Step 1: I could not identify the problem.\nAnswer: {wrong}"
             return Completion(text=body, n_tokens=length, truncated=False, finish_reason="stop")
         if u < self.p_truncated + self.p_unparseable:
-            body = f"Step 1: list the numbers.\nStep 2: apply the rule.\nSo the answer is {answer}."
+            # No integer anywhere: under SPEC §5 v1.6 the fallback layer would otherwise read a
+            # trailing number, so an unparseable stub completion must contain no digits at all.
+            body = "First, list the numbers.\nThen apply the rule.\nI cannot determine it."
             return Completion(text=body, n_tokens=length, truncated=False, finish_reason="stop")
         p_ok = self._problem_p_correct(prompt)
         correct = rng.random() < p_ok

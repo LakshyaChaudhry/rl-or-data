@@ -81,7 +81,9 @@ def rescore_samples(
         if truncated and cap_hit:
             extracted, reward, failed = None, 0.0, True
         else:
-            v = verify(_answer_problem(s.problem_id, int(answer)), s.completion)
+            v = verify(
+                _answer_problem(s.problem_id, int(answer)), s.completion, truncated=truncated
+            )
             extracted, reward, failed = v.extracted, float(v.reward), bool(v.extraction_failed)
         new = replace(
             s,
