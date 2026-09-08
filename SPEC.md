@@ -2,7 +2,7 @@
 
 **Under matched prompt and rollout budgets, what portion of low-data RLVR gains comes from data selection versus the RL objective itself? A controlled study on procedurally generated counting tasks in the regime of Bauer et al. (Snorkel, MLSys 2026).**
 
-Status: LOCKED v1.4 (2026-09-08). Changes to any section marked 🔒 require an entry in the Changelog (§12) with a reason and date, and may never be made after looking at test-set results.
+Status: LOCKED v1.5 (2026-09-08). Changes to any section marked 🔒 require an entry in the Changelog (§12) with a reason and date, and may never be made after looking at test-set results.
 
 ---
 
@@ -72,7 +72,7 @@ Solve the following problem. Think step by step, then give the final answer on t
 Problem: {problem_text}
 ```
 
-Answer extraction: last line matching `^Answer:\s*(-?\d+)\s*$`. Anything else scores 0 (and is logged as `extraction_failed`). Reward for the primary arms is binary correctness only (§8); the format bonus/penalty from the anchor paper is a control condition, not the primary reward.
+Answer extraction (v1.5): the final answer is the **last** integer, by position in the completion, written in one of two explicit final-answer forms: (a) an *answer line* — a line consisting of `Answer: <integer>`, where `Answer` is case-insensitive, may be preceded by `Final `, may be wrapped in markdown bold (`**Answer:**` or `**Answer**:`), the integer may be wrapped in `$…$` or `\boxed{…}`, and the line may end with a single `.` or `,`; (b) `\boxed{<integer>}` anywhere. `<integer>` is `-?\d+`, optionally with digit-group commas (`441,720`), which are removed. Anything else — an answer only in prose ("the answer is 16"), trailing text after the integer ("Answer: 16 numbers"), a non-integer — scores 0 and is logged as `extraction_failed`. The exact patterns live in `core/verify.py` and are recorded in every run's resolved config; the rule is identical for every arm, control and reference model. Reward for the primary arms is binary correctness only (§8); the format bonus/penalty from the anchor paper is a control condition, not the primary reward.
 
 ## 6. 🔒 Data and splits
 
@@ -169,6 +169,7 @@ An arm-vs-arm difference "counts" if (a) |Δ greedy accuracy on test_300| > 2 ×
 
 **Changelog**
 - v1.0 (2026-09-01): initial lock.
+- v1.5 (2026-09-08), after the provisional cap run, before the cap was locked and before any tiering or training: §5 answer extraction widened from the single form `^Answer:\s*(-?\d+)\s*$` to the closed set {answer line with case / markdown-bold / `$…$` / `\boxed{}` wrapping and an optional trailing `.` or `,`; `\boxed{N}` anywhere}, last match by position, digit-group commas removed. Reason: on 500 pool problems × 8 samples at T=1.0 (run `eval_Qwen__Qwen3-4B-Base_val_candidates_mean_at_k_seed1`), Qwen3-4B-Base failed extraction on 61.3 % of completions under the v1.4 rule — mostly `\boxed{}` and `**Answer:**` forms from math pretraining — while 60 % of those completions contained the correct integer; under the v1.4 rule the pool would hold ≈24 easy problems against the 233 that §6 requires, so tiering could not run. The widened rule still demands the exact integer in an explicit final-answer form (no prose, no trailing text), so it cannot be gamed by listing candidates. Preview on the same samples: extraction 38.8 % → 62.8 %, mean@8 0.141 → 0.249, easy ≈24 → ≈372 of 6000. Applied identically everywhere; the provisional cap run is rescored offline with the new rule before the cap is computed. Authorized by Laksh; text written by the agent.
 - v1.4 (2026-09-08): §6.3 Reasoning Gym candidates reduced to {basic_arithmetic, count_primes}; number_filtering emits list-valued answers that cannot be scored by the §5 integer regex. Clarification to §10: the pass@k subset is the first 100 problems of test_300 by index; splits are written tier-interleaved so this prefix is stratified to within one problem.
 - v1.3 (2026-09-08), before any GPU run: §7 cap changed to max(2048, per-cell data-derived) and max prompt tokens 1024 → 4096. Reason: (a) match Bauer et al. Table 1 by default; (b) the v1.2 rule calibrated on all correct completions, which are dominated by easy problems, so it could sit below what correct 5-step reasoning needs; per-cell calibration fixes that; (c) a fixed cap borrowed from a length-shaped reward could truncate binary-reward completions.
 - v1.2 (2026-09-08), after reviewing the first generator output, before any tiering or training: §4 gains disjoint span bands per range scale, the every-step-must-do-work rejection rules, degenerate-final-op rejection, stratified generation per (scale × steps) cell, position-aware connectives, and removal of the dead `positive`/`negative` filters from the main pool. Motivated by no-op filters inflating `total_steps` (which would corrupt the complexity-extrapolation axis) and by tiny ranges producing single-element sets. (Transcription errors in the v1.2 text as first applied were corrected on 2026-09-07 without changing meaning.)

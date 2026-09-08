@@ -3,5 +3,9 @@ template: |
   Solve the following problem. Think step by step, then give the final answer on the last line in the form "Answer: <integer>".
 
   Problem: {problem_text}
-answer_regex: '^Answer:\s*(-?\d+)\s*$'
+# v1.5 (SPEC §5): two patterns, last match by position, digit-group commas removed. Mirrors core/verify.py.
+extraction_rule: v1.5
+answer_regex:
+  - '(?im)^\s*(?:\*\*)?(?:final\s+)?answer(?::\s*\*\*|\*\*:|:)\s*\$?(?:\\boxed\{)?\s*(-?\d{1,3}(?:,\d{3})+|-?\d+)\s*\}?\$?\s*[.,]?\s*$'
+  - '\\boxed\{\s*(-?\d{1,3}(?:,\d{3})+|-?\d+)\s*\}'
 thinking: false
