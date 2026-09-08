@@ -27,3 +27,10 @@ def test_last_answer_line_wins(toy_problem):
 
 
 # TODO(Laksh): negative numbers, leading zeros, whitespace, answer-not-on-last-line, empty completion.
+
+def test_wrong_but_parseable(toy_problem):
+    v = vf.verify(toy_problem, "Answer: 99")
+    assert v.reward == 0.0 and v.extracted == 99 and not v.extraction_failed
+def test_empty_completion(toy_problem):
+    v = vf.verify(toy_problem, "")
+    assert v.reward == 0.0 and v.extraction_failed

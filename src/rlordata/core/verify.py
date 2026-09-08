@@ -40,12 +40,22 @@ def extract_answer(completion: str) -> int | None:
 
     Implement with ANSWER_RE. Do not be lenient: leniency here becomes reward hacking later.
     """
-    raise NotImplementedError("Laksh: implement extract_answer")
+    matches = ANSWER_RE.findall(completion)
+    if not matches:
+        return None
+    return int(matches[-1])
+    #raise NotImplementedError("Laksh: implement extract_answer")
 
 
 def verify(problem: Problem, completion: str) -> Verdict:
     """Binary correctness verdict for one completion (SPEC §5)."""
-    raise NotImplementedError("Laksh: implement verify")
+    extracted = extract_answer(completion)
+    if extracted is None:
+        return Verdict(reward=0.0, extracted=None, extraction_failed=True)
+    if extracted == problem.answer:
+        return Verdict(reward=1.0, extracted=extracted, extraction_failed=False)
+    return Verdict(reward=0.0, extracted=extracted, extraction_failed=False)
+
 
 
 def verify_batch(problems: list[Problem], completions: list[str]) -> list[Verdict]:
