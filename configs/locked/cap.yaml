@@ -1,0 +1,95 @@
+# locked (SPEC §7 v1.3) — written once by scripts/compute_cap.py. Never edit by hand.
+# cap = max(2048, ceil_to_256(1.25 * max over (range_scale x total_steps) cells of the p99 length
+#       of correct base-model completions at T=1.0)); binding_term says which term bound.
+anchor_cap: 2048
+binding_term: measured
+computed_at: '2026-09-08T04:52:39+00:00'
+computed_on: val_candidates (500 random pool problems, seed 1), T=1.0, n=8, provisional
+  cap 4096; cells = range_scale x total_steps from data/pool/pool.jsonl
+config_hash: 34f9d68fd4632a9f828dda51f667b415758508232cd2a3da760986b8411a7b6b
+driving_cell: M3
+frac_all_truncated_at_cap: 0.0
+frac_correct_over_2048: 0.014028
+frac_correct_truncated_at_cap: 0.0
+git_sha: 8a39ac791408065a8b0731fe864e2e47678829c1
+max_completion_tokens: 4352
+measured_cap: 4352
+model_id: Qwen/Qwen3-4B-Base
+n_correct_used: 998
+n_problems: 500
+n_samples_total: 4000
+p99_correct_len: 3477.94
+p99_max: 3477.94
+per_cell_p99:
+  M2: 2675.06
+  M3: 3477.94
+  M4: 1543.44
+  M5: 2202.01
+  S2: 1183.28
+  S3: 1690.08
+  S4: 1431.12
+  S5: 2113.92
+per_cell_stats:
+  M2:
+    frac_correct_over_2048: 0.042105
+    frac_correct_over_cap: 0.0
+    measured_cap: 3584
+    n_correct: 95
+    p50: 400.0
+    p99: 2675.06
+  M3:
+    frac_correct_over_2048: 0.029126
+    frac_correct_over_cap: 0.0
+    measured_cap: 4352
+    n_correct: 103
+    p50: 392.0
+    p99: 3477.94
+  M4:
+    frac_correct_over_2048: 0.008197
+    frac_correct_over_cap: 0.0
+    measured_cap: 2048
+    n_correct: 122
+    p50: 531.0
+    p99: 1543.44
+  M5:
+    frac_correct_over_2048: 0.02439
+    frac_correct_over_cap: 0.0
+    measured_cap: 2816
+    n_correct: 82
+    p50: 617.0
+    p99: 2202.01
+  S2:
+    frac_correct_over_2048: 0.0
+    frac_correct_over_cap: 0.0
+    measured_cap: 1536
+    n_correct: 139
+    p50: 261.0
+    p99: 1183.28
+  S3:
+    frac_correct_over_2048: 0.011628
+    frac_correct_over_cap: 0.0
+    measured_cap: 2304
+    n_correct: 172
+    p50: 345.5
+    p99: 1690.08
+  S4:
+    frac_correct_over_2048: 0.0
+    frac_correct_over_cap: 0.0
+    measured_cap: 1792
+    n_correct: 152
+    p50: 463.0
+    p99: 1431.12
+  S5:
+    frac_correct_over_2048: 0.015038
+    frac_correct_over_cap: 0.0
+    measured_cap: 2816
+    n_correct: 133
+    p50: 552.0
+    p99: 2113.92
+pool: data/pool/pool.jsonl
+provisional_truncation_rate: 0.00625
+rule: max(2048, ceil_to_256(1.25 * max_over_cells(p99(n_tokens of correct completions))))
+run_dir: runs/cap_provisional/Qwen__Qwen3-4B-Base/val_candidates/mean_at_k
+run_git_sha: d68b3d8e9c94c0af19cb9513c3292ba0db6cf407
+run_id: eval_Qwen__Qwen3-4B-Base_val_candidates_mean_at_k_seed1
+sampler: vllm
