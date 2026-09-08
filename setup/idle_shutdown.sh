@@ -129,7 +129,9 @@ else
 fi
 INNER
     sudo chmod 755 /usr/local/bin/gpu_idle_check.sh
-    ( sudo crontab -l 2>/dev/null | grep -v gpu_idle_check ; echo "* * * * * /usr/local/bin/gpu_idle_check.sh" ) | sudo crontab -
+    # `grep -v` exits 1 on an empty/absent crontab; under `set -e` that used to abort the subshell before the
+    # echo, installing an EMPTY root crontab (no guard at all). Hence `|| true`.
+    ( { sudo crontab -l 2>/dev/null | grep -v gpu_idle_check || true; } ; echo "* * * * * /usr/local/bin/gpu_idle_check.sh" ) | sudo crontab -
     echo "idle guard installed (${IDLE_MINUTES} min at <${UTIL_THRESHOLD}% util; terminate via Lambda API when LAMBDA_API_KEY is set)"
     echo "verify the wiring now:  bash setup/idle_shutdown.sh test-api";;
   status) cat "$STATE" 2>/dev/null || echo 0;;
