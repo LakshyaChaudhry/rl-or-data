@@ -453,9 +453,13 @@ def run_unit(
     seed: int,
     resolved: dict[str, Any],
     chat_kwargs: dict[str, Any] | None,
+    run_id: str | None = None,
 ) -> dict[str, Any]:
-    """Sample, verify, write samples.jsonl + metrics.json + provenance. Returns the metrics."""
-    run_id = unit.run_id(seed)
+    """Sample, verify, write samples.jsonl + metrics.json + provenance. Returns the metrics.
+
+    ``run_id`` overrides the default ``eval_<model>_<split>_<decoding>_seed<seed>`` (trained-arm
+    evals name the arm and training run so they never collide with the base eval's ids)."""
+    run_id = run_id or unit.run_id(seed)
     handle: RunHandle = start_run(
         out_dir,
         resolved,

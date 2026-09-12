@@ -43,6 +43,37 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="comma-separated model ids to run (others skipped); e.g. one model per process",
     )
+    rft = parsers["rft"]
+    rft.add_argument(
+        "--stage",
+        choices=["draw", "select", "train", "eval"],
+        default="train",
+        help="tasks/03: draw (192/prompt, once) | select (print stats) | train | eval",
+    )
+    rft.add_argument("--lr", type=float, default=None, help="train: learning rate (sweep grid)")
+    rft.add_argument("--epochs", type=int, default=None, help="train: epochs (sweep grid)")
+    rft.add_argument(
+        "--run-dir", default=None, help="train: override run dir; eval: run to evaluate"
+    )
+    rft.add_argument("--eval-set", choices=["val", "final"], default="val")
+    rft.add_argument("--output-dir", default=None, help="override config output_dir (runs/rft)")
+    rft.add_argument("--splits-dir", default=None)
+    rft.add_argument("--samples-dir", default=None, help="where the draw files live (data/samples)")
+    rft.add_argument(
+        "--base-eval-dir", default=None, help="base-model eval dir for the sanity gate"
+    )
+    rft.add_argument("--micro-batch-size", type=int, default=None)
+    rft.add_argument("--force", action="store_true", help="retrain / re-evaluate finished units")
+    rft.add_argument("--stub", action="store_true", help="StubSampler for draw/eval dry runs")
+    rft.add_argument(
+        "--n-total", type=int, default=None, help="draw: samples per prompt (--stub only)"
+    )
+    rft.add_argument(
+        "--n-problems", type=int, default=None, help="eval: first N problems (--stub only)"
+    )
+    rft.add_argument(
+        "--allow-cpu", action="store_true", help="train without CUDA (smoke tests only)"
+    )
     parsers["tier"].add_argument(
         "--samples-output", default=None, help="override config samples_output"
     )
@@ -82,6 +113,12 @@ def main(argv: list[str] | None = None) -> int:
         from rlordata.sampling import eval_runner
 
         dispatch["eval"] = eval_runner.cli_main
+    except (ImportError, AttributeError):
+        pass
+    try:
+        from rlordata.train import rft
+
+        dispatch["rft"] = rft.cli_main
     except (ImportError, AttributeError):
         pass
     if args.cmd not in dispatch:

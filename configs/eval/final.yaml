@@ -1,0 +1,8 @@
+# Final-checkpoint eval of a trained arm (tasks/03 §5, SPEC §10). Consumed by `rlordata rft --stage eval
+# --eval-set final`. val_mixed_100 greedy is always run first (the sanity gate and the selection metric);
+# the transfer sets are appended from configs/locked/transfer.yaml. Same decoding as configs/eval/base.yaml.
+splits: [val_mixed_100, test_300, ood_hard_200]
+decoding:
+  greedy: {temperature: 0.0, n: 1}
+  mean_at_k: {temperature: 1.0, top_p: 1.0, n: 8}
+  pass_at_k: {temperature: 1.0, top_p: 1.0, n: 64, subset: test_300_first100, ks: [1, 2, 4, 8, 16, 32, 64]}

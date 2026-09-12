@@ -7,10 +7,14 @@ Implemented (tasks/02a §8):
   - truncation > 5 % and extraction-failure > 5 % flags on metrics.json; on ``ood_hard_200``
     truncation is reported per tier, prominently, but never flagged (SPEC §7 v1.3)
 
-Still to implement (tasks/03+):
-  - LoRA adapter actually loaded (parameter count delta, adapter hash)
-  - tokenizer identity between vLLM and trainer
-  - eval checkpoint == final checkpoint (no early stopping on test)
+Added by tasks/03:
+  - LoRA adapter is non-trivial: every ``lora_B`` tensor is non-zero (PEFT initialises B to zero,
+    so an untrained or unapplied adapter has ‖ΔW‖ = 0) — :func:`check_adapter_nontrivial`
+  - the evaluated adapter is the run's final (last-epoch) one — :func:`check_final_checkpoint`
+  - the merged model's greedy outputs differ from the base model's on ≥ 10 % of val prompts —
+    :func:`check_outputs_differ`
+  - tokenizer identity between vLLM and the trainer is asserted in ``train/rft_eval.py`` from the
+    hashes both record (``tokenizer_sha256_trainer`` / ``tokenizer_sha256_vllm``)
 
     python -m rlordata.analysis.sanity --splits-dir data/splits --run-dirs runs/eval/*/test_300/greedy
 """
@@ -201,6 +205,107 @@ def run_dir_reports(run_dirs: Iterable[str | Path]) -> list[str]:
             with m.open(encoding="utf-8") as f:
                 out.append(truncation_report(json.load(f), label=str(d)))
     return out
+
+
+# ---------------------------------------------------------------------------
+# tasks/03 §5: trained-adapter checks
+# ---------------------------------------------------------------------------
+
+MIN_OUTPUT_DIFFERENCE = 0.10
+
+
+def check_adapter_nontrivial(adapter_dir: str | Path) -> list[str]:
+    """‖ΔW‖ > 0: every LoRA ``B`` matrix must be non-zero (PEFT zero-initialises B)."""
+    d = Path(adapter_dir)
+    issues: list[str] = []
+    weights = d / "adapter_model.safetensors"
+    if not (d / "adapter_config.json").exists():
+        return [f"{d}: no adapter_config.json (not a PEFT adapter directory)"]
+    if not weights.exists():
+        return [f"{d}: no adapter_model.safetensors"]
+    try:
+        from safetensors import safe_open
+    except ImportError:  # pragma: no cover - ml extra missing
+        return [f"{d}: safetensors not installed; cannot verify the adapter"]
+    n_b = 0
+    zero_b: list[str] = []
+    total_sq = 0.0
+    with safe_open(str(weights), framework="pt") as f:
+        for key in f.keys():  # noqa: SIM118 - safe_open has no __iter__
+            if "lora_B" not in key:
+                continue
+            t = f.get_tensor(key).float()
+            n_b += 1
+            sq = float((t * t).sum())
+            total_sq += sq
+            if sq == 0.0:
+                zero_b.append(key)
+    if n_b == 0:
+        issues.append(f"{d}: adapter has no lora_B tensors")
+    if zero_b:
+        issues.append(
+            f"{d}: {len(zero_b)}/{n_b} lora_B tensors are all-zero (adapter not trained or not applied), "
+            f"e.g. {zero_b[0]}"
+        )
+    if n_b and total_sq == 0.0:
+        issues.append(f"{d}: ‖ΔW‖ = 0")
+    return issues
+
+
+def check_final_checkpoint(run_dir: str | Path) -> list[str]:
+    """The adapter that gets evaluated must be the last-epoch one recorded in budgets.json."""
+    d = Path(run_dir)
+    b = d / "budgets.json"
+    if not b.exists():
+        return [f"{d}: no budgets.json (training did not finish)"]
+    with b.open(encoding="utf-8") as f:
+        budgets = json.load(f)
+    issues: list[str] = []
+    final = Path(budgets.get("final_adapter", ""))
+    epochs = budgets.get("epoch_adapters") or []
+    if not final or not final.exists():
+        issues.append(f"{d}: final adapter {final} missing")
+    if int(budgets.get("epochs", -1)) != len(epochs):
+        issues.append(
+            f"{d}: {len(epochs)} epoch adapters saved but {budgets.get('epochs')} epochs planned"
+        )
+    src = final / "SOURCE.txt"
+    if epochs and src.exists() and Path(epochs[-1]).name not in src.read_text():
+        issues.append(
+            f"{d}: final adapter is not a copy of the last epoch ({Path(epochs[-1]).name})"
+        )
+    meta = d / "meta.json"
+    if meta.exists():
+        with meta.open(encoding="utf-8") as f:
+            if json.load(f).get("status") != "finished":
+                issues.append(f"{d}: training status is not 'finished'")
+    return issues
+
+
+def check_outputs_differ(
+    base_samples: list[Any],
+    new_samples: list[Any],
+    *,
+    min_fraction: float = MIN_OUTPUT_DIFFERENCE,
+) -> list[str]:
+    """The merged model's greedy completions must differ from the base's on ≥ ``min_fraction``.
+
+    Greedy is deterministic, so identical completions on (almost) every prompt means the adapter
+    was not merged / not applied; the eval would silently be a base-model eval.
+    """
+    base = {s.problem_id: s.completion for s in base_samples}
+    new = {s.problem_id: s.completion for s in new_samples}
+    common = sorted(set(base) & set(new))
+    if not common:
+        return ["no common problems between the base and adapter val samples"]
+    differ = sum(1 for pid in common if base[pid] != new[pid])
+    frac = differ / len(common)
+    if frac < min_fraction:
+        return [
+            f"greedy outputs differ from the base model on only {differ}/{len(common)} val prompts "
+            f"({100 * frac:.1f}% < {100 * min_fraction:.0f}%): adapter not applied?"
+        ]
+    return []
 
 
 def format_problems(title: str, issues: list[str]) -> str:

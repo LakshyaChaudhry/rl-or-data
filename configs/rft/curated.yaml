@@ -5,3 +5,17 @@ training: configs/locked/training.yaml
 cap_yaml: configs/locked/cap.yaml
 select: {mode: curated, max_per_problem: null}   # samples: 192/prompt from base, sampled once, shared across RFT arms (SPEC §8)
 seed: 1
+# ---- tasks/03 paths and knobs (agent-owned; the locked values live in configs/locked/) ----
+splits_dir: data/splits/
+samples_dir: data/samples/                 # the 192-sample draw files (written once, chmod 444)
+tiering_samples: data/samples/tiering_pass8.jsonl
+draw_splits: [train_easy_100, train_mixed_100]
+draw_seed: 1
+output_dir: runs/rft/
+base_eval_dir: runs/eval/Qwen__Qwen3-4B-Base   # sanity gate: merged-model greedy must differ from base
+final_eval_config: configs/eval/final.yaml
+transfer_yaml: configs/locked/transfer.yaml    # Laksh writes it (SPEC §6.3 v1.7: gsm8k_500)
+micro_batch_size: 4                            # effective batch stays 16 (training.yaml); 4 x 4 accumulation
+gradient_checkpointing: true
+dtype: bf16
+gpu_memory_utilization: 0.9

@@ -1,4 +1,4 @@
-.PHONY: setup-mac setup-gpu test test-all lint fmt gen gen-ood gen-check sample-pool cap-run cap tier tier-provisional tier-rescore rescore-cap-run tier-dry eval-base eval-dry sanity transfer-pick sync clean
+.PHONY: setup-mac setup-gpu test test-all lint fmt gen gen-ood gen-check sample-pool cap-run cap tier tier-provisional tier-rescore rescore-cap-run tier-dry eval-base eval-dry sanity transfer-pick sync clean rft-draw rft-select rft-sweep rft-finals rft-eval-final rft-dry
 
 setup-mac:
 	bash setup/setup_mac.sh
@@ -70,6 +70,27 @@ transfer-pick:
 
 sanity:
 	uv run python -m rlordata.analysis.sanity --splits-dir data/splits
+
+# ---- tasks/03 (GPU box) — run in this order: rft-draw -> rft-sweep ARM=x (x3) -> rft-finals ARM=x (x3) ----
+ARM ?= mixed
+# The 192-sample draw for train_easy_100 and train_mixed_100 (once; refuses to overwrite).
+rft-draw:
+	uv run rlordata rft --config configs/rft/mixed.yaml --stage draw
+
+rft-select:
+	uv run rlordata rft --config configs/rft/$(ARM).yaml --stage select
+
+# 9 short runs on seed 1, selection on val_mixed_100 only -> runs/rft/<arm>/{sweep,chosen}.json
+rft-sweep:
+	uv run python scripts/rft_sweep.py --config configs/rft/$(ARM).yaml
+
+# Seeds 2 and 3 with the chosen config, then the final eval of all three seeds (test/ood once).
+rft-finals:
+	uv run python scripts/rft_finals.py --config configs/rft/$(ARM).yaml
+
+# Local dry run of the whole tasks/03 pipeline with the stub sampler and a tiny model (never a result).
+rft-dry:
+	uv run python scripts/rft_dry_run.py
 
 sync:
 	uv run python -m rlordata.artifacts sync-all
