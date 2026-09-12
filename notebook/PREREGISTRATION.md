@@ -19,7 +19,8 @@ for H3: Falsified if the difference on test_300 is within 2× the pooled seed st
 - Base pass@8 on val: 0.830 (n=100×8, T=1.0, seed 1, config hash 8f90d8cf2df5, truncation 0.25 %); tier counts in pool: easy 1177 / medium 2657 / hard 2166 (SPEC v1.6 extractor, splits frozen at ffb604e)
 - Locked cap: 4352 tokens (p99 correct = 3477.94 under the v1.5 extractor that cap.yaml records; under v1.6 the same completions give p99 3161.72 and the rule would return 4096 — cap kept at 4352 as the conservative bound; correct-truncation at cap = 0.0%)
 - Transfer RG task chosen: ___ (base acc ___) — BLOCKED: rg_basic_arithmetic 0.757 (above band), rg_count_primes 0.023 (floor); SPEC §6.3 amendment pending
-- Predicted outcomes (write BEFORE training): RFT-all mixed vs easy: ___; GRPO vs RFT-curated: ___
+- Predicted outcomes (write BEFORE training): RFT-all mixed vs easy: RFT-Mixed > RFT-Easy on test_300 (same direction on ood_hard_200), gap > seed noise — mixed difficulty helps SFT too, so Bauer’s effect is not RL-only (H1). GRPO vs RFT-curated: GRPO-Curated > RFT-Curated on test_300 with the same sign on ood, but the residual is modest; most of GRPO’s edge vs RFT-Mixed is recovered by curation (H2), with a leftover from negatives / relative reward / on-policy (H3).
+- dropped RG, put GSM8K-500 @ 0.880 in replacement.
 
 ## 4. Deviations log
 - (date, what, why, approved by Laksh)

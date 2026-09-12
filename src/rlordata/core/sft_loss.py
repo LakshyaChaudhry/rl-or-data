@@ -29,4 +29,8 @@ def sft_loss(
 ) -> torch.Tensor:  # scalar
     """Token-mean negative log-likelihood over completion tokens."""
     assert logp.shape == completion_mask.shape and logp.ndim == 2
-    raise NotImplementedError("Laksh: implement sft_loss")
+    mask = completion_mask.to(dtype=logp.dtype)
+    n = mask.sum()
+    if n.item() == 0:
+        raise ValueError("sft_loss: completion_mask has no tokens (all-masked batch)")
+    return -(logp * mask).sum() / n

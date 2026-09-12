@@ -13,7 +13,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-from rlordata.train.rft_pipeline_dry import run_dry_pipeline
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root: tests.helpers, scripts.*
+
+from rlordata.train.rft_pipeline_dry import run_dry_pipeline  # noqa: E402
 
 
 def main() -> int:

@@ -48,4 +48,36 @@ def rft_select(
     max_per_problem: int | None = None,
 ) -> list[SFTExample]:
     """Build the SFT dataset for Arm 1 ("all") or Arm 2 ("curated")."""
-    raise NotImplementedError("Laksh: implement rft_select")
+    if mode not in ("all", "curated"):
+        raise ValueError(f"mode must be 'all' or 'curated', got {mode!r}")
+    if max_per_problem is not None and max_per_problem < 1:
+        raise ValueError(f"max_per_problem must be >= 1 or None, got {max_per_problem}")
+
+    out: list[SFTExample] = []
+    for problem in problems:
+        ss = samples.get(problem.problem_id, [])
+        if mode == "curated":
+            pass8 = sum(1 for s in ss[:8] if s.correct)
+            if not (1 <= pass8 <= 7):
+                continue
+
+        seen: set[str] = set()
+        kept = 0
+        for sample in ss:
+            if not sample.correct:
+                continue
+            if sample.completion in seen:
+                continue
+            seen.add(sample.completion)
+            out.append(
+                SFTExample(
+                    problem_id=problem.problem_id,
+                    prompt=sample.prompt,
+                    completion=sample.completion,
+                    tier=problem.tier,
+                )
+            )
+            kept += 1
+            if max_per_problem is not None and kept >= max_per_problem:
+                break
+    return out
