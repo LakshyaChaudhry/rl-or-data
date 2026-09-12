@@ -1,0 +1,27 @@
+{
+  "config_hash": "fd9f5e0e1317650bda7321e4fc14af04ea72cfa2561e8604d08fa2cefcffad62",
+  "finished_at": null,
+  "git_dirty": true,
+  "git_sha": "b50e5e5f689189e96967a94befa3df3f4fbd42f7",
+  "gpu_rate_usd_per_hour": 4.29,
+  "gpu_type": "NVIDIA H100 PCIe",
+  "hostname": "209-20-158-26",
+  "k": 8,
+  "n_to_sample": 6200,
+  "package_versions": {
+    "numpy": "2.3.5",
+    "peft": "0.20.0",
+    "reasoning-gym": "0.1.25",
+    "rlordata": "0.1.0",
+    "torch": "2.13.0",
+    "transformers": "5.16.1",
+    "trl": "1.12.0",
+    "vllm": "0.28.0"
+  },
+  "platform": "Linux-6.8.0-1046-nvidia-x86_64-with-glibc2.35",
+  "python": "3.11.16",
+  "run_id": "tier_Qwen__Qwen3-4B-Base_k8_seed1_provisional",
+  "started_at": "2026-09-08T04:31:21+00:00",
+  "status": "running",
+  "wall_clock_s": null
+}

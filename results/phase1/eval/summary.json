@@ -1,0 +1,818 @@
+[
+ {
+  "model_id": "Qwen/Qwen2.5-7B-Instruct",
+  "split": "ood_hard_200",
+  "n_problems": 200,
+  "greedy": 0.28,
+  "greedy_ci": [
+   0.22,
+   0.345
+  ],
+  "mean_at_8": 0.27625,
+  "pass_at_8": 0.57,
+  "pass_at_k_n64": null,
+  "trunc_greedy": 0.19,
+  "trunc_t1": 0.02875,
+  "at_cap_greedy": 0.19,
+  "at_cap_t1": 0.02875,
+  "extraction_fail_greedy": 0.19,
+  "per_tier_truncation": {
+   "greedy": {
+    "easy": 0.14285714285714285,
+    "hard": 0.18705035971223022,
+    "medium": 0.2127659574468085
+   },
+   "mean_at_k": {
+    "easy": 0.017857142857142856,
+    "hard": 0.03507194244604316,
+    "medium": 0.013297872340425532
+   }
+  },
+  "per_tier_extraction_failure": {
+   "greedy": {
+    "easy": 0.14285714285714285,
+    "hard": 0.18705035971223022,
+    "medium": 0.2127659574468085
+   },
+   "mean_at_k": {
+    "easy": 0.017857142857142856,
+    "hard": 0.03507194244604316,
+    "medium": 0.013297872340425532
+   }
+  },
+  "per_tier_at_cap": {
+   "greedy": {
+    "easy": 0.14285714285714285,
+    "hard": 0.18705035971223022,
+    "medium": 0.2127659574468085
+   },
+   "mean_at_k": {
+    "easy": 0.017857142857142856,
+    "hard": 0.03507194244604316,
+    "medium": 0.013297872340425532
+   }
+  },
+  "config_hashes": {
+   "greedy": "64e09ec6e31a",
+   "mean_at_k": "6953e9eed485"
+  },
+  "flagged": false,
+  "truncation_reported_not_flagged": true
+ },
+ {
+  "model_id": "Qwen/Qwen2.5-7B-Instruct",
+  "split": "test_300",
+  "n_problems": 300,
+  "greedy": 0.6533333333333333,
+  "greedy_ci": [
+   0.6,
+   0.7066666666666667
+  ],
+  "mean_at_8": 0.5933333333333334,
+  "pass_at_8": 0.8566666666666667,
+  "pass_at_k_n64": {
+   "1": 0.605625,
+   "16": 0.8730413169531636,
+   "2": 0.7137748015873016,
+   "32": 0.9019677278597872,
+   "4": 0.7895973407871872,
+   "64": 0.93,
+   "8": 0.8391641967792833
+  },
+  "trunc_greedy": 0.023333333333333334,
+  "trunc_t1": 0.0020833333333333333,
+  "at_cap_greedy": 0.023333333333333334,
+  "at_cap_t1": 0.0020833333333333333,
+  "extraction_fail_greedy": 0.023333333333333334,
+  "per_tier_truncation": {
+   "greedy": {
+    "easy": 0.0,
+    "hard": 0.04,
+    "medium": 0.03
+   },
+   "mean_at_k": {
+    "easy": 0.0,
+    "hard": 0.00625,
+    "medium": 0.0
+   },
+   "pass_at_k": {
+    "easy": 0.00045955882352941176,
+    "hard": 0.00615530303030303,
+    "medium": 0.0
+   }
+  },
+  "per_tier_extraction_failure": {
+   "greedy": {
+    "easy": 0.0,
+    "hard": 0.04,
+    "medium": 0.03
+   },
+   "mean_at_k": {
+    "easy": 0.0,
+    "hard": 0.00625,
+    "medium": 0.0
+   },
+   "pass_at_k": {
+    "easy": 0.00045955882352941176,
+    "hard": 0.00615530303030303,
+    "medium": 0.0
+   }
+  },
+  "per_tier_at_cap": {
+   "greedy": {
+    "easy": 0.0,
+    "hard": 0.04,
+    "medium": 0.03
+   },
+   "mean_at_k": {
+    "easy": 0.0,
+    "hard": 0.00625,
+    "medium": 0.0
+   },
+   "pass_at_k": {
+    "easy": 0.00045955882352941176,
+    "hard": 0.00615530303030303,
+    "medium": 0.0
+   }
+  },
+  "config_hashes": {
+   "greedy": "6032ef4f7328",
+   "mean_at_k": "86946444fab4",
+   "pass_at_k": "2c0f35a5e3ce"
+  },
+  "flagged": false,
+  "truncation_reported_not_flagged": false
+ },
+ {
+  "model_id": "Qwen/Qwen2.5-7B-Instruct",
+  "split": "val_mixed_100",
+  "n_problems": 100,
+  "greedy": 0.65,
+  "greedy_ci": [
+   0.56,
+   0.74
+  ],
+  "mean_at_8": 0.60375,
+  "pass_at_8": 0.85,
+  "pass_at_k_n64": null,
+  "trunc_greedy": 0.03,
+  "trunc_t1": 0.0,
+  "at_cap_greedy": 0.03,
+  "at_cap_t1": 0.0,
+  "extraction_fail_greedy": 0.03,
+  "per_tier_truncation": {
+   "greedy": {
+    "easy": 0.0,
+    "hard": 0.029411764705882353,
+    "medium": 0.06060606060606061
+   },
+   "mean_at_k": {
+    "easy": 0.0,
+    "hard": 0.0,
+    "medium": 0.0
+   }
+  },
+  "per_tier_extraction_failure": {
+   "greedy": {
+    "easy": 0.0,
+    "hard": 0.029411764705882353,
+    "medium": 0.06060606060606061
+   },
+   "mean_at_k": {
+    "easy": 0.0,
+    "hard": 0.0,
+    "medium": 0.0
+   }
+  },
+  "per_tier_at_cap": {
+   "greedy": {
+    "easy": 0.0,
+    "hard": 0.029411764705882353,
+    "medium": 0.06060606060606061
+   },
+   "mean_at_k": {
+    "easy": 0.0,
+    "hard": 0.0,
+    "medium": 0.0
+   }
+  },
+  "config_hashes": {
+   "greedy": "fcaf4212c64a",
+   "mean_at_k": "accba16e62cc"
+  },
+  "flagged": false,
+  "truncation_reported_not_flagged": false
+ },
+ {
+  "model_id": "Qwen/Qwen3-4B",
+  "split": "ood_hard_200",
+  "n_problems": 200,
+  "greedy": 0.455,
+  "greedy_ci": [
+   0.385,
+   0.52
+  ],
+  "mean_at_8": 0.45875,
+  "pass_at_8": 0.715,
+  "pass_at_k_n64": null,
+  "trunc_greedy": 0.225,
+  "trunc_t1": 0.0425,
+  "at_cap_greedy": 0.225,
+  "at_cap_t1": 0.0425,
+  "extraction_fail_greedy": 0.225,
+  "per_tier_truncation": {
+   "greedy": {
+    "easy": 0.14285714285714285,
+    "hard": 0.23741007194244604,
+    "medium": 0.2127659574468085
+   },
+   "mean_at_k": {
+    "easy": 0.008928571428571428,
+    "hard": 0.046762589928057555,
+    "medium": 0.0398936170212766
+   }
+  },
+  "per_tier_extraction_failure": {
+   "greedy": {
+    "easy": 0.14285714285714285,
+    "hard": 0.23741007194244604,
+    "medium": 0.2127659574468085
+   },
+   "mean_at_k": {
+    "easy": 0.008928571428571428,
+    "hard": 0.046762589928057555,
+    "medium": 0.0398936170212766
+   }
+  },
+  "per_tier_at_cap": {
+   "greedy": {
+    "easy": 0.14285714285714285,
+    "hard": 0.23741007194244604,
+    "medium": 0.2127659574468085
+   },
+   "mean_at_k": {
+    "easy": 0.008928571428571428,
+    "hard": 0.046762589928057555,
+    "medium": 0.0398936170212766
+   }
+  },
+  "config_hashes": {
+   "greedy": "b81c3227d807",
+   "mean_at_k": "71b1ab492a57"
+  },
+  "flagged": false,
+  "truncation_reported_not_flagged": true
+ },
+ {
+  "model_id": "Qwen/Qwen3-4B",
+  "split": "test_300",
+  "n_problems": 300,
+  "greedy": 0.7466666666666667,
+  "greedy_ci": [
+   0.6966666666666667,
+   0.7966666666666666
+  ],
+  "mean_at_8": 0.7775,
+  "pass_at_8": 0.9333333333333333,
+  "pass_at_k_n64": {
+   "1": 0.7934375,
+   "16": 0.9425483363450753,
+   "2": 0.8611011904761905,
+   "32": 0.9546072859022119,
+   "4": 0.9019020548462643,
+   "64": 0.97,
+   "8": 0.9265284905911813
+  },
+  "trunc_greedy": 0.04,
+  "trunc_t1": 0.00125,
+  "at_cap_greedy": 0.04,
+  "at_cap_t1": 0.00125,
+  "extraction_fail_greedy": 0.04,
+  "per_tier_truncation": {
+   "greedy": {
+    "easy": 0.02,
+    "hard": 0.06,
+    "medium": 0.04
+   },
+   "mean_at_k": {
+    "easy": 0.0,
+    "hard": 0.00375,
+    "medium": 0.0
+   },
+   "pass_at_k": {
+    "easy": 0.0,
+    "hard": 0.002840909090909091,
+    "medium": 0.000946969696969697
+   }
+  },
+  "per_tier_extraction_failure": {
+   "greedy": {
+    "easy": 0.02,
+    "hard": 0.06,
+    "medium": 0.04
+   },
+   "mean_at_k": {
+    "easy": 0.0,
+    "hard": 0.00375,
+    "medium": 0.0
+   },
+   "pass_at_k": {
+    "easy": 0.0,
+    "hard": 0.002840909090909091,
+    "medium": 0.000946969696969697
+   }
+  },
+  "per_tier_at_cap": {
+   "greedy": {
+    "easy": 0.02,
+    "hard": 0.06,
+    "medium": 0.04
+   },
+   "mean_at_k": {
+    "easy": 0.0,
+    "hard": 0.00375,
+    "medium": 0.0
+   },
+   "pass_at_k": {
+    "easy": 0.0,
+    "hard": 0.002840909090909091,
+    "medium": 0.000946969696969697
+   }
+  },
+  "config_hashes": {
+   "greedy": "b8bb1c07a9ed",
+   "mean_at_k": "227b4310821f",
+   "pass_at_k": "a681da3d4a0e"
+  },
+  "flagged": false,
+  "truncation_reported_not_flagged": false
+ },
+ {
+  "model_id": "Qwen/Qwen3-4B",
+  "split": "val_mixed_100",
+  "n_problems": 100,
+  "greedy": 0.83,
+  "greedy_ci": [
+   0.75,
+   0.9
+  ],
+  "mean_at_8": 0.79625,
+  "pass_at_8": 0.93,
+  "pass_at_k_n64": null,
+  "trunc_greedy": 0.03,
+  "trunc_t1": 0.00125,
+  "at_cap_greedy": 0.03,
+  "at_cap_t1": 0.00125,
+  "extraction_fail_greedy": 0.03,
+  "per_tier_truncation": {
+   "greedy": {
+    "easy": 0.0,
+    "hard": 0.08823529411764706,
+    "medium": 0.0
+   },
+   "mean_at_k": {
+    "easy": 0.003787878787878788,
+    "hard": 0.0,
+    "medium": 0.0
+   }
+  },
+  "per_tier_extraction_failure": {
+   "greedy": {
+    "easy": 0.0,
+    "hard": 0.08823529411764706,
+    "medium": 0.0
+   },
+   "mean_at_k": {
+    "easy": 0.003787878787878788,
+    "hard": 0.0,
+    "medium": 0.0
+   }
+  },
+  "per_tier_at_cap": {
+   "greedy": {
+    "easy": 0.0,
+    "hard": 0.08823529411764706,
+    "medium": 0.0
+   },
+   "mean_at_k": {
+    "easy": 0.003787878787878788,
+    "hard": 0.0,
+    "medium": 0.0
+   }
+  },
+  "config_hashes": {
+   "greedy": "f7b0f899a80a",
+   "mean_at_k": "e2a902b0fe3e"
+  },
+  "flagged": false,
+  "truncation_reported_not_flagged": false
+ },
+ {
+  "model_id": "Qwen/Qwen3-4B-Base",
+  "split": "ood_hard_200",
+  "n_problems": 200,
+  "greedy": 0.25,
+  "greedy_ci": [
+   0.19,
+   0.315
+  ],
+  "mean_at_8": 0.173125,
+  "pass_at_8": 0.52,
+  "pass_at_k_n64": null,
+  "trunc_greedy": 0.13,
+  "trunc_t1": 0.03125,
+  "at_cap_greedy": 0.13,
+  "at_cap_t1": 0.03125,
+  "extraction_fail_greedy": 0.13,
+  "per_tier_truncation": {
+   "greedy": {
+    "easy": 0.07142857142857142,
+    "hard": 0.1223021582733813,
+    "medium": 0.1702127659574468
+   },
+   "mean_at_k": {
+    "easy": 0.03571428571428571,
+    "hard": 0.0341726618705036,
+    "medium": 0.02127659574468085
+   }
+  },
+  "per_tier_extraction_failure": {
+   "greedy": {
+    "easy": 0.07142857142857142,
+    "hard": 0.1223021582733813,
+    "medium": 0.1702127659574468
+   },
+   "mean_at_k": {
+    "easy": 0.03571428571428571,
+    "hard": 0.0368705035971223,
+    "medium": 0.023936170212765957
+   }
+  },
+  "per_tier_at_cap": {
+   "greedy": {
+    "easy": 0.07142857142857142,
+    "hard": 0.1223021582733813,
+    "medium": 0.1702127659574468
+   },
+   "mean_at_k": {
+    "easy": 0.03571428571428571,
+    "hard": 0.0341726618705036,
+    "medium": 0.02127659574468085
+   }
+  },
+  "config_hashes": {
+   "greedy": "2030cb4f869d",
+   "mean_at_k": "07d9623906dc"
+  },
+  "flagged": false,
+  "truncation_reported_not_flagged": true
+ },
+ {
+  "model_id": "Qwen/Qwen3-4B-Base",
+  "split": "test_300",
+  "n_problems": 300,
+  "greedy": 0.6733333333333333,
+  "greedy_ci": [
+   0.6166666666666667,
+   0.7266666666666667
+  ],
+  "mean_at_8": 0.425,
+  "pass_at_8": 0.8,
+  "pass_at_k_n64": {
+   "1": 0.42609375,
+   "16": 0.8659030738261074,
+   "2": 0.5901934523809527,
+   "32": 0.9234639970660342,
+   "4": 0.7183963511369647,
+   "64": 0.98,
+   "8": 0.8032202635317354
+  },
+  "trunc_greedy": 0.043333333333333335,
+  "trunc_t1": 0.0033333333333333335,
+  "at_cap_greedy": 0.043333333333333335,
+  "at_cap_t1": 0.0033333333333333335,
+  "extraction_fail_greedy": 0.043333333333333335,
+  "per_tier_truncation": {
+   "greedy": {
+    "easy": 0.03,
+    "hard": 0.05,
+    "medium": 0.05
+   },
+   "mean_at_k": {
+    "easy": 0.00375,
+    "hard": 0.005,
+    "medium": 0.00125
+   },
+   "pass_at_k": {
+    "easy": 0.0027573529411764708,
+    "hard": 0.009943181818181818,
+    "medium": 0.003787878787878788
+   }
+  },
+  "per_tier_extraction_failure": {
+   "greedy": {
+    "easy": 0.03,
+    "hard": 0.05,
+    "medium": 0.05
+   },
+   "mean_at_k": {
+    "easy": 0.00625,
+    "hard": 0.01,
+    "medium": 0.0025
+   },
+   "pass_at_k": {
+    "easy": 0.01011029411764706,
+    "hard": 0.014204545454545454,
+    "medium": 0.006628787878787879
+   }
+  },
+  "per_tier_at_cap": {
+   "greedy": {
+    "easy": 0.03,
+    "hard": 0.05,
+    "medium": 0.05
+   },
+   "mean_at_k": {
+    "easy": 0.00375,
+    "hard": 0.005,
+    "medium": 0.00125
+   },
+   "pass_at_k": {
+    "easy": 0.0027573529411764708,
+    "hard": 0.010416666666666666,
+    "medium": 0.003787878787878788
+   }
+  },
+  "config_hashes": {
+   "greedy": "f4c39169f423",
+   "mean_at_k": "4d9ad226453f",
+   "pass_at_k": "0645e0290ff5"
+  },
+  "flagged": false,
+  "truncation_reported_not_flagged": false
+ },
+ {
+  "model_id": "Qwen/Qwen3-4B-Base",
+  "split": "val_mixed_100",
+  "n_problems": 100,
+  "greedy": 0.6,
+  "greedy_ci": [
+   0.51,
+   0.7
+  ],
+  "mean_at_8": 0.42,
+  "pass_at_8": 0.83,
+  "pass_at_k_n64": null,
+  "trunc_greedy": 0.01,
+  "trunc_t1": 0.0025,
+  "at_cap_greedy": 0.01,
+  "at_cap_t1": 0.0025,
+  "extraction_fail_greedy": 0.01,
+  "per_tier_truncation": {
+   "greedy": {
+    "easy": 0.0,
+    "hard": 0.0,
+    "medium": 0.030303030303030304
+   },
+   "mean_at_k": {
+    "easy": 0.0,
+    "hard": 0.007352941176470588,
+    "medium": 0.0
+   }
+  },
+  "per_tier_extraction_failure": {
+   "greedy": {
+    "easy": 0.0,
+    "hard": 0.0,
+    "medium": 0.030303030303030304
+   },
+   "mean_at_k": {
+    "easy": 0.003787878787878788,
+    "hard": 0.011029411764705883,
+    "medium": 0.007575757575757576
+   }
+  },
+  "per_tier_at_cap": {
+   "greedy": {
+    "easy": 0.0,
+    "hard": 0.0,
+    "medium": 0.030303030303030304
+   },
+   "mean_at_k": {
+    "easy": 0.0,
+    "hard": 0.007352941176470588,
+    "medium": 0.0
+   }
+  },
+  "config_hashes": {
+   "greedy": "b2356e9825f0",
+   "mean_at_k": "8f90d8cf2df5"
+  },
+  "flagged": false,
+  "truncation_reported_not_flagged": false
+ },
+ {
+  "model_id": "meta-llama/Llama-3.1-8B-Instruct",
+  "split": "ood_hard_200",
+  "n_problems": 200,
+  "greedy": 0.09,
+  "greedy_ci": [
+   0.05,
+   0.13
+  ],
+  "mean_at_8": 0.113125,
+  "pass_at_8": 0.405,
+  "pass_at_k_n64": null,
+  "trunc_greedy": 0.475,
+  "trunc_t1": 0.3875,
+  "at_cap_greedy": 0.475,
+  "at_cap_t1": 0.3875,
+  "extraction_fail_greedy": 0.475,
+  "per_tier_truncation": {
+   "greedy": {
+    "easy": 0.42857142857142855,
+    "hard": 0.5107913669064749,
+    "medium": 0.3829787234042553
+   },
+   "mean_at_k": {
+    "easy": 0.25,
+    "hard": 0.4172661870503597,
+    "medium": 0.3404255319148936
+   }
+  },
+  "per_tier_extraction_failure": {
+   "greedy": {
+    "easy": 0.42857142857142855,
+    "hard": 0.5107913669064749,
+    "medium": 0.3829787234042553
+   },
+   "mean_at_k": {
+    "easy": 0.25,
+    "hard": 0.4172661870503597,
+    "medium": 0.3404255319148936
+   }
+  },
+  "per_tier_at_cap": {
+   "greedy": {
+    "easy": 0.42857142857142855,
+    "hard": 0.5107913669064749,
+    "medium": 0.3829787234042553
+   },
+   "mean_at_k": {
+    "easy": 0.25,
+    "hard": 0.4172661870503597,
+    "medium": 0.3404255319148936
+   }
+  },
+  "config_hashes": {
+   "greedy": "70bfab6b046a",
+   "mean_at_k": "8435a2bb8a0d"
+  },
+  "flagged": false,
+  "truncation_reported_not_flagged": true
+ },
+ {
+  "model_id": "meta-llama/Llama-3.1-8B-Instruct",
+  "split": "test_300",
+  "n_problems": 300,
+  "greedy": 0.37333333333333335,
+  "greedy_ci": [
+   0.32,
+   0.4266666666666667
+  ],
+  "mean_at_8": 0.335,
+  "pass_at_8": 0.6933333333333334,
+  "pass_at_k_n64": {
+   "1": 0.35015625,
+   "16": 0.7818273367646421,
+   "2": 0.4768204365079367,
+   "32": 0.8423265952905392,
+   "4": 0.5966917384351944,
+   "64": 0.88,
+   "8": 0.7001202944548452
+  },
+  "trunc_greedy": 0.11333333333333333,
+  "trunc_t1": 0.15208333333333332,
+  "at_cap_greedy": 0.11333333333333333,
+  "at_cap_t1": 0.15208333333333332,
+  "extraction_fail_greedy": 0.11333333333333333,
+  "per_tier_truncation": {
+   "greedy": {
+    "easy": 0.06,
+    "hard": 0.17,
+    "medium": 0.11
+   },
+   "mean_at_k": {
+    "easy": 0.0925,
+    "hard": 0.22875,
+    "medium": 0.135
+   },
+   "pass_at_k": {
+    "easy": 0.0818014705882353,
+    "hard": 0.22348484848484848,
+    "medium": 0.13920454545454544
+   }
+  },
+  "per_tier_extraction_failure": {
+   "greedy": {
+    "easy": 0.06,
+    "hard": 0.17,
+    "medium": 0.11
+   },
+   "mean_at_k": {
+    "easy": 0.0925,
+    "hard": 0.22875,
+    "medium": 0.135
+   },
+   "pass_at_k": {
+    "easy": 0.0818014705882353,
+    "hard": 0.22348484848484848,
+    "medium": 0.13920454545454544
+   }
+  },
+  "per_tier_at_cap": {
+   "greedy": {
+    "easy": 0.06,
+    "hard": 0.17,
+    "medium": 0.11
+   },
+   "mean_at_k": {
+    "easy": 0.0925,
+    "hard": 0.22875,
+    "medium": 0.135
+   },
+   "pass_at_k": {
+    "easy": 0.0818014705882353,
+    "hard": 0.22348484848484848,
+    "medium": 0.13920454545454544
+   }
+  },
+  "config_hashes": {
+   "greedy": "d7c889b1857d",
+   "mean_at_k": "672fde4d2b5c",
+   "pass_at_k": "3dad957e5a57"
+  },
+  "flagged": true,
+  "truncation_reported_not_flagged": false
+ },
+ {
+  "model_id": "meta-llama/Llama-3.1-8B-Instruct",
+  "split": "val_mixed_100",
+  "n_problems": 100,
+  "greedy": 0.5,
+  "greedy_ci": [
+   0.4,
+   0.6
+  ],
+  "mean_at_8": 0.38375,
+  "pass_at_8": 0.73,
+  "pass_at_k_n64": null,
+  "trunc_greedy": 0.08,
+  "trunc_t1": 0.145,
+  "at_cap_greedy": 0.08,
+  "at_cap_t1": 0.145,
+  "extraction_fail_greedy": 0.08,
+  "per_tier_truncation": {
+   "greedy": {
+    "easy": 0.06060606060606061,
+    "hard": 0.11764705882352941,
+    "medium": 0.06060606060606061
+   },
+   "mean_at_k": {
+    "easy": 0.06060606060606061,
+    "hard": 0.2426470588235294,
+    "medium": 0.12878787878787878
+   }
+  },
+  "per_tier_extraction_failure": {
+   "greedy": {
+    "easy": 0.06060606060606061,
+    "hard": 0.11764705882352941,
+    "medium": 0.06060606060606061
+   },
+   "mean_at_k": {
+    "easy": 0.06060606060606061,
+    "hard": 0.2426470588235294,
+    "medium": 0.12878787878787878
+   }
+  },
+  "per_tier_at_cap": {
+   "greedy": {
+    "easy": 0.06060606060606061,
+    "hard": 0.11764705882352941,
+    "medium": 0.06060606060606061
+   },
+   "mean_at_k": {
+    "easy": 0.06060606060606061,
+    "hard": 0.2426470588235294,
+    "medium": 0.12878787878787878
+   }
+  },
+  "config_hashes": {
+   "greedy": "d03cde5ed0b7",
+   "mean_at_k": "dc788d14b60c"
+  },
+  "flagged": true,
+  "truncation_reported_not_flagged": false
+ }
+]

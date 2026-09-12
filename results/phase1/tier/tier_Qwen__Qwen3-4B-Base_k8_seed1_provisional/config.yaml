@@ -1,0 +1,70 @@
+answer_regex: ^Answer:\s*(-?\d+)\s*$
+cap_is_provisional: true
+cap_yaml: configs/locked/cap.yaml
+input: data/pool/pool.jsonl
+k: 8
+kind: tier
+max_completion_tokens: 4096
+max_prompt_tokens: 4096
+model:
+  arm: base
+  id: Qwen/Qwen3-4B-Base
+  kind: base
+n_pool: 6000
+output_dir: data/splits_provisional
+post_hoc_tier_inputs:
+  ood_hard_200: 200
+prompt_template: 'Solve the following problem. Think step by step, then give the final
+  answer on the last line in the form "Answer: <integer>".
+
+
+  Problem: {problem_text}
+
+  '
+run_id: tier_Qwen__Qwen3-4B-Base_k8_seed1_provisional
+sampler:
+  batch_invariant: true
+  batch_invariant_env: '1'
+  cap_is_provisional: true
+  dtype: bfloat16
+  enable_prefix_caching: false
+  gpu_memory_utilization: 0.9
+  llm_kwargs: {}
+  lora_path: null
+  max_completion_tokens: 4096
+  max_prompt_tokens: 4096
+  model_id: Qwen/Qwen3-4B-Base
+  model_kind: base
+  repetition_penalty: 1.0
+  sampler: vllm
+  seed: 1
+  seed_scheme: 'per_prompt: seed + prompt_index * n; vLLM child seeds add sample index'
+  vllm_version: 0.28.0
+samples_output: data/samples/tiering_pass8.jsonl
+seed: 1
+source_config: configs/data/tiering.yaml
+splits:
+  test_300:
+    easy: 100
+    hard: 100
+    medium: 100
+  train_curated:
+    derived_from: train_mixed_100
+    pass8_max: 7
+    pass8_min: 1
+  train_easy_100:
+    easy: 100
+  train_mixed_100:
+    easy: 33
+    hard: 34
+    medium: 33
+  val_mixed_100:
+    easy: 33
+    hard: 34
+    medium: 33
+temperature: 1.0
+thinking: false
+tiers:
+  easy_min_pass8: 6
+  medium_min_pass8: 2
+top_p: 1.0

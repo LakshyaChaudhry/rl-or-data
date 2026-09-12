@@ -1,0 +1,67 @@
+{
+  "disjointness_issues": [],
+  "pass8_counts": {
+    "0": 1375,
+    "1": 791,
+    "2": 709,
+    "3": 605,
+    "4": 681,
+    "5": 662,
+    "6": 554,
+    "7": 419,
+    "8": 204
+  },
+  "pool_tier_counts": {
+    "easy": 1177,
+    "hard": 2166,
+    "medium": 2657
+  },
+  "splits": {
+    "ood_hard_200": {
+      "n": 200,
+      "tiers": {
+        "easy": 14,
+        "hard": 139,
+        "medium": 47
+      }
+    },
+    "test_300": {
+      "n": 300,
+      "tiers": {
+        "easy": 100,
+        "hard": 100,
+        "medium": 100
+      }
+    },
+    "train_curated": {
+      "n": 73,
+      "tiers": {
+        "easy": 26,
+        "hard": 14,
+        "medium": 33
+      }
+    },
+    "train_easy_100": {
+      "n": 100,
+      "tiers": {
+        "easy": 100
+      }
+    },
+    "train_mixed_100": {
+      "n": 100,
+      "tiers": {
+        "easy": 33,
+        "hard": 34,
+        "medium": 33
+      }
+    },
+    "val_mixed_100": {
+      "n": 100,
+      "tiers": {
+        "easy": 33,
+        "hard": 34,
+        "medium": 33
+      }
+    }
+  }
+}

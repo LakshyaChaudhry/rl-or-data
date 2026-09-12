@@ -1,0 +1,121 @@
+{
+  "cap": 4352,
+  "rows": [
+    {
+      "at_cap_greedy": 0.0,
+      "at_cap_t1": null,
+      "config_hashes": {
+        "greedy": "ae26736c0f18"
+      },
+      "extraction_fail_greedy": 0.0,
+      "flagged": false,
+      "greedy": 0.88,
+      "greedy_ci": [
+        0.85,
+        0.908
+      ],
+      "mean_at_8": null,
+      "model_id": "Qwen/Qwen3-4B-Base",
+      "n_problems": 500,
+      "pass_at_8": null,
+      "pass_at_k_n64": null,
+      "per_tier_at_cap": {
+        "greedy": {
+          "untiered": 0.0
+        }
+      },
+      "per_tier_extraction_failure": {
+        "greedy": {
+          "untiered": 0.0
+        }
+      },
+      "per_tier_truncation": {
+        "greedy": {
+          "untiered": 0.0
+        }
+      },
+      "split": "gsm8k_500",
+      "trunc_greedy": 0.0,
+      "trunc_t1": null,
+      "truncation_reported_not_flagged": false
+    },
+    {
+      "at_cap_greedy": 0.006666666666666667,
+      "at_cap_t1": null,
+      "config_hashes": {
+        "greedy": "a6ca4740ace1"
+      },
+      "extraction_fail_greedy": 0.006666666666666667,
+      "flagged": false,
+      "greedy": 0.7566666666666667,
+      "greedy_ci": [
+        0.7066666666666667,
+        0.8033333333333333
+      ],
+      "mean_at_8": null,
+      "model_id": "Qwen/Qwen3-4B-Base",
+      "n_problems": 300,
+      "pass_at_8": null,
+      "pass_at_k_n64": null,
+      "per_tier_at_cap": {
+        "greedy": {
+          "untiered": 0.006666666666666667
+        }
+      },
+      "per_tier_extraction_failure": {
+        "greedy": {
+          "untiered": 0.006666666666666667
+        }
+      },
+      "per_tier_truncation": {
+        "greedy": {
+          "untiered": 0.006666666666666667
+        }
+      },
+      "split": "rg_basic_arithmetic_300",
+      "trunc_greedy": 0.006666666666666667,
+      "trunc_t1": null,
+      "truncation_reported_not_flagged": false
+    },
+    {
+      "at_cap_greedy": 0.09333333333333334,
+      "at_cap_t1": null,
+      "config_hashes": {
+        "greedy": "8ccca8cd2641"
+      },
+      "extraction_fail_greedy": 0.09333333333333334,
+      "flagged": true,
+      "greedy": 0.023333333333333334,
+      "greedy_ci": [
+        0.006666666666666667,
+        0.04
+      ],
+      "mean_at_8": null,
+      "model_id": "Qwen/Qwen3-4B-Base",
+      "n_problems": 300,
+      "pass_at_8": null,
+      "pass_at_k_n64": null,
+      "per_tier_at_cap": {
+        "greedy": {
+          "untiered": 0.09333333333333334
+        }
+      },
+      "per_tier_extraction_failure": {
+        "greedy": {
+          "untiered": 0.09333333333333334
+        }
+      },
+      "per_tier_truncation": {
+        "greedy": {
+          "untiered": 0.09333333333333334
+        }
+      },
+      "split": "rg_count_primes_300",
+      "trunc_greedy": 0.09333333333333334,
+      "trunc_t1": null,
+      "truncation_reported_not_flagged": false
+    }
+  ],
+  "seed": 1,
+  "status": "finished"
+}

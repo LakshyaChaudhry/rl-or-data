@@ -15,10 +15,10 @@ for H3: Falsified if the difference on test_300 is within 2× the pooled seed st
     2) Same direction for the gap on hard OOD problems - here the gap should go in the same way on the OOD-hard-200 set.
 
 ## 3. Phase 1 facts that fix the protocol
-- Base greedy accuracy on val_mixed_100: ___ (CI ___)
-- Base pass@8 on val: ___; tier counts in pool: easy ___ / medium ___ / hard ___
-- Locked cap: ___ tokens (p99 correct = ___; correct-truncation at cap = ___%)
-- Transfer RG task chosen: ___ (base acc ___)
+- Base greedy accuracy on val_mixed_100: 0.600 (CI [0.510, 0.700]; n=100, seed 1, cap 4352, config hash b2356e9825f0, truncation 1.0 %, extraction failure 1.0 %)
+- Base pass@8 on val: 0.830 (n=100×8, T=1.0, seed 1, config hash 8f90d8cf2df5, truncation 0.25 %); tier counts in pool: easy 1177 / medium 2657 / hard 2166 (SPEC v1.6 extractor, splits frozen at ffb604e)
+- Locked cap: 4352 tokens (p99 correct = 3477.94 under the v1.5 extractor that cap.yaml records; under v1.6 the same completions give p99 3161.72 and the rule would return 4096 — cap kept at 4352 as the conservative bound; correct-truncation at cap = 0.0%)
+- Transfer RG task chosen: ___ (base acc ___) — BLOCKED: rg_basic_arithmetic 0.757 (above band), rg_count_primes 0.023 (floor); SPEC §6.3 amendment pending
 - Predicted outcomes (write BEFORE training): RFT-all mixed vs easy: ___; GRPO vs RFT-curated: ___
 
 ## 4. Deviations log

@@ -1,0 +1,56 @@
+answer_regex: 'normalise_answer_line(line) then: ^\s*(?:final\s+)?answer\s*:\s*\$?(?:\\boxed\{)?\s*(-?\d{1,3}(?:,\d{3})+|-?\d+)\s*\}?\$?\s*[.,]?\s*$
+  || \\boxed\{\s*(-?\d{1,3}(?:,\d{3})+|-?\d+)\s*\} || fallback: last integer in the
+  completion (not when truncated)'
+cap_is_provisional: false
+cap_yaml: configs/locked/cap.yaml
+chat_template_kwargs:
+  enable_thinking: false
+decoding:
+  ks: null
+  n: 8
+  name: mean_at_k
+  repetition_penalty: 1.0
+  temperature: 1.0
+  top_p: 1.0
+extraction_rule: v1.6
+kind: eval
+max_completion_tokens: 4352
+max_prompt_tokens: 4096
+model:
+  arm: ref
+  id: Qwen/Qwen3-4B
+  kind: instruct
+  lora_path: null
+n_problems: 100
+problem_ids_sha256: f56d989915dcc48f69a71b20be8d9faa3d7f4a9880c7fea08fb1e54641b676c2
+prompt_template: 'Solve the following problem. Think step by step, then give the final
+  answer on the last line in the form "Answer: <integer>".
+
+
+  Problem: {problem_text}
+
+  '
+run_id: eval_Qwen__Qwen3-4B_val_mixed_100_mean_at_k_seed1
+sampler:
+  batch_invariant: true
+  batch_invariant_env: '1'
+  cap_is_provisional: false
+  dtype: bfloat16
+  enable_prefix_caching: false
+  gpu_memory_utilization: 0.9
+  llm_kwargs: {}
+  lora_path: null
+  max_completion_tokens: 4352
+  max_prompt_tokens: 4096
+  model_id: Qwen/Qwen3-4B
+  model_kind: instruct
+  repetition_penalty: 1.0
+  sampler: vllm
+  seed: 1
+  seed_scheme: 'per_prompt: seed + prompt_index * n; vLLM child seeds add sample index'
+  vllm_version: 0.28.0
+seed: 1
+source_config: configs/eval/base.yaml
+split: val_mixed_100
+subset: null
+thinking: false
