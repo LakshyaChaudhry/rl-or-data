@@ -25,6 +25,28 @@ from rlordata.types import Problem, Sample
 
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 
+VLLM_DTYPES = {"auto", "half", "float16", "bfloat16", "float", "float32"}
+
+
+@pytest.mark.parametrize("arm", ["easy", "mixed", "curated"])
+def test_draw_sampler_gets_a_vllm_dtype(arm: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Arm configs say ``dtype: bf16``; vLLM's ModelConfig rejects that (the first GPU draw crashed)."""
+    seen: dict[str, object] = {}
+
+    def fake_make_sampler(spec: object, **kwargs: object) -> object:
+        seen.update(kwargs)
+        return object()
+
+    monkeypatch.setattr("rlordata.sampling.eval_runner.make_sampler", fake_make_sampler)
+    cfg = {
+        **load_yaml(Path("configs/rft") / f"{arm}.yaml"),
+        "max_completion_tokens": 4352,
+        "cap_yaml": "configs/locked/cap.yaml",
+    }
+    rft._sampler_for_draw(cfg, seed=1, stub=False, problems=[])
+    assert seen["dtype"] in VLLM_DTYPES
+    assert seen["dtype"] == "bfloat16"
+
 
 def _problem(i: int, tier: str = "medium", pass8: int = 3) -> Problem:
     return Problem(

@@ -467,6 +467,11 @@ def resolved_train_config(
 # ---------------------------------------------------------------------------
 
 
+def _dtype_name(value: str) -> str:
+    """Config shorthand (``bf16`` as in the locked ``training.yaml``) → the name torch and vLLM accept."""
+    return {"bf16": "bfloat16", "fp32": "float32"}.get(value, value)
+
+
 def _sampler_for_draw(
     cfg: dict[str, Any], *, seed: int, stub: bool, problems: list[Problem]
 ) -> Any:
@@ -481,7 +486,7 @@ def _sampler_for_draw(
         cap_path=cfg["cap_yaml"],
         allow_provisional_cap=False,
         problems=problems,
-        dtype=cfg.get("dtype", "bfloat16"),
+        dtype=_dtype_name(str(cfg.get("dtype", "bfloat16"))),
         gpu_memory_utilization=float(cfg.get("gpu_memory_utilization", 0.9)),
     )
 
@@ -658,8 +663,7 @@ def stage_train(cfg: dict[str, Any], args: Any) -> int:
         return 0
     sel, draw_file = load_selection(cfg, seed=seed, splits_dir=splits_dir, samples_dir=samples_dir)
     print(format_selection(cfg["arm"], sel))
-    dtype = str(cfg.get("dtype", tr.get("precision", "bf16")))
-    dtype = {"bf16": "bfloat16", "fp32": "float32"}.get(dtype, dtype)
+    dtype = _dtype_name(str(cfg.get("dtype", tr.get("precision", "bf16"))))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if device.type != "cuda" and not getattr(args, "allow_cpu", False):
         raise SystemExit(
