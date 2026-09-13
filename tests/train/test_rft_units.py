@@ -165,11 +165,16 @@ def test_encode_example_roundtrip_and_mask(tokenizer) -> None:
         p.tier,
     )
     enc = encode_example(tokenizer, ex)
-    assert tokenizer.decode(enc.input_ids) == ex.prompt + ex.completion
+    assert tokenizer.decode(enc.input_ids) == ex.prompt + ex.completion + tokenizer.eos_token
     assert enc.completion_mask[: enc.n_prompt_tokens] == [0] * enc.n_prompt_tokens
     assert enc.completion_mask[enc.n_prompt_tokens :] == [1] * enc.n_completion_tokens
     assert enc.n_prompt_tokens == len(tokenizer(ex.prompt, add_special_tokens=False)["input_ids"])
-    assert tokenizer.eos_token_id not in enc.input_ids  # nothing appended (tasks/03 §3)
+    # tasks/03 §3 (amended 2026-09-13): exactly one EOS, last, and inside the loss
+    assert enc.input_ids[-1] == tokenizer.eos_token_id
+    assert enc.input_ids.count(tokenizer.eos_token_id) == 1
+    assert enc.completion_mask[-1] == 1
+    comp_only = tokenizer(ex.completion, add_special_tokens=False)["input_ids"]
+    assert enc.n_completion_tokens == len(comp_only) + 1
     with pytest.raises(ValueError, match="TEMPLATE"):
         encode_example(tokenizer, SFTExample("x", "Problem: y", "Answer: 1", "easy"))
     with pytest.raises(ValueError, match="empty"):
@@ -194,6 +199,33 @@ def test_collate_right_pads(tokenizer) -> None:
     assert int(t["attention_mask"][0].sum()) == len(a.input_ids)
     assert int(t["completion_mask"][0].sum()) == a.n_completion_tokens
     assert torch.all(t["input_ids"][0, len(a.input_ids) :] == tokenizer.pad_token_id)
+
+
+def test_collate_keeps_eos_in_loss_when_pad_equals_eos(tokenizer) -> None:
+    """Qwen3 base uses one id for pad and EOS; masks come from lengths, never from token ids."""
+    pytest.importorskip("torch")
+    p = _problem(5)
+    a = encode_example(tokenizer, SFTExample("a", render_template(p.text), "Answer: 5", "easy"))
+    b = encode_example(
+        tokenizer,
+        SFTExample("b", render_template(p.text), "Longer reasoning here.\nAnswer: 5", "easy"),
+    )
+    eos = tokenizer.eos_token_id
+    t = collate([a, b], pad_id=eos)
+    last = len(a.input_ids) - 1
+    assert int(t["input_ids"][0, last]) == eos
+    assert int(t["completion_mask"][0, last]) == 1  # the real EOS is trained
+    assert int(t["attention_mask"][0, last]) == 1
+    assert int(t["completion_mask"][0, last + 1 :].sum()) == 0  # padding with the same id is not
+
+
+def test_eos_must_be_a_generation_stop_token() -> None:
+    rft.assert_eos_is_generation_stop(151643, [151643])
+    rft.assert_eos_is_generation_stop(151643, 151643)
+    with pytest.raises(ValueError, match="generation stop"):
+        rft.assert_eos_is_generation_stop(151645, [151643])  # instruct <|im_end|> vs base
+    with pytest.raises(ValueError, match="generation stop"):
+        rft.assert_eos_is_generation_stop(None, [151643])
 
 
 def test_epoch_order_is_seeded() -> None:
