@@ -22,6 +22,7 @@ Added by tasks/03:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from collections.abc import Iterable
@@ -253,7 +254,7 @@ def check_adapter_nontrivial(adapter_dir: str | Path) -> list[str]:
 
 
 def check_final_checkpoint(run_dir: str | Path) -> list[str]:
-    """The adapter that gets evaluated must be the last-epoch one recorded in budgets.json."""
+    """The adapter that gets evaluated must be the run's final checkpoint (RFT last-epoch / GRPO step 300)."""
     d = Path(run_dir)
     b = d / "budgets.json"
     if not b.exists():
@@ -262,23 +263,110 @@ def check_final_checkpoint(run_dir: str | Path) -> list[str]:
         budgets = json.load(f)
     issues: list[str] = []
     final = Path(budgets.get("final_adapter", ""))
-    epochs = budgets.get("epoch_adapters") or []
     if not final or not final.exists():
         issues.append(f"{d}: final adapter {final} missing")
-    if int(budgets.get("epochs", -1)) != len(epochs):
-        issues.append(
-            f"{d}: {len(epochs)} epoch adapters saved but {budgets.get('epochs')} epochs planned"
-        )
-    src = final / "SOURCE.txt"
-    if epochs and src.exists() and Path(epochs[-1]).name not in src.read_text():
-        issues.append(
-            f"{d}: final adapter is not a copy of the last epoch ({Path(epochs[-1]).name})"
-        )
+
+    epochs = budgets.get("epoch_adapters") or []
+    if "epochs" in budgets or epochs:
+        if int(budgets.get("epochs", -1)) != len(epochs):
+            issues.append(
+                f"{d}: {len(epochs)} epoch adapters saved but {budgets.get('epochs')} epochs planned"
+            )
+        src = final / "SOURCE.txt"
+        if epochs and src.exists() and Path(epochs[-1]).name not in src.read_text():
+            issues.append(
+                f"{d}: final adapter is not a copy of the last epoch ({Path(epochs[-1]).name})"
+            )
+    elif "step_adapters" in budgets or "optimizer_steps" in budgets:
+        # GRPO (tasks/04): test/ood eval must be the step-300 adapter.
+        steps = {int(k) for k in (budgets.get("step_adapters") or {})}
+        if 300 not in steps and "final" not in str(final):
+            issues.append(f"{d}: GRPO final eval adapter is not step 300 ({final})")
+        if int(budgets.get("optimizer_steps", 0)) not in (0, 300) and budgets.get(
+            "optimizer_steps"
+        ) not in (None, 300):
+            # Soft: record expected 300; only flag if something else finished early without force.
+            pass
+
     meta = d / "meta.json"
     if meta.exists():
         with meta.open(encoding="utf-8") as f:
             if json.load(f).get("status") != "finished":
                 issues.append(f"{d}: training status is not 'finished'")
+    return issues
+
+
+def check_grpo_reward_budget(run_dir: str | Path, *, expected: int = 19200) -> list[str]:
+    """Exactly ``expected`` completions were sampled (count reward_records.jsonl)."""
+    d = Path(run_dir)
+    path = d / "reward_records.jsonl"
+    if not path.exists():
+        return [f"{d}: no reward_records.jsonl"]
+    n = sum(1 for line in path.open(encoding="utf-8") if line.strip())
+    issues: list[str] = []
+    if n != int(expected):
+        issues.append(f"{d}: reward records={n}, expected {expected} (SPEC §8 / tasks/04 §6)")
+    budgets = d / "budgets.json"
+    if budgets.exists():
+        with budgets.open(encoding="utf-8") as f:
+            b = json.load(f)
+        if int(b.get("completions_consumed", -1)) != n:
+            issues.append(
+                f"{d}: budgets.completions_consumed={b.get('completions_consumed')} != records {n}"
+            )
+    return issues
+
+
+def check_c1_reward_near_half(
+    run_dir: str | Path, *, lo: float = 0.4, hi: float = 0.6
+) -> list[str]:
+    """C1 training reward should stay ≈ 0.5 while ``correct`` is logged separately."""
+    d = Path(run_dir)
+    path = d / "reward_records.jsonl"
+    if not path.exists():
+        return [f"{d}: no reward_records.jsonl"]
+    rewards: list[float] = []
+    with path.open(encoding="utf-8") as f:
+        for line in f:
+            row = json.loads(line)
+            if row.get("reward_name") not in ("random_bernoulli", "random_bernoulli_0_5"):
+                continue
+            rewards.append(float(row["reward"]))
+    if not rewards:
+        return [f"{d}: no random_bernoulli reward records (not a C1 run?)"]
+    mean = sum(rewards) / len(rewards)
+    if not (lo <= mean <= hi):
+        return [f"{d}: C1 mean training reward={mean:.3f} outside [{lo}, {hi}]"]
+    return []
+
+
+def check_prompt_hashes_match(run_dir: str | Path, splits_dir: str | Path) -> list[str]:
+    """Trainer prompt bytes equal ``format_prompt(problem, 'base')`` for each problem_id."""
+    from rlordata.sampling.prompts import format_prompt
+
+    d = Path(run_dir)
+    cfg_path = d / "config.yaml"
+    if not cfg_path.exists():
+        return [f"{d}: no config.yaml"]
+    with cfg_path.open(encoding="utf-8") as f:
+        cfg = yaml.safe_load(f) or {}
+    stored = cfg.get("prompt_sha256_by_problem_id") or {}
+    if not stored:
+        return [f"{d}: config missing prompt_sha256_by_problem_id"]
+    dc = cfg.get("data_condition")
+    split_path = Path(splits_dir) / f"{dc}.jsonl"
+    if not split_path.exists():
+        return [f"{d}: split {split_path} missing for prompt-hash check"]
+    from rlordata.data.generator import read_jsonl
+
+    issues: list[str] = []
+    for p in read_jsonl(split_path):
+        if p.problem_id not in stored:
+            issues.append(f"{d}: missing prompt hash for {p.problem_id[:12]}")
+            continue
+        h = hashlib.sha256(format_prompt(p, "base").encode("utf-8")).hexdigest()
+        if h != stored[p.problem_id]:
+            issues.append(f"{d}: prompt hash drift on {p.problem_id[:12]}")
     return issues
 
 

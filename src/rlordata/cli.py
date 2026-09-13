@@ -74,6 +74,25 @@ def build_parser() -> argparse.ArgumentParser:
     rft.add_argument(
         "--allow-cpu", action="store_true", help="train without CUDA (smoke tests only)"
     )
+    grpo = parsers["grpo"]
+    grpo.add_argument(
+        "--stage",
+        choices=["train", "eval"],
+        default="train",
+        help="tasks/04: train (TRL GRPOTrainer) | eval (checkpoint val + final test/ood)",
+    )
+    grpo.add_argument(
+        "--run-dir", default=None, help="train: override run dir; eval: run to evaluate"
+    )
+    grpo.add_argument("--output-dir", default=None, help="override config output_dir (runs/grpo)")
+    grpo.add_argument("--splits-dir", default=None)
+    grpo.add_argument(
+        "--base-eval-dir", default=None, help="base-model eval dir for the sanity gate"
+    )
+    grpo.add_argument("--force", action="store_true", help="retrain / re-evaluate finished units")
+    grpo.add_argument(
+        "--resume", action="store_true", help="resume GRPO from the latest adapter checkpoint"
+    )
     parsers["tier"].add_argument(
         "--samples-output", default=None, help="override config samples_output"
     )
@@ -119,6 +138,12 @@ def main(argv: list[str] | None = None) -> int:
         from rlordata.train import rft
 
         dispatch["rft"] = rft.cli_main
+    except (ImportError, AttributeError):
+        pass
+    try:
+        from rlordata.train import grpo_trl
+
+        dispatch["grpo"] = grpo_trl.cli_main
     except (ImportError, AttributeError):
         pass
     if args.cmd not in dispatch:

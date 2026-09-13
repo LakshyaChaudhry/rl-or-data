@@ -1,4 +1,4 @@
-.PHONY: setup-mac setup-gpu test test-all lint fmt gen gen-ood gen-check sample-pool cap-run cap tier tier-provisional tier-rescore rescore-cap-run tier-dry eval-base eval-dry sanity transfer-pick sync clean rft-draw rft-select rft-sweep rft-finals rft-eval-final rft-dry
+.PHONY: setup-mac setup-gpu test test-all lint fmt gen gen-ood gen-check sample-pool cap-run cap tier tier-provisional tier-rescore rescore-cap-run tier-dry eval-base eval-dry sanity transfer-pick sync clean rft-draw rft-select rft-sweep rft-finals rft-eval-final rft-dry grpo-train grpo-eval
 
 setup-mac:
 	bash setup/setup_mac.sh
@@ -91,6 +91,16 @@ rft-finals:
 # Local dry run of the whole tasks/03 pipeline with the stub sampler and a tiny model (never a result).
 rft-dry:
 	uv run python scripts/rft_dry_run.py
+
+# ---- tasks/04 (GPU box, SEPARATE from the RFT sweep) ----
+# Example: make grpo-train CONFIG=configs/grpo/mixed100.yaml SEED=1
+CONFIG ?= configs/grpo/mixed100.yaml
+SEED ?= 1
+grpo-train:
+	uv run rlordata grpo --config $(CONFIG) --seed $(SEED) --stage train
+
+grpo-eval:
+	uv run rlordata grpo --config $(CONFIG) --seed $(SEED) --stage eval --run-dir $(RUN_DIR)
 
 sync:
 	uv run python -m rlordata.artifacts sync-all
