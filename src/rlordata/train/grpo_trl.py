@@ -200,6 +200,10 @@ def build_grpo_config(
         max_grad_norm=float(cfg["training"]["optimizer"]["grad_clip"]),
         weight_decay=float(cfg["training"]["optimizer"]["weight_decay"]),
         bf16=True if not dev else _cuda_available(),
+        # Memory only (no effect on the loss): 8 sequences × up to 4352 completion tokens through a
+        # 4B model while vLLM holds ~30 % of the card would not fit without recomputing activations.
+        gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
         temperature=float(g["temperature"]),
         top_p=float(g["top_p"]),
         max_completion_length=int(cfg["max_completion_tokens"]),
