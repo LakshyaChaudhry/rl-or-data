@@ -46,6 +46,10 @@ def test_grpo_config_builds_with_pinned_values(path: str, tmp_path: Path) -> Non
     g = cfg["training"]["grpo"]
     assert c.max_steps == 300 and c.num_generations == 8 and c.generation_batch_size == 64
     assert c.per_device_train_batch_size * c.gradient_accumulation_steps == 64
+    # 4 × 16 (8 × 8 OOMed on an 80 GB H100). One optimizer step per generation batch, and the dapo
+    # normalizer ratio grad_accum / steps_per_generation stays 1, so the update equals 8 × 8's.
+    assert c.per_device_train_batch_size == 4 and c.gradient_accumulation_steps == 16
+    assert c.steps_per_generation == c.gradient_accumulation_steps
     assert c.max_steps * c.generation_batch_size == g["total_sampled_completions"] == 19200
     assert c.learning_rate == 5e-5 and c.lr_scheduler_type.value == "cosine"
     assert c.get_warmup_steps(c.max_steps) == 30  # 10 % of 300, same ceil rule as the RFT trainer

@@ -38,6 +38,11 @@ from rlordata.types import Problem
 # SPEC §7 locked max prompt tokens (task §2 lists 1024; SPEC wins → 4096).
 MAX_PROMPT_LENGTH = 4096
 GENERATION_BATCH_SIZE = 64  # 8 prompts × 8 generations
+# Completions per backward pass, identical for every run. 8 OOMed at step 1 on an 80 GB H100 (fp32
+# full-vocab logits for 8 × ~4k tokens ≈ 18 GiB on top of colocated vLLM). 4 × 16 grad-accum gives the
+# same update: advantages are computed over the whole 64-completion generation batch, and TRL's dapo
+# normalizer is that batch's completion-token count (× grad_accum / steps_per_generation, == 1 here).
+MICRO_BATCH_SIZE = 4
 VAL_CHECKPOINTS = (100, 200, 300)
 DEFAULT_OUTPUT_DIR = Path("runs/grpo")
 DEV_OUTPUT_DIR = Path("runs/dev")
@@ -195,11 +200,13 @@ def build_grpo_config(
             f"total_sampled_completions {g['total_sampled_completions']}"
         )
 
-    # 8 completions per device micro-batch × 8 grad-accum steps = 64 = 8 prompts × 8 gens.
-    per_device = gens
-    grad_accum = prompts
+    # MICRO_BATCH_SIZE completions per backward pass × grad-accum steps = 64 = 8 prompts × 8 gens (4 × 16).
+    per_device = min(MICRO_BATCH_SIZE, gen_batch)
+    grad_accum = gen_batch // per_device
     if per_device * grad_accum != gen_batch:
-        raise SystemExit("per_device_train_batch_size × gradient_accumulation_steps must equal 64")
+        raise SystemExit(
+            f"per_device_train_batch_size × gradient_accumulation_steps must equal {gen_batch}"
+        )
 
     use_vllm = True if not dev else _vllm_available()  # dev only: HF sampling on the Mac
     kwargs: dict[str, Any] = dict(
