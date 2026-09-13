@@ -10,9 +10,11 @@ grpo:
   temperature: 1.0
   top_p: 1.0
   learning_rate: 5.0e-5
-  beta_kl: 0.04          # record the actual TRL default used
-  clip_eps: 0.2
-  loss_type: grpo        # not dr_grpo / dapo
+  beta_kl: 0.0           # v1.8: no KL term (current TRL default); set explicitly
+  clip_eps: 0.2          # symmetric; epsilon_high == epsilon
+  scale_rewards: group   # advantage = (r - mean_G) / std_G
+  loss_type: dapo        # TRL name for batch-token normalization ONLY; no dynamic sampling, no overlong shaping
+  num_iterations: 1      # one optimizer step per generation batch; ratio == 1
   total_sampled_completions: 19200   # 300 * 8 * 8 — the matched budget for RFT arms
 rft:
   samples_per_prompt: 192            # 19200 / 100 prompts
