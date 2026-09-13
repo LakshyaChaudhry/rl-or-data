@@ -158,12 +158,21 @@ def draw_split(
     for p in problems:
         pid = p.problem_id
         for j, s in enumerate(tiering[pid]):
+            # Tiering records predate the tiers; stamp the frozen tier / pass8 so the copied 8
+            # carry the same labels as the 184 new draws. (The 2026-09-12 draw files were written
+            # before this and carry "untiered" on their first 8 records; nothing reads it.)
             out.append(
                 Sample(
                     **{
                         **s.to_dict(),
                         "data_condition": split,
-                        "extra": {**s.extra, "sample_idx": j, "source": "tiering"},
+                        "tier": p.tier,
+                        "extra": {
+                            **s.extra,
+                            "sample_idx": j,
+                            "source": "tiering",
+                            "pass8": p.pass8,
+                        },
                     }
                 )
             )

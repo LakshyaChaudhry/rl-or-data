@@ -128,6 +128,7 @@ def test_draw_split_puts_tiering_first_and_uses_offset_seed(world: World) -> Non
             s.completion for s in tiering[p.problem_id]
         ]
         assert all(s.extra["source"] == "tiering" for s in ss[:TIERING_K])
+        assert all(s.tier == p.tier and s.extra["pass8"] == p.pass8 for s in ss)
         assert all(s.extra["source"] == "draw" for s in ss[TIERING_K:])
         assert all(s.data_condition == "train_easy_100" for s in ss)
         assert all(s.extra["sampler_seed"] == 1 + DRAW_SEED_OFFSET for s in ss[TIERING_K:])
