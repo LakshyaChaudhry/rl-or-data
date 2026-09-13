@@ -1,7 +1,11 @@
 """tasks/04b §1 — an oracle for TRL's GRPO loss under our pinned config, on synthetic tensors.
 
-The oracle below is a line-by-line transcription of TRL **1.12.0** (the version pinned in uv.lock;
-source read from the wheel ``trl-1.12.0-py3-none-any.whl``), restricted to the configuration SPEC
+(Citations re-pointed from TRL 1.12.0 to 1.13.0 on 2026-09-13: every 1.12→1.13 change in
+grpo_trainer.py sits before line 1044, so each cited line moved +4 with identical content;
+utils.py nanstd moved +5, body unchanged.)
+
+The oracle below is a line-by-line transcription of TRL **1.13.0** (the version pinned in uv.lock;
+source read from the wheel ``trl-1.13.0-py3-none-any.whl``), restricted to the configuration SPEC
 v1.8 §9 pins and ``train/grpo_trl.py`` sets explicitly:
 
     loss_type="dapo"  scale_rewards="group"  num_iterations=1  beta=0.0  epsilon=0.2 (epsilon_high
@@ -11,21 +15,21 @@ v1.8 §9 pins and ``train/grpo_trl.py`` sets explicitly:
 
 Citations are ``file:line`` inside the wheel:
 
-  advantages   trl/trainer/grpo_trainer.py:2787-2788   mean_grouped_rewards = nanmean(rewards.view(-1, G), dim=1)
-               trl/trainer/grpo_trainer.py:2789-2792   std_rewards = nanstd(rewards.view(-1, G), dim=1)
-               trl/trainer/utils.py:859-882            nanstd: Bessel-corrected (count/(count-1)); NaN for count==1
-               trl/trainer/grpo_trainer.py:2807-2809   advantages = (rewards - mean) / (std + 1e-4)
-               trl/trainer/grpo_trainer.py:2832        advantages = nan_to_num(advantages, nan=0.0)
-  ratio        trl/trainer/grpo_trainer.py:3154-3155   old_per_token_logps = per_token_logps.detach() if None
-               trl/trainer/grpo_trainer.py:3172-3174   log_ratio = new - old  (token level)
-               trl/trainer/grpo_trainer.py:3184        coef_1 = exp(log_importance_weights)
-  kl           trl/trainer/grpo_trainer.py:3187-3194   only if beta != 0: k3 = exp(ref-new) - (ref-new) - 1,
+  advantages   trl/trainer/grpo_trainer.py:2791-2792   mean_grouped_rewards = nanmean(rewards.view(-1, G), dim=1)
+               trl/trainer/grpo_trainer.py:2793-2796   std_rewards = nanstd(rewards.view(-1, G), dim=1)
+               trl/trainer/utils.py:864-887            nanstd: Bessel-corrected (count/(count-1)); NaN for count==1
+               trl/trainer/grpo_trainer.py:2811-2813   advantages = (rewards - mean) / (std + 1e-4)
+               trl/trainer/grpo_trainer.py:2836        advantages = nan_to_num(advantages, nan=0.0)
+  ratio        trl/trainer/grpo_trainer.py:3158-3159   old_per_token_logps = per_token_logps.detach() if None
+               trl/trainer/grpo_trainer.py:3176-3178   log_ratio = new - old  (token level)
+               trl/trainer/grpo_trainer.py:3188        coef_1 = exp(log_importance_weights)
+  kl           trl/trainer/grpo_trainer.py:3191-3198   only if beta != 0: k3 = exp(ref-new) - (ref-new) - 1,
                                                        then kl *= coef_1 when use_bias_correction_kl (default True)
-  clip         trl/trainer/grpo_trainer.py:3202        coef_2 = clamp(coef_1, 1 - eps_low, 1 + eps_high)
-               trl/trainer/grpo_trainer.py:3207-3209   per_token_loss = -min(coef_1 * A, coef_2 * A)
-               trl/trainer/grpo_trainer.py:3238-3239   per_token_loss += beta * per_token_kl   (beta != 0)
-  dapo norm    trl/trainer/grpo_trainer.py:2516        num_items_in_batch = gather(loss_mask.sum()).sum()
-               trl/trainer/grpo_trainer.py:3257-3262   loss = (per_token_loss * mask).sum() / num_items_in_batch
+  clip         trl/trainer/grpo_trainer.py:3206        coef_2 = clamp(coef_1, 1 - eps_low, 1 + eps_high)
+               trl/trainer/grpo_trainer.py:3211-3213   per_token_loss = -min(coef_1 * A, coef_2 * A)
+               trl/trainer/grpo_trainer.py:3242-3243   per_token_loss += beta * per_token_kl   (beta != 0)
+  dapo norm    trl/trainer/grpo_trainer.py:2520        num_items_in_batch = gather(loss_mask.sum()).sum()
+               trl/trainer/grpo_trainer.py:3261-3266   loss = (per_token_loss * mask).sum() / num_items_in_batch
                                                        (× grad_accum / steps_per_generation, == 1 for us)
 
 With ``num_iterations=1`` TRL passes ``old_per_token_logps=None`` and the ratio is exactly 1; the
@@ -49,18 +53,18 @@ except Exception as e:  # noqa: BLE001
 
 from tests.conftest import skip_unless_implemented  # noqa: E402
 
-TRL_VERSION = "1.12.0"
-EPS_ADV = 1e-4  # grpo_trainer.py:2809
+TRL_VERSION = "1.13.0"
+EPS_ADV = 1e-4  # grpo_trainer.py:2813
 CLIP_EPS = 0.2  # SPEC v1.8 §9
 
 
 def trl_advantages(rewards: torch.Tensor) -> torch.Tensor:
-    """grpo_trainer.py:2787-2809 + utils.py:859-882 for scale_rewards='group'. rewards [B, G] → [B*G]."""
+    """grpo_trainer.py:2791-2813 + utils.py:864-887 for scale_rewards='group'. rewards [B, G] → [B*G]."""
     g = rewards.shape[1]
     flat = rewards.reshape(-1)
     grouped = flat.view(-1, g)
-    mean = torch.nanmean(grouped, dim=1)  # :2787
-    # nanstd (utils.py:874-882): population variance × count/(count-1); nan when count == 1
+    mean = torch.nanmean(grouped, dim=1)  # :2791
+    # nanstd (utils.py:879-887): population variance × count/(count-1); nan when count == 1
     m = torch.nanmean(grouped, dim=1, keepdim=True)
     var = torch.nanmean((grouped - m) ** 2, dim=1, keepdim=True)
     count = torch.sum(~torch.isnan(grouped), dim=1, keepdim=True)
@@ -68,10 +72,10 @@ def trl_advantages(rewards: torch.Tensor) -> torch.Tensor:
         count > 1, count / (count - 1), torch.full_like(count, float("nan"), dtype=var.dtype)
     )
     std = torch.sqrt(var * corr).squeeze(1)
-    mean = mean.repeat_interleave(g, dim=0)  # :2788
-    std = std.repeat_interleave(g, dim=0)  # :2792
-    adv = (flat - mean) / (std + EPS_ADV)  # :2807-2809
-    return torch.nan_to_num(adv, nan=0.0)  # :2832
+    mean = mean.repeat_interleave(g, dim=0)  # :2792
+    std = std.repeat_interleave(g, dim=0)  # :2796
+    adv = (flat - mean) / (std + EPS_ADV)  # :2811-2813
+    return torch.nan_to_num(adv, nan=0.0)  # :2836
 
 
 def trl_loss(
@@ -85,20 +89,20 @@ def trl_loss(
     clip_eps: float = CLIP_EPS,
     bias_correction_kl: bool = False,
 ) -> torch.Tensor:
-    """grpo_trainer.py:3144-3262 for loss_type='dapo', importance_sampling_level='token', delta=None."""
-    adv = advantages.unsqueeze(1)  # :3148
-    log_ratio = logp_new - logp_old  # :3172
-    coef_1 = torch.exp(log_ratio)  # :3174, :3184
-    coef_2 = torch.clamp(coef_1, 1 - clip_eps, 1 + clip_eps)  # :3202 (epsilon_low == epsilon_high)
-    per_token_loss = -torch.min(coef_1 * adv, coef_2 * adv)  # :3207-3209
-    if beta != 0.0:  # :3187
+    """grpo_trainer.py:3148-3266 for loss_type='dapo', importance_sampling_level='token', delta=None."""
+    adv = advantages.unsqueeze(1)  # :3152
+    log_ratio = logp_new - logp_old  # :3176
+    coef_1 = torch.exp(log_ratio)  # :3178, :3188
+    coef_2 = torch.clamp(coef_1, 1 - clip_eps, 1 + clip_eps)  # :3206 (epsilon_low == epsilon_high)
+    per_token_loss = -torch.min(coef_1 * adv, coef_2 * adv)  # :3211-3213
+    if beta != 0.0:  # :3191
         d = logp_ref - logp_new
-        kl = torch.exp(d) - d - 1  # :3189-3191
-        if bias_correction_kl:  # :3193-3194 (TRL default True)
+        kl = torch.exp(d) - d - 1  # :3193-3195
+        if bias_correction_kl:  # :3197-3198 (TRL default True)
             kl = kl * coef_1
-        per_token_loss = per_token_loss + beta * kl  # :3238-3239
-    num_items_in_batch = mask.sum()  # :2516 (one process, one generation batch)
-    return (per_token_loss * mask).sum() / num_items_in_batch.clamp(min=1.0)  # :3257-3262
+        per_token_loss = per_token_loss + beta * kl  # :3242-3243
+    num_items_in_batch = mask.sum()  # :2520 (one process, one generation batch)
+    return (per_token_loss * mask).sum() / num_items_in_batch.clamp(min=1.0)  # :3261-3266
 
 
 def _synthetic(seed: int, b: int = 6, g: int = 4, t: int = 7):
@@ -159,7 +163,7 @@ def test_loss_matches_trl_pinned_config(seed: int) -> None:
 
 
 def test_loss_ratio_one_first_iteration() -> None:
-    """num_iterations=1: TRL uses old = new.detach() (:3155) → ratio 1, no clipping, pure REINFORCE."""
+    """num_iterations=1: TRL uses old = new.detach() (:3159) → ratio 1, no clipping, pure REINFORCE."""
     rewards, logp_new, _, logp_ref, mask = _synthetic(7)
     adv = trl_advantages(rewards)
     skip_unless_implemented(core_grpo.grpo_loss, logp_new, logp_new, logp_ref, adv, mask)
@@ -173,7 +177,7 @@ def test_loss_ratio_one_first_iteration() -> None:
 
 def test_kl_term_matches_trl_without_bias_correction_only() -> None:
     """beta>0 (NOT our primary config): core matches TRL with use_bias_correction_kl=False; TRL's
-    default multiplies the KL by the ratio (:3193-3194), which core does not. Recorded, not fixed:
+    default multiplies the KL by the ratio (:3197-3198), which core does not. Recorded, not fixed:
     SPEC v1.8 pins beta=0 for every result-bearing run."""
     rewards, logp_new, logp_old, logp_ref, mask = _synthetic(3)
     adv = trl_advantages(rewards)
