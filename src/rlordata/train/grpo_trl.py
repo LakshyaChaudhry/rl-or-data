@@ -149,6 +149,21 @@ def build_dataset(problems: list[Problem]) -> Any:
     return Dataset.from_dict(rows)
 
 
+def assert_prompts_fit(tokenizer: Any, prompts: list[str], limit: int = MAX_PROMPT_LENGTH) -> int:
+    """Every prompt must tokenize to ≤ ``limit`` tokens (SPEC §7: prompts are never truncated).
+
+    Returns the longest prompt's token count so it can be recorded in the run config.
+    """
+    lengths = [len(tokenizer(p, add_special_tokens=False)["input_ids"]) for p in prompts]
+    longest = max(lengths) if lengths else 0
+    if longest > limit:
+        i = lengths.index(longest)
+        raise SystemExit(
+            f"prompt {i} is {longest} tokens > max prompt tokens {limit}; SPEC §7 forbids truncating prompts"
+        )
+    return longest
+
+
 def prompt_bytes_hash(problems: list[Problem]) -> dict[str, str]:
     return {
         p.problem_id: hashlib.sha256(format_prompt(p, "base").encode("utf-8")).hexdigest()
@@ -196,7 +211,9 @@ def build_grpo_config(
         max_steps=steps,
         learning_rate=float(g["learning_rate"]),
         lr_scheduler_type="cosine",
-        warmup_ratio=float(cfg["training"]["schedule"]["warmup_ratio"]),
+        # transformers 5.x removed `warmup_ratio`; a float in (0, 1) passed as `warmup_steps` is read as
+        # a fraction: warmup = ceil(max_steps × 0.1) = 30, the same rule the RFT trainer uses.
+        warmup_steps=float(cfg["training"]["schedule"]["warmup_ratio"]),
         max_grad_norm=float(cfg["training"]["optimizer"]["grad_clip"]),
         weight_decay=float(cfg["training"]["optimizer"]["weight_decay"]),
         bf16=True if not dev else _cuda_available(),
@@ -207,7 +224,10 @@ def build_grpo_config(
         temperature=float(g["temperature"]),
         top_p=float(g["top_p"]),
         max_completion_length=int(cfg["max_completion_tokens"]),
-        max_prompt_length=MAX_PROMPT_LENGTH,
+        # TRL 1.13 has no `max_prompt_length` and never truncates prompts; SPEC §7's 4096-token prompt
+        # limit is enforced by assert_prompts_fit() at startup instead. vLLM's context is sized exactly
+        # like the eval sampler's (sampling/vllm_sampler.py): max prompt tokens + cap.
+        vllm_max_model_length=MAX_PROMPT_LENGTH + int(cfg["max_completion_tokens"]),
         beta=float(g["beta_kl"]),
         epsilon=float(g["clip_eps"]),
         # epsilon_high unset → symmetric clip (SPEC v1.8)
@@ -325,6 +345,9 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
         train_tok_hash = tokenizer_hash(tokenizer)
+    longest_prompt_tokens = (
+        assert_prompts_fit(tokenizer, list(dataset["prompt"])) if tokenizer is not None else None
+    )
 
     resolved = dict(cfg)
     resolved.update(
@@ -335,6 +358,7 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
             "n_prompts": len(problems),
             "prompt_template": TEMPLATE,
             "max_prompt_length": MAX_PROMPT_LENGTH,
+            "longest_prompt_tokens": longest_prompt_tokens,
             "generation_batch_size": gen_batch,
             "result_bearing": not dev,
             "package_versions": versions,

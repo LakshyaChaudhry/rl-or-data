@@ -289,3 +289,15 @@ def test_tiny_config_is_dev_and_uses_locked_training():
     assert cfg["dev"] is True and cfg["model_id"] == "Qwen/Qwen3-0.6B-Base"
     assert cfg["training"]["grpo"]["beta_kl"] == 0.0 and cfg["training"]["lora"]["r"] == 64
     assert str(cfg.get("output_dir", "")).startswith("runs/dev")
+
+
+def test_assert_prompts_fit():
+    from rlordata.train.grpo_trl import assert_prompts_fit
+
+    class _Tok:
+        def __call__(self, text, add_special_tokens=False):
+            return {"input_ids": text.split()}
+
+    assert assert_prompts_fit(_Tok(), ["a b c", "a b"], limit=3) == 3
+    with pytest.raises(SystemExit, match="forbids truncating"):
+        assert_prompts_fit(_Tok(), ["a b c d"], limit=3)
