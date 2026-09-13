@@ -40,6 +40,59 @@ MAX_PROMPT_LENGTH = 4096
 GENERATION_BATCH_SIZE = 64  # 8 prompts × 8 generations
 VAL_CHECKPOINTS = (100, 200, 300)
 DEFAULT_OUTPUT_DIR = Path("runs/grpo")
+DEV_OUTPUT_DIR = Path("runs/dev")
+
+
+def is_dev(cfg: dict[str, Any]) -> bool:
+    """tasks/04b tiny config: never result-bearing; may override locked step/batch/cap values."""
+    return bool(cfg.get("dev", False))
+
+
+def apply_dev_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy of ``cfg`` with ``dev_overrides`` applied to the grpo block and the cap.
+
+    Only honoured when ``dev: true``. A non-dev config with ``dev_overrides`` is refused: the locked
+    values are the protocol (SPEC §7, §9) and no result-bearing run may change them.
+    """
+    ov = dict(cfg.get("dev_overrides") or {})
+    if not ov:
+        return cfg
+    if not is_dev(cfg):
+        raise SystemExit(
+            "dev_overrides present but dev is not true — refusing to alter locked values"
+        )
+    out = dict(cfg)
+    out["training"] = dict(cfg["training"])
+    g = dict(cfg["training"]["grpo"])
+    for k in ("steps", "prompts_per_step", "generations_per_prompt"):
+        if k in ov:
+            g[k] = int(ov[k])
+    g["total_sampled_completions"] = (
+        g["steps"] * g["prompts_per_step"] * g["generations_per_prompt"]
+    )
+    out["training"]["grpo"] = g
+    if "checkpoint_every_steps" in ov:
+        out["training"]["checkpoint_every_steps"] = int(ov["checkpoint_every_steps"])
+    if "max_completion_tokens" in ov:
+        out["max_completion_tokens"] = int(ov["max_completion_tokens"])
+    out["output_dir"] = cfg.get("output_dir", str(DEV_OUTPUT_DIR / "grpo_tiny"))
+    return out
+
+
+def val_checkpoints(cfg: dict[str, Any]) -> tuple[int, ...]:
+    """Steps whose adapters get a val eval: {100, 200, 300} for real arms; the final step for dev."""
+    steps = int(cfg["training"]["grpo"]["steps"])
+    if is_dev(cfg):
+        return (steps,)
+    return tuple(c for c in VAL_CHECKPOINTS if c <= steps) or (steps,)
+
+
+def _vllm_available() -> bool:
+    try:
+        import vllm  # noqa: F401
+    except Exception:  # noqa: BLE001
+        return False
+    return True
 
 
 def arm_run_name(cfg: dict[str, Any], seed: int) -> str:
@@ -114,11 +167,12 @@ def build_grpo_config(
 
     g = cfg["training"]["grpo"]
     vllm = cfg.get("vllm") or {}
+    dev = is_dev(cfg)
     steps = int(g["steps"])
     gens = int(g["generations_per_prompt"])
     prompts = int(g["prompts_per_step"])
     gen_batch = prompts * gens
-    if gen_batch != GENERATION_BATCH_SIZE:
+    if gen_batch != GENERATION_BATCH_SIZE and not dev:
         raise SystemExit(f"generation_batch_size must be {GENERATION_BATCH_SIZE}, got {gen_batch}")
     if steps * gen_batch != int(g["total_sampled_completions"]):
         raise SystemExit(
@@ -132,6 +186,7 @@ def build_grpo_config(
     if per_device * grad_accum != gen_batch:
         raise SystemExit("per_device_train_batch_size × gradient_accumulation_steps must equal 64")
 
+    use_vllm = True if not dev else _vllm_available()  # dev only: HF sampling on the Mac
     kwargs: dict[str, Any] = dict(
         output_dir=str(run_dir / "checkpoints"),
         num_generations=gens,
@@ -144,7 +199,7 @@ def build_grpo_config(
         warmup_ratio=float(cfg["training"]["schedule"]["warmup_ratio"]),
         max_grad_norm=float(cfg["training"]["optimizer"]["grad_clip"]),
         weight_decay=float(cfg["training"]["optimizer"]["weight_decay"]),
-        bf16=True,
+        bf16=True if not dev else _cuda_available(),
         temperature=float(g["temperature"]),
         top_p=float(g["top_p"]),
         max_completion_length=int(cfg["max_completion_tokens"]),
@@ -155,7 +210,20 @@ def build_grpo_config(
         scale_rewards=str(g.get("scale_rewards", "group")),
         loss_type=str(g.get("loss_type", "dapo")),
         num_iterations=int(g.get("num_iterations", 1)),
-        use_vllm=True,
+        # --- TRL 1.12 knobs SPEC §9 does not name; pinned here so no result depends on a default
+        # (values chosen to make the loss exactly the one in SPEC §9 / core.grpo — see
+        # tests/train/test_grpo_loss_oracle.py for the file:line audit) ---
+        importance_sampling_level="token",  # per-token ratio (GRPO), not GSPO's sequence level
+        delta=None,  # no two-sided upper clip
+        top_entropy_quantile=1.0,  # no entropy masking of tokens
+        mask_truncated_completions=False,  # capped completions stay in the loss with reward 0
+        use_bias_correction_kl=True,  # irrelevant at beta=0; recorded
+        # TRL 1.12 would otherwise multiply the loss by a sequence-level ratio between the vLLM
+        # sampling log-probs and the trainer's (training-inference mismatch correction). SPEC v1.8
+        # states ratio == 1 at num_iterations=1 and the reference loop has no such term, so it is
+        # OFF for the primary comparison. Flip only via a SPEC amendment.
+        vllm_importance_sampling_correction=False,
+        use_vllm=use_vllm,
         vllm_mode=str(vllm.get("mode", "colocate")),
         vllm_gpu_memory_utilization=float(vllm.get("gpu_memory_utilization", 0.3)),
         logging_steps=1,
@@ -170,6 +238,15 @@ def build_grpo_config(
     return GRPOConfig(**kwargs)
 
 
+def _cuda_available() -> bool:
+    try:
+        import torch
+
+        return bool(torch.cuda.is_available())
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _package_versions() -> dict[str, str]:
     import importlib.metadata as m
 
@@ -182,8 +259,10 @@ def _package_versions() -> dict[str, str]:
     return out
 
 
-def _assert_trl_vllm() -> dict[str, str]:
+def _assert_trl_vllm(*, dev: bool = False) -> dict[str, str]:
     versions = _package_versions()
+    if dev and versions.get("trl") != "MISSING":
+        return versions  # tasks/04b tiny run: vLLM optional, HF sampling allowed (never a result)
     if versions.get("trl") == "MISSING" or versions.get("vllm") == "MISSING":
         raise SystemExit(
             "TRL or vLLM missing. Install the gpu extra (setup/setup_gpu.sh). "
@@ -202,8 +281,10 @@ def _assert_trl_vllm() -> dict[str, str]:
 
 def train_grpo(cfg: dict[str, Any], args: Any) -> int:
     """``rlordata grpo --config …`` — one result-bearing run."""
+    cfg = apply_dev_overrides(cfg)
+    dev = is_dev(cfg)
     dry = bool(getattr(args, "dry_run", False))
-    versions = {"dry_run": "true"} if dry else _assert_trl_vllm()
+    versions = {"dry_run": "true"} if dry else _assert_trl_vllm(dev=dev)
     seed = int(args.seed if getattr(args, "seed", None) is not None else cfg.get("seed", 1))
     seed_everything(seed)
     splits_dir = Path(getattr(args, "splits_dir", None) or cfg.get("splits_dir", "data/splits"))
@@ -222,7 +303,7 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
 
     g = cfg["training"]["grpo"]
     gen_batch = int(g["prompts_per_step"]) * int(g["generations_per_prompt"])
-    if gen_batch != GENERATION_BATCH_SIZE or int(g["steps"]) * gen_batch != int(
+    if (gen_batch != GENERATION_BATCH_SIZE and not dev) or int(g["steps"]) * gen_batch != int(
         g["total_sampled_completions"]
     ):
         raise SystemExit(
@@ -250,7 +331,8 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
             "n_prompts": len(problems),
             "prompt_template": TEMPLATE,
             "max_prompt_length": MAX_PROMPT_LENGTH,
-            "generation_batch_size": GENERATION_BATCH_SIZE,
+            "generation_batch_size": gen_batch,
+            "result_bearing": not dev,
             "package_versions": versions,
             "prompt_sha256_by_problem_id": prompt_hashes,
             "grpo_locked": g,
@@ -261,8 +343,15 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
         run_dir,
         resolved,
         run_id=run_name,
-        extra_meta={"arm": cfg["arm"], "seed": seed, "data_condition": cfg["data_condition"]},
+        extra_meta={
+            "arm": cfg["arm"],
+            "seed": seed,
+            "data_condition": cfg["data_condition"],
+            "result_bearing": not dev,
+        },
     )
+    if dev:
+        print("[grpo] DEV run (tasks/04b tiny config): never a result; SPEC §3 local dev policy")
 
     # Cost estimate: 19,200 completions × cap tokens (worst case) at rough tok/s.
     worst_tokens = int(g["total_sampled_completions"]) * int(cfg["max_completion_tokens"])
@@ -275,7 +364,7 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
             run_dir / "dry_run.json",
             {
                 "n_prompts": len(problems),
-                "generation_batch_size": GENERATION_BATCH_SIZE,
+                "generation_batch_size": gen_batch,
                 "max_steps": g["steps"],
                 "total_sampled_completions": g["total_sampled_completions"],
                 "reward": cfg.get("reward"),
@@ -365,9 +454,10 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
     final_adapter.mkdir(parents=True, exist_ok=True)
     trainer.save_model(str(final_adapter))
 
+    max_steps = int(g["steps"])
     step_adapters: dict[int, str] = {}
     ckpt_root = run_dir / "checkpoints"
-    for step in VAL_CHECKPOINTS:
+    for step in val_checkpoints(cfg):
         src = ckpt_root / f"checkpoint-{step}"
         if src.exists():
             dst = run_dir / "adapter" / f"step_{step}"
@@ -376,8 +466,8 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
 
                 shutil.copytree(src, dst)
             step_adapters[step] = str(dst)
-    if 300 not in step_adapters:
-        step_adapters[300] = str(final_adapter)
+    if max_steps not in step_adapters:
+        step_adapters[max_steps] = str(final_adapter)
 
     n_rewards = recorder.n_records
     if n_rewards == 0:
@@ -390,12 +480,13 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
         "optimizer_steps": int(g["steps"]),
         "final_adapter": str(final_adapter),
         "final_adapter_trained": str(final_adapter),
-        "eval_step": 300,
+        "eval_step": max_steps,
         "step_adapters": step_adapters,
         "checkpoint_every_steps": int(cfg["training"].get("checkpoint_every_steps", 25)),
         "reward": reward_name,
-        "generation_batch_size": GENERATION_BATCH_SIZE,
-        "max_steps": int(g["steps"]),
+        "generation_batch_size": gen_batch,
+        "max_steps": max_steps,
+        "result_bearing": not dev,
         "tokenizer_sha256": train_tok_hash,
         "gpu_hours_train": round(wall_h, 6),
     }
@@ -435,9 +526,15 @@ def _curve_from_train_log(path: Path) -> list[dict[str, Any]]:
 
 
 def evaluate_grpo_checkpoints(cfg: dict[str, Any], args: Any) -> int:
-    """Offline val at {100,200,300}; final (300) gets test/ood/transfer like RFT."""
+    """Offline val at {100,200,300}; the final step (300) gets test/ood/transfer like RFT.
+
+    Dev runs (tasks/04b) evaluate val at their final step only — never test/ood.
+    """
     from rlordata.train.rft_eval import evaluate_run
 
+    cfg = apply_dev_overrides(cfg)
+    dev = is_dev(cfg)
+    max_steps = int(cfg["training"]["grpo"]["steps"])
     run_dir = Path(getattr(args, "run_dir", None) or "")
     if not run_dir:
         raise SystemExit("--run-dir is required for grpo eval")
@@ -460,7 +557,7 @@ def evaluate_grpo_checkpoints(cfg: dict[str, Any], args: Any) -> int:
     if issues:
         raise SystemExit("[sanity] refusing to evaluate GRPO run:\n  - " + "\n  - ".join(issues))
 
-    for step in VAL_CHECKPOINTS:
+    for step in val_checkpoints(cfg):
         adapter = step_adapters.get(str(step))
         if not adapter:
             print(f"[grpo-eval] no adapter for step {step}; skip")
@@ -470,7 +567,7 @@ def evaluate_grpo_checkpoints(cfg: dict[str, Any], args: Any) -> int:
         budgets["final_adapter"] = adapter
         budgets["eval_step"] = int(step)
         write_json(run_dir / "budgets.json", budgets)
-        eval_set = "final" if int(step) == 300 else "val"
+        eval_set = "final" if (int(step) == max_steps and not dev) else "val"
         # Stash metrics under eval/step_{n}/ by overriding output via a symlink layout:
         # evaluate_run writes under run_dir/eval/... — move after.
         args.eval_set = eval_set
@@ -497,8 +594,8 @@ def evaluate_grpo_checkpoints(cfg: dict[str, Any], args: Any) -> int:
                     shutil.copy2(src, dest / name)
 
     # Restore final adapter pointer to step 300 / final.
-    budgets["final_adapter"] = step_adapters.get("300") or budgets.get("final_adapter")
-    budgets["eval_step"] = 300
+    budgets["final_adapter"] = step_adapters.get(str(max_steps)) or budgets.get("final_adapter")
+    budgets["eval_step"] = max_steps
     write_json(run_dir / "budgets.json", budgets)
     curves["val_greedy"] = val_curve
     write_json(curves_path, curves)

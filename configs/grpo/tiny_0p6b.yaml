@@ -1,0 +1,22 @@
+# tasks/04b — tiny GRPO config for the reference-vs-TRL check. NEVER result-bearing (SPEC §3: the
+# 0.6B local dev policy is for smoke tests and the reference loop only). `dev: true` makes the
+# trainer (a) accept the overrides below in place of the locked step/batch/cap values, (b) write
+# under runs/dev/, (c) stamp result_bearing: false in meta.json, (d) evaluate val only, never test/ood,
+# and (e) generate with plain HF sampling when vLLM is not installed (the Mac). On the GPU box it
+# uses colocated vLLM like the real arms.
+arm: grpo
+model_id: Qwen/Qwen3-0.6B-Base
+data_condition: train_mixed_100
+training: configs/locked/training.yaml     # LoRA / optimizer / schedule / loss knobs: unchanged
+cap_yaml: configs/locked/cap.yaml
+reward: verify_binary
+seed: 1
+dev: true
+dev_overrides:
+  steps: 40
+  prompts_per_step: 4
+  generations_per_prompt: 8              # G = 8 as in the real arms; 4 × 8 = 32 completions/step
+  max_completion_tokens: 512
+  checkpoint_every_steps: 20
+output_dir: runs/dev/grpo_tiny
+vllm: {mode: colocate, gpu_memory_utilization: 0.3}

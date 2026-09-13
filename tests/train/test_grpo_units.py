@@ -245,3 +245,47 @@ def test_grpo_reward_budget_gate(tmp_path: Path):
     assert check_grpo_reward_budget(run, expected=200) == []
     assert check_grpo_reward_budget(run, expected=19200)
     assert check_c1_reward_near_half(run) == []
+
+
+# --- tasks/04b tiny config: dev overrides only under dev: true; never result-bearing ---
+
+
+def test_dev_overrides_apply_only_when_dev():
+    from rlordata.train.grpo_trl import apply_dev_overrides, val_checkpoints
+
+    base = {
+        "training": {
+            "grpo": {
+                "steps": 300,
+                "prompts_per_step": 8,
+                "generations_per_prompt": 8,
+                "total_sampled_completions": 19200,
+            },
+            "checkpoint_every_steps": 25,
+        },
+        "max_completion_tokens": 4352,
+    }
+    assert apply_dev_overrides(dict(base)) == base  # no overrides → untouched
+    dev = dict(
+        base,
+        dev=True,
+        dev_overrides={"steps": 40, "prompts_per_step": 4, "max_completion_tokens": 512},
+    )
+    out = apply_dev_overrides(dev)
+    assert out["training"]["grpo"]["steps"] == 40
+    assert out["training"]["grpo"]["total_sampled_completions"] == 40 * 4 * 8
+    assert out["max_completion_tokens"] == 512
+    assert base["training"]["grpo"]["steps"] == 300  # input not mutated
+    assert val_checkpoints(out) == (40,)
+    assert val_checkpoints(base) == (100, 200, 300)
+    with pytest.raises(SystemExit):
+        apply_dev_overrides(dict(base, dev_overrides={"steps": 40}))  # not dev → refused
+
+
+def test_tiny_config_is_dev_and_uses_locked_training():
+    from rlordata.train.common import load_arm_config
+
+    cfg = load_arm_config("configs/grpo/tiny_0p6b.yaml")
+    assert cfg["dev"] is True and cfg["model_id"] == "Qwen/Qwen3-0.6B-Base"
+    assert cfg["training"]["grpo"]["beta_kl"] == 0.0 and cfg["training"]["lora"]["r"] == 64
+    assert str(cfg.get("output_dir", "")).startswith("runs/dev")
