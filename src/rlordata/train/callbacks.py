@@ -28,6 +28,7 @@ class GrpoDiagnosticsCallback:
         num_generations: int,
         est_gpu_hours: float,
         gpu_hours_label: str = "grpo start estimate",
+        resume_state: dict[str, Any] | None = None,
     ) -> None:
         self.run_dir = Path(run_dir)
         self.recorder = recorder
@@ -40,9 +41,10 @@ class GrpoDiagnosticsCallback:
         self._printed_start = False
         # problem_id -> list of recent correct flags (rolling window)
         self._pass_hist: dict[str, list[int]] = defaultdict(list)
-        self.cumulative_completions = 0
-        self.cumulative_tokens = 0
-        self._counted_steps: set[int] = set()
+        rs = resume_state or {}  # from grpo_trl.prepare_step_logs when resuming a checkpoint
+        self.cumulative_completions = int(rs.get("completions", 0))
+        self.cumulative_tokens = int(rs.get("tokens", 0))
+        self._counted_steps: set[int] = set(rs.get("steps", ()))
 
     # TrainerCallback API -------------------------------------------------
 

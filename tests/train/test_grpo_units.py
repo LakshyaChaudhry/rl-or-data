@@ -307,3 +307,39 @@ def test_assert_prompts_fit():
     assert assert_prompts_fit(_Tok(), ["a b c", "a b"], limit=3) == 3
     with pytest.raises(SystemExit, match="forbids truncating"):
         assert_prompts_fit(_Tok(), ["a b c d"], limit=3)
+
+
+def test_prepare_step_logs_trims_on_resume_and_sets_aside_on_fresh_start(tmp_path: Path):
+    from rlordata.train.callbacks import GrpoDiagnosticsCallback
+    from rlordata.train.grpo_trl import prepare_step_logs
+
+    run = tmp_path / "grpo_mixed_s1"
+    run.mkdir()
+    recs = [{"step": s, "n_tokens": 10 * s, "reward": 1.0} for s in (1, 1, 2, 2, 3, 3)]
+    (run / "reward_records.jsonl").write_text("".join(json.dumps(r) + "\n" for r in recs))
+    logs = [{"step": 1}, {"step": 2}, {"step": 3}, {"step": 3, "summary": True}]
+    (run / "train_log.jsonl").write_text("".join(json.dumps(r) + "\n" for r in logs))
+
+    state = prepare_step_logs(run, resume_step=2)  # crashed after step 3, checkpoint at 2
+    kept = [json.loads(x) for x in (run / "reward_records.jsonl").read_text().splitlines()]
+    assert [r["step"] for r in kept] == [1, 1, 2, 2]
+    assert [json.loads(x)["step"] for x in (run / "train_log.jsonl").read_text().splitlines()] == [
+        1,
+        2,
+    ]
+    assert state == {"completions": 4, "tokens": 60, "steps": {1, 2}}
+    cb = GrpoDiagnosticsCallback(
+        run_dir=run,
+        recorder=RewardRecorder(run / "reward_records.jsonl"),
+        num_generations=2,
+        est_gpu_hours=0.0,
+        resume_state=state,
+    )
+    assert cb.cumulative_completions == 4 and cb.cumulative_tokens == 60
+
+    state = prepare_step_logs(
+        run, resume_step=None
+    )  # fresh start: old attempt set aside, not counted
+    assert state == {"completions": 0, "tokens": 0, "steps": set()}
+    assert not (run / "reward_records.jsonl").exists() and not (run / "train_log.jsonl").exists()
+    assert len(list(run.glob("reward_records.jsonl.stale-*"))) == 1

@@ -169,6 +169,55 @@ def assert_prompts_fit(tokenizer: Any, prompts: list[str], limit: int = MAX_PROM
     return longest
 
 
+def latest_checkpoint(run_dir: Path) -> Path | None:
+    """The highest-numbered ``checkpoints/checkpoint-N`` directory, or None."""
+    ckpts = sorted(
+        (run_dir / "checkpoints").glob("checkpoint-*"), key=lambda q: int(q.name.split("-")[-1])
+    )
+    return ckpts[-1] if ckpts else None
+
+
+def prepare_step_logs(run_dir: Path, resume_step: int | None) -> dict[str, Any]:
+    """Make ``reward_records.jsonl`` / ``train_log.jsonl`` consistent with where training restarts.
+
+    Both files are append-only. On a fresh start (``resume_step is None``) any existing copies came
+    from an earlier, abandoned attempt: they are renamed ``*.stale-<UTC>`` (kept, never counted). On a
+    resume from checkpoint N, rows for steps > N are dropped — those steps are re-trained and
+    re-sampled — so the 19,200-record gate and the token budget count every step exactly once.
+    Returns the counters the diagnostics callback continues from.
+    """
+    rec_path = run_dir / "reward_records.jsonl"
+    log_path = run_dir / "train_log.jsonl"
+    if resume_step is None:
+        stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+        for f in (rec_path, log_path):
+            if f.exists():
+                f.rename(f.with_name(f"{f.name}.stale-{stamp}"))
+        return {"completions": 0, "tokens": 0, "steps": set()}
+    kept = [
+        r
+        for r in load_reward_records(rec_path)
+        if r.get("step") is not None and int(r["step"]) <= resume_step
+    ]
+    if rec_path.exists():
+        with rec_path.open("w", encoding="utf-8") as f:
+            for r in kept:
+                f.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")
+    if log_path.exists():
+        rows = [
+            json.loads(x) for x in log_path.read_text(encoding="utf-8").splitlines() if x.strip()
+        ]
+        rows = [r for r in rows if int(r.get("step") or 0) <= resume_step and not r.get("summary")]
+        with log_path.open("w", encoding="utf-8") as f:
+            for r in rows:
+                f.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")
+    return {
+        "completions": len(kept),
+        "tokens": sum(int(r["n_tokens"]) for r in kept if isinstance(r.get("n_tokens"), int)),
+        "steps": {int(r["step"]) for r in kept},
+    }
+
+
 def prompt_bytes_hash(problems: list[Problem]) -> dict[str, str]:
     return {
         p.problem_id: hashlib.sha256(format_prompt(p, "base").encode("utf-8")).hexdigest()
@@ -416,6 +465,9 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
 
     assert tokenizer is not None and train_tok_hash is not None
 
+    resume_ckpt = latest_checkpoint(run_dir) if getattr(args, "resume", False) else None
+    resume_step = int(resume_ckpt.name.split("-")[-1]) if resume_ckpt is not None else None
+    resume_state = prepare_step_logs(run_dir, resume_step)
     recorder = RewardRecorder(run_dir / "reward_records.jsonl")
     reward_name = str(cfg.get("reward", "verify_binary"))
     reward_fn = make_reward_fn(
@@ -450,6 +502,7 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
         recorder=recorder,
         num_generations=int(g["generations_per_prompt"]),
         est_gpu_hours=estimate_train_gpu_hours(worst_tokens),
+        resume_state=resume_state,
     )
 
     trainer = GRPOTrainer(
@@ -472,14 +525,9 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
             raise SystemExit("PEFT not active on trainer.model — refuse to train without LoRA")
 
     t0 = time.monotonic()
-    resume = None
-    if getattr(args, "resume", False):
-        ckpts = sorted(
-            (run_dir / "checkpoints").glob("checkpoint-*"), key=lambda p: int(p.name.split("-")[-1])
-        )
-        if ckpts:
-            resume = str(ckpts[-1])
-            print(f"[grpo] resuming from {resume}")
+    resume = str(resume_ckpt) if resume_ckpt is not None else None
+    if resume:
+        print(f"[grpo] resuming from {resume} (step logs trimmed to steps <= {resume_step})")
     trainer.train(resume_from_checkpoint=resume)
     wall_h = (time.monotonic() - t0) / 3600.0
     print_cost("grpo train actual", wall_h)
@@ -504,9 +552,8 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
     if max_steps not in step_adapters:
         step_adapters[max_steps] = str(final_adapter)
 
-    n_rewards = recorder.n_records
-    if n_rewards == 0:
-        n_rewards = len(load_reward_records(recorder.path))
+    # Count from the file, not this process: a resumed run's records span both processes.
+    n_rewards = len(load_reward_records(recorder.path))
     budgets = {
         "prompts": len(problems),
         "completions_available": int(g["total_sampled_completions"]),

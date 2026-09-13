@@ -12,6 +12,8 @@ from __future__ import annotations
 import argparse
 import sys
 
+from rlordata.envfile import load_env
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="rlordata")
@@ -112,6 +114,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    load_env()  # .env → RLORDATA_ARTIFACTS etc.; without it runs are never synced to the store
     args = build_parser().parse_args(argv)
 
     # Dispatch is filled in by the agent as each task lands. Keep this file thin.

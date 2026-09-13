@@ -17,7 +17,7 @@ from typing import Any
 
 import yaml
 
-from rlordata.envfile import gpu_rate_usd_per_hour
+from rlordata.envfile import gpu_rate_usd_per_hour, load_env
 from rlordata.run_dir import format_cost
 from rlordata.train.common import sync_run
 
@@ -92,6 +92,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--queue", default="queue.yaml")
     p.add_argument("--dry-run", action="store_true", help="print the commands; run nothing")
     args = p.parse_args(argv)
+    load_env()  # jobs inherit it: without RLORDATA_ARTIFACTS nothing is synced to the store
     return run_queue(args.queue, dry_run=args.dry_run)
 
 
