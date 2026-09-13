@@ -17,7 +17,7 @@ from rlordata.analysis.rft_report import write_arm_report
 from rlordata.cli import main as cli_main
 from rlordata.envfile import load_env
 from rlordata.train.common import load_arm_config, read_json
-from rlordata.train.rft import run_name
+from rlordata.train.rft import assert_run_trained_with_eos, run_name
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -43,6 +43,8 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"{chosen_path} missing: run the sweep first (scripts/rft_sweep.py)")
     chosen = read_json(chosen_path)
     lr, epochs = float(chosen["learning_rate"]), int(chosen["epochs"])
+    if chosen.get("sweep_run_dir"):  # refuse a chosen.json left over from the no-EOS sweep
+        assert_run_trained_with_eos(chosen["sweep_run_dir"])
     seeds = [int(s) for s in (args.seeds.split(",") if args.seeds else cfg["training"]["seeds"])]
     common: list[str] = ["--config", args.config]
     for flag, val in (

@@ -38,7 +38,7 @@ import numpy as np
 from rlordata.core.rft_select import SFTExample, rft_select
 from rlordata.data.generator import read_jsonl
 from rlordata.envfile import load_env
-from rlordata.run_dir import finish_run, start_run
+from rlordata.run_dir import finish_run, read_run_config, start_run
 from rlordata.sampling.draw import (
     DRAW_SEED_OFFSET,
     SAMPLES_PER_PROMPT,
@@ -180,6 +180,26 @@ def assert_eos_is_generation_stop(tokenizer_eos_id: int | None, generation_eos: 
     if tokenizer_eos_id is None or tokenizer_eos_id not in stops:
         raise ValueError(
             f"tokenizer eos_token_id {tokenizer_eos_id} is not a generation stop token {stops}"
+        )
+
+
+def assert_run_trained_with_eos(run_dir: str | Path) -> None:
+    """Refuse to reuse or build on a finished run from before the tasks/03 §3 EOS amendment.
+
+    Every run trained after 2026-09-13 records ``append_eos: true`` in its resolved config. A run
+    without it was trained by the no-EOS trainer (kept only as an ablation) and must not be skipped
+    over as "already finished", ranked in a sweep, or used to pick the finals' hyperparameters.
+    """
+    d = Path(run_dir)
+    if not (d / "config.yaml").exists():
+        raise SystemExit(f"{d}: finished run has no config.yaml; cannot tell which trainer made it")
+    cfg = read_run_config(d)
+    if cfg.get("append_eos") is not True:
+        raise SystemExit(
+            f"{d} was trained WITHOUT the EOS token (append_eos={cfg.get('append_eos')!r}; "
+            "tasks/03 §3 amended 2026-09-13). Move the old runs aside "
+            "(e.g. runs/rft_noeos_ablation/, locally AND in the artifact store) and rerun; "
+            "refusing to reuse a stale run."
         )
 
 
@@ -682,6 +702,7 @@ def stage_train(cfg: dict[str, Any], args: Any) -> int:
         or output_dir / cfg["arm"] / run_name(seed, learning_rate, epochs)
     )
     if (run_dir / "budgets.json").exists() and not getattr(args, "force", False):
+        assert_run_trained_with_eos(run_dir)  # never silently reuse a pre-amendment run
         print(f"[train] {run_dir} already finished — skipping (use --force to retrain)")
         return 0
     sel, draw_file = load_selection(cfg, seed=seed, splits_dir=splits_dir, samples_dir=samples_dir)

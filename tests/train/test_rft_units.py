@@ -260,3 +260,20 @@ def test_run_name_and_tokenizer_hash(tokenizer) -> None:
     assert TEMPLATE in render_template("x") or render_template("x").startswith(
         TEMPLATE.split("{")[0]
     )
+
+
+def test_stale_no_eos_runs_are_refused(tmp_path) -> None:
+    """tasks/03 §3 amendment: a finished run without append_eos: true is never reused (rft.py, rft_finals.py)."""
+    import yaml
+
+    run = tmp_path / "rft_mixed_s1_lr1e-05_ep8"
+    run.mkdir()
+    (run / "budgets.json").write_text("{}")
+    (run / "config.yaml").write_text(yaml.safe_dump({"append_eos": False, "arm": "mixed"}))
+    with pytest.raises(SystemExit, match="WITHOUT the EOS"):
+        rft.assert_run_trained_with_eos(run)
+    (run / "config.yaml").write_text(yaml.safe_dump({"arm": "mixed"}))  # pre-amendment, key absent
+    with pytest.raises(SystemExit, match="WITHOUT the EOS"):
+        rft.assert_run_trained_with_eos(run)
+    (run / "config.yaml").write_text(yaml.safe_dump({"append_eos": True, "arm": "mixed"}))
+    rft.assert_run_trained_with_eos(run)  # current trainer → fine
