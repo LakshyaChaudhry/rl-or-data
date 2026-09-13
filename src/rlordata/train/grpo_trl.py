@@ -214,7 +214,7 @@ def build_grpo_config(
         scale_rewards=str(g.get("scale_rewards", "group")),
         loss_type=str(g.get("loss_type", "dapo")),
         num_iterations=int(g.get("num_iterations", 1)),
-        # --- TRL 1.12 knobs SPEC §9 does not name; pinned here so no result depends on a default
+        # --- TRL 1.13 knobs SPEC §9 does not name; pinned here so no result depends on a default
         # (values chosen to make the loss exactly the one in SPEC §9 / core.grpo — see
         # tests/train/test_grpo_loss_oracle.py for the file:line audit) ---
         importance_sampling_level="token",  # per-token ratio (GRPO), not GSPO's sequence level
@@ -222,7 +222,7 @@ def build_grpo_config(
         top_entropy_quantile=1.0,  # no entropy masking of tokens
         mask_truncated_completions=False,  # capped completions stay in the loss with reward 0
         use_bias_correction_kl=True,  # irrelevant at beta=0; recorded
-        # TRL 1.12 would otherwise multiply the loss by a sequence-level ratio between the vLLM
+        # TRL 1.13 would otherwise multiply the loss by a sequence-level ratio between the vLLM
         # sampling log-probs and the trainer's (training-inference mismatch correction). SPEC v1.8
         # states ratio == 1 at num_iterations=1 and the reference loop has no such term, so it is
         # OFF for the primary comparison. Flip only via a SPEC amendment.
