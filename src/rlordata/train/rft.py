@@ -169,25 +169,46 @@ class Encoded:
         return len(self.input_ids) - self.n_prompt_tokens
 
 
+def assert_eos_is_generation_stop(tokenizer_eos_id: int | None, generation_eos: Any) -> None:
+    """The EOS appended in training must be a token vLLM stopped on when it drew the samples.
+
+    ``generation_eos`` is ``GenerationConfig.eos_token_id`` (an int or a list). Qwen3 base and
+    instruct tokenizers differ here (``<|endoftext|>`` vs ``<|im_end|>``); a mismatch would train a
+    token that never ends generation, so it is a hard stop.
+    """
+    stops = [generation_eos] if isinstance(generation_eos, int) else list(generation_eos or [])
+    if tokenizer_eos_id is None or tokenizer_eos_id not in stops:
+        raise ValueError(
+            f"tokenizer eos_token_id {tokenizer_eos_id} is not a generation stop token {stops}"
+        )
+
+
 def encode_example(tokenizer: Any, example: SFTExample) -> Encoded:
-    """Prompt and completion tokenized separately and concatenated; nothing added.
+    """Prompt and completion tokenized separately and concatenated, then the tokenizer's EOS.
 
     Separate tokenization mirrors generation: vLLM tokenized the prompt alone and produced the
-    completion token by token. No BOS/EOS is appended beyond what the tokenizer itself emits
-    (tasks/03 §3). The round trip ``decode(ids) == prompt + completion`` is asserted so a
-    tokenizer that normalises whitespace or merges across the boundary cannot go unnoticed.
+    completion token by token, ending on EOS. vLLM's returned text omits that EOS, so it is
+    appended here as a token id and kept in the loss (tasks/03 §3, amended 2026-09-13): without
+    it the model is never trained to stop. The round trip
+    ``decode(ids) == prompt + completion + eos_token`` is asserted so a tokenizer that normalises
+    whitespace or merges across the boundary cannot go unnoticed.
     """
     if not example.prompt.startswith(TEMPLATE.split("{problem_text}")[0]):
         raise ValueError("SFT prompt does not start with the locked TEMPLATE (prompt drift)")
+    eos_id = tokenizer.eos_token_id
+    if eos_id is None:
+        raise ValueError("tokenizer has no eos_token_id; cannot train the stop token")
     prompt_ids = tokenizer(example.prompt, add_special_tokens=False)["input_ids"]
     comp_ids = tokenizer(example.completion, add_special_tokens=False)["input_ids"]
     if len(comp_ids) == 0:
         raise ValueError(f"empty completion for {example.problem_id[:12]}")
-    ids = list(prompt_ids) + list(comp_ids)
+    comp_ids = list(comp_ids) + [int(eos_id)]
+    ids = list(prompt_ids) + comp_ids
     round_trip = tokenizer.decode(ids, skip_special_tokens=False)
-    if round_trip != example.prompt + example.completion:
+    if round_trip != example.prompt + example.completion + tokenizer.eos_token:
         raise ValueError(
-            f"tokenizer round trip differs from prompt + completion for {example.problem_id[:12]}"
+            "tokenizer round trip differs from prompt + completion + eos for "
+            f"{example.problem_id[:12]}"
         )
     mask = [0] * len(prompt_ids) + [1] * len(comp_ids)
     return Encoded(input_ids=ids, completion_mask=mask, n_prompt_tokens=len(prompt_ids))
@@ -423,6 +444,7 @@ def resolved_train_config(
     selection: Selection,
     tokenizer_sha: str,
     dtype: str,
+    eos_token_id: int,
 ) -> dict[str, Any]:
     tr = cfg["training"]
     return {
@@ -449,7 +471,8 @@ def resolved_train_config(
         "micro_batch_size": micro_batch_size,
         "loss": "core.sft_loss(core.completion_logprobs) token-mean, prompt masked, "
         "micro-batches weighted by completion tokens",
-        "append_eos": False,
+        "append_eos": True,  # tasks/03 §3 amended 2026-09-13: EOS appended and trained
+        "eos_token_id": eos_token_id,
         "precision": dtype,
         "prompt_template": TEMPLATE,
         "max_completion_tokens": int(cfg["max_completion_tokens"]),
@@ -679,6 +702,11 @@ def stage_train(cfg: dict[str, Any], args: Any) -> int:
         device=device,
         gradient_checkpointing=bool(cfg.get("gradient_checkpointing", True)),
     )
+    # The appended EOS must be the token vLLM stopped on (tasks/03 §3, amended 2026-09-13).
+    assert_eos_is_generation_stop(
+        tokenizer.eos_token_id,
+        getattr(getattr(model, "generation_config", None), "eos_token_id", None),
+    )
     tok_sha = tokenizer_hash(tokenizer)
     resolved = resolved_train_config(
         cfg,
@@ -690,6 +718,7 @@ def stage_train(cfg: dict[str, Any], args: Any) -> int:
         selection=sel,
         tokenizer_sha=tok_sha,
         dtype=dtype,
+        eos_token_id=int(tokenizer.eos_token_id),
     )
     resolved["parameters"] = trainable_parameter_summary(model)
     run_id = f"rft_{cfg['arm']}_{run_name(seed, learning_rate, epochs)}"
