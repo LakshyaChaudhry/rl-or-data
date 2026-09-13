@@ -42,6 +42,7 @@ class GrpoDiagnosticsCallback:
         self._pass_hist: dict[str, list[int]] = defaultdict(list)
         self.cumulative_completions = 0
         self.cumulative_tokens = 0
+        self._counted_steps: set[int] = set()
 
     # TrainerCallback API -------------------------------------------------
 
@@ -67,9 +68,13 @@ class GrpoDiagnosticsCallback:
         step_time = now - self._last_log_t
         self._last_log_t = now
 
-        # Pull newly written reward records for this step (best-effort).
+        # Pull the reward records for this step. HF fires on_log once more at the end of training with
+        # the run summary (train_runtime, train_loss, …) at the same global_step; count each step's
+        # records exactly once so the completion and training-token budgets are not double counted.
+        summary_row = step in self._counted_steps
         records = [r for r in load_reward_records(self.recorder.path) if r.get("step") == step]
-        if records:
+        if records and not summary_row:
+            self._counted_steps.add(step)
             self.cumulative_completions += len(records)
             for r in records:
                 n = r.get("n_tokens")
@@ -89,6 +94,7 @@ class GrpoDiagnosticsCallback:
 
         row = {
             "step": step,
+            "summary": summary_row,  # True only for HF's end-of-training summary log
             "step_time_s": round(step_time, 4),
             "wall_clock_s": round(now - self._t0, 3),
             "reward_mean": _get(logs, "reward", "rewards/mean", "train/reward"),
@@ -118,8 +124,8 @@ class GrpoDiagnosticsCallback:
             f.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
 
     def on_train_end(self, args: Any, state: Any, control: Any, **kwargs: Any) -> None:
-        wall_h = (time.monotonic() - self._t0) / 3600.0
-        print_cost("grpo train actual", wall_h)
+        # The actual cost is printed once by train_grpo() after trainer.train() returns.
+        return None
 
 
 def _get(logs: dict[str, Any], *keys: str) -> Any:

@@ -158,8 +158,14 @@ def test_callback_tags_records_with_current_step_and_accumulates_tokens(tmp_path
             completion_ids=[[1, 2, 3], [1, 2], [1, 2, 3, 4, 5], [1, 2, 3, 4]],
         )
         cb.on_log(None, _State(n), None, logs={"reward": 0.75, "frac_reward_zero_std": 0.5})
+    # HF's end-of-training summary log arrives at the last global_step again: it must not recount
+    cb.on_log(None, _State(2), None, logs={"train_runtime": 1.0, "train_loss": 0.1})
     rows = [json.loads(x) for x in (tmp_path / "train_log.jsonl").read_text().splitlines()]
-    assert [r["step"] for r in rows] == [1, 2]
+    assert [r["step"] for r in rows] == [1, 2, 2]
+    assert [r["summary"] for r in rows] == [False, False, True]
+    assert rows[2]["cumulative_completions"] == 8
+    assert cb.cumulative_tokens == 2 * (3 + 2 + 5 + 4)
+    rows = rows[:2]
     assert rows[0]["cumulative_completions"] == 4 and rows[1]["cumulative_completions"] == 8
     assert rows[0]["cumulative_training_tokens"] == 3 + 2 + 5 + 4
     assert rows[1]["cumulative_training_tokens"] == 2 * (3 + 2 + 5 + 4)

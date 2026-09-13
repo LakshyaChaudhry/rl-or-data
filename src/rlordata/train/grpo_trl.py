@@ -540,6 +540,8 @@ def _curve_from_train_log(path: Path) -> list[dict[str, Any]]:
     with path.open(encoding="utf-8") as f:
         for line in f:
             row = json.loads(line)
+            if row.get("summary"):
+                continue
             out.append(
                 {
                     "step": row.get("step"),
