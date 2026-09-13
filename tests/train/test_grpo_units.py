@@ -118,13 +118,16 @@ def test_format_only_reward(tmp_path: Path):
     fn = make_reward_fn("format_only", recorder=rec, seed=1)
     p = _problem(0)
     rewards = fn(
-        ["Answer: 5", "no integer here"],
+        ["Answer: 5", "no integer here", "so the result is 5", "\\boxed{5}", "**Answer: 9**"],
         problem_id=p.problem_id,
         answer=p.answer,
         tier=p.tier,
     )
-    assert rewards[0] == 1.0
-    assert rewards[1] == 0.0
+    # explicit answer line → 1; nothing → 0; last-integer fallback (layer c) → 0 even though it
+    # would be scored correct by verify; \boxed → 1; decorated answer line → 1 even when wrong.
+    assert rewards == [1.0, 0.0, 0.0, 1.0, 1.0]
+    rows = [json.loads(x) for x in (tmp_path / "r.jsonl").read_text().strip().splitlines()]
+    assert rows[2]["correct"] is True and rows[4]["correct"] is False
 
 
 # --- callbacks: reward records are tagged with the step being trained (tasks/04 §4) ---

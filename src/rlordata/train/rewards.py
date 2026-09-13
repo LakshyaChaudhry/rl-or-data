@@ -17,7 +17,7 @@ from typing import Any
 
 import numpy as np
 
-from rlordata.core.verify import extract_answer, verify
+from rlordata.core.verify import has_answer_line, verify
 from rlordata.types import Problem
 
 RewardFn = Callable[..., list[float]]
@@ -156,9 +156,10 @@ def make_reward_fn(
             if name == "verify_binary":
                 r = float(verdict.reward)
             elif name == "format_only":
-                # C2: 1 iff extract_answer commits to an int (task §3); independent of correctness.
-                extracted = extract_answer(text, truncated=bool(trunc[i]))
-                r = 1.0 if extracted is not None else 0.0
+                # C2 (SPEC §8): 1 iff the answer came from an explicit answer line — §5 layers
+                # (a)/(b), the same signal reported as answer_line_rate — never the last-integer
+                # fallback (c), and never for a truncated completion. Independent of correctness.
+                r = 1.0 if has_answer_line(text, truncated=bool(trunc[i])) else 0.0
             else:  # random_bernoulli — independent of content
                 r = float(_rng_for(seed, pids[i], step, i).integers(0, 2))
             rewards.append(r)
