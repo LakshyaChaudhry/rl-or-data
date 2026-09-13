@@ -52,9 +52,11 @@ class GrpoDiagnosticsCallback:
         self._t0 = time.monotonic()
         self._last_log_t = self._t0
 
-    def on_step_end(self, args: Any, state: Any, control: Any, **kwargs: Any) -> None:
-        step = int(getattr(state, "global_step", 0) or 0)
-        self.recorder.set_step(step)
+    def on_step_begin(self, args: Any, state: Any, control: Any, **kwargs: Any) -> None:
+        # HF fires on_step_begin once per optimizer step with global_step == N-1; the rewards for
+        # step N are computed inside training_step, before global_step is incremented. Tag them N
+        # so on_log (which fires after the increment, with global_step == N) can find them.
+        self.recorder.set_step(int(getattr(state, "global_step", 0) or 0) + 1)
 
     def on_log(
         self, args: Any, state: Any, control: Any, logs: dict | None = None, **kwargs: Any
@@ -64,7 +66,6 @@ class GrpoDiagnosticsCallback:
         now = time.monotonic()
         step_time = now - self._last_log_t
         self._last_log_t = now
-        self.recorder.set_step(step)
 
         # Pull newly written reward records for this step (best-effort).
         records = [r for r in load_reward_records(self.recorder.path) if r.get("step") == step]

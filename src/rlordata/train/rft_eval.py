@@ -140,7 +140,7 @@ def evaluate_run(cfg: dict[str, Any], run_dir: Path, args: Any) -> int:
     adapter = Path(budgets["final_adapter"])
     if not adapter.is_absolute():
         adapter = Path(adapter)
-    issues = check_final_checkpoint(run_dir) + check_adapter_nontrivial(adapter)
+    issues = check_final_checkpoint(run_dir, eval_set=eval_set) + check_adapter_nontrivial(adapter)
     if issues:
         raise SystemExit("[sanity] refusing to evaluate:\n  - " + "\n  - ".join(issues))
 

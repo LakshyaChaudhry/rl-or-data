@@ -1,4 +1,4 @@
-.PHONY: setup-mac setup-gpu test test-all lint fmt gen gen-ood gen-check sample-pool cap-run cap tier tier-provisional tier-rescore rescore-cap-run tier-dry eval-base eval-dry sanity transfer-pick sync clean rft-draw rft-select rft-sweep rft-finals rft-eval-final rft-dry grpo-train grpo-eval
+.PHONY: setup-mac setup-gpu test test-all lint fmt gen gen-ood gen-check sample-pool cap-run cap tier tier-provisional tier-rescore rescore-cap-run tier-dry eval-base eval-dry sanity transfer-pick sync clean rft-draw rft-select rft-sweep rft-finals rft-eval-final rft-dry grpo-train grpo-eval grpo-queue
 
 setup-mac:
 	bash setup/setup_mac.sh
@@ -101,6 +101,11 @@ grpo-train:
 
 grpo-eval:
 	uv run rlordata grpo --config $(CONFIG) --seed $(SEED) --stage eval --run-dir $(RUN_DIR)
+
+# The whole tasks/04 queue (11 trainings + 11 evals), idempotent; QUEUE=queue.yaml by default.
+QUEUE ?= queue.yaml
+grpo-queue:
+	uv run python scripts/run_queue.py --queue $(QUEUE)
 
 sync:
 	uv run python -m rlordata.artifacts sync-all

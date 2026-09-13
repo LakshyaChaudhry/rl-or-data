@@ -13,6 +13,11 @@ import time
 from pathlib import Path
 from typing import Any
 
+from rlordata.analysis.sanity import (
+    check_c1_reward_near_half,
+    check_grpo_reward_budget,
+    check_prompt_hashes_match,
+)
 from rlordata.data.generator import read_jsonl
 from rlordata.run_dir import finish_run, start_run
 from rlordata.sampling.prompts import TEMPLATE, format_prompt
@@ -157,6 +162,7 @@ def build_grpo_config(
         save_steps=int(cfg["training"].get("checkpoint_every_steps", 25)),
         save_total_limit=None,
         log_completions=True,
+        num_completions_to_print=2,
         seed=int(seed),
         report_to=[],
         remove_unused_columns=False,
@@ -223,10 +229,23 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
             f"budget assert failed: steps×batch={int(g['steps']) * gen_batch}, "
             f"locked total={g['total_sampled_completions']}"
         )
+    # Tokenizer is loaded before start_run so its hash lands in the resolved config: the shared
+    # eval path (train/rft_eval.py) compares config.yaml["tokenizer_sha256"] with vLLM's tokenizer.
+    train_tok_hash: str | None = None
+    tokenizer = None
+    if not dry:
+        from transformers import AutoTokenizer
+
+        tokenizer = AutoTokenizer.from_pretrained(str(cfg["model_id"]), trust_remote_code=True)
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+        train_tok_hash = tokenizer_hash(tokenizer)
+
     resolved = dict(cfg)
     resolved.update(
         {
             "seed": seed,
+            "tokenizer_sha256": train_tok_hash,
             "run_name": run_name,
             "n_prompts": len(problems),
             "prompt_template": TEMPLATE,
@@ -268,8 +287,10 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
         return 0
 
     import torch
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from transformers import AutoModelForCausalLM
     from trl import GRPOTrainer
+
+    assert tokenizer is not None and train_tok_hash is not None
 
     recorder = RewardRecorder(run_dir / "reward_records.jsonl")
     reward_name = str(cfg.get("reward", "verify_binary"))
@@ -291,10 +312,6 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
     )
 
     model_id = str(cfg["model_id"])
-    tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    train_tok_hash = tokenizer_hash(tokenizer)
     write_json(run_dir / "tokenizer_hash.json", {"trainer": train_tok_hash})
 
     model = AutoModelForCausalLM.from_pretrained(
@@ -372,6 +389,8 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
         "training_tokens": callback.cumulative_tokens,
         "optimizer_steps": int(g["steps"]),
         "final_adapter": str(final_adapter),
+        "final_adapter_trained": str(final_adapter),
+        "eval_step": 300,
         "step_adapters": step_adapters,
         "checkpoint_every_steps": int(cfg["training"].get("checkpoint_every_steps", 25)),
         "reward": reward_name,
@@ -422,6 +441,7 @@ def evaluate_grpo_checkpoints(cfg: dict[str, Any], args: Any) -> int:
     run_dir = Path(getattr(args, "run_dir", None) or "")
     if not run_dir:
         raise SystemExit("--run-dir is required for grpo eval")
+    splits_dir = Path(getattr(args, "splits_dir", None) or cfg.get("splits_dir", "data/splits"))
     budgets = json.loads((run_dir / "budgets.json").read_text(encoding="utf-8"))
     step_adapters: dict[str, str] = {
         str(k): v for k, v in (budgets.get("step_adapters") or {}).items()
@@ -430,13 +450,25 @@ def evaluate_grpo_checkpoints(cfg: dict[str, Any], args: Any) -> int:
     curves = json.loads(curves_path.read_text(encoding="utf-8")) if curves_path.exists() else {}
     val_curve = dict(curves.get("val_greedy") or {})
 
+    # tasks/04 §6 gates (must pass before metrics are written): exactly 19,200 completions were
+    # sampled, prompt bytes match the RFT draw for every problem_id, and C1's reward was ≈ 0.5.
+    issues = check_grpo_reward_budget(
+        run_dir, expected=int(cfg["training"]["grpo"]["total_sampled_completions"])
+    ) + check_prompt_hashes_match(run_dir, splits_dir)
+    if str(budgets.get("reward", cfg.get("reward", ""))).startswith("random_bernoulli"):
+        issues += check_c1_reward_near_half(run_dir)
+    if issues:
+        raise SystemExit("[sanity] refusing to evaluate GRPO run:\n  - " + "\n  - ".join(issues))
+
     for step in VAL_CHECKPOINTS:
         adapter = step_adapters.get(str(step))
         if not adapter:
             print(f"[grpo-eval] no adapter for step {step}; skip")
             continue
-        # Temporarily point budgets.final_adapter at this checkpoint for evaluate_run.
+        # Temporarily point budgets.final_adapter at this checkpoint for evaluate_run and record
+        # which step it is; check_final_checkpoint refuses eval_set="final" unless it is step 300.
         budgets["final_adapter"] = adapter
+        budgets["eval_step"] = int(step)
         write_json(run_dir / "budgets.json", budgets)
         eval_set = "final" if int(step) == 300 else "val"
         # Stash metrics under eval/step_{n}/ by overriding output via a symlink layout:
@@ -463,12 +495,10 @@ def evaluate_grpo_checkpoints(cfg: dict[str, Any], args: Any) -> int:
                 src = val_metrics.parent / name
                 if src.exists():
                     shutil.copy2(src, dest / name)
-        if int(step) != 300:
-            # Remove non-final test artifacts if any slipped through — val-only for mid checkpoints.
-            pass
 
     # Restore final adapter pointer to step 300 / final.
     budgets["final_adapter"] = step_adapters.get("300") or budgets.get("final_adapter")
+    budgets["eval_step"] = 300
     write_json(run_dir / "budgets.json", budgets)
     curves["val_greedy"] = val_curve
     write_json(curves_path, curves)

@@ -253,8 +253,12 @@ def check_adapter_nontrivial(adapter_dir: str | Path) -> list[str]:
     return issues
 
 
-def check_final_checkpoint(run_dir: str | Path) -> list[str]:
-    """The adapter that gets evaluated must be the run's final checkpoint (RFT last-epoch / GRPO step 300)."""
+def check_final_checkpoint(run_dir: str | Path, *, eval_set: str | None = None) -> list[str]:
+    """The adapter that gets evaluated must be the run's final checkpoint (RFT last-epoch / GRPO step 300).
+
+    For GRPO runs ``eval_set="final"`` (test/ood/transfer) is only allowed on the step-300 adapter;
+    ``"val"`` may evaluate any recorded step checkpoint (the val curve at 100/200/300).
+    """
     d = Path(run_dir)
     b = d / "budgets.json"
     if not b.exists():
@@ -278,15 +282,29 @@ def check_final_checkpoint(run_dir: str | Path) -> list[str]:
                 f"{d}: final adapter is not a copy of the last epoch ({Path(epochs[-1]).name})"
             )
     elif "step_adapters" in budgets or "optimizer_steps" in budgets:
-        # GRPO (tasks/04): test/ood eval must be the step-300 adapter.
-        steps = {int(k) for k in (budgets.get("step_adapters") or {})}
-        if 300 not in steps and "final" not in str(final):
-            issues.append(f"{d}: GRPO final eval adapter is not step 300 ({final})")
-        if int(budgets.get("optimizer_steps", 0)) not in (0, 300) and budgets.get(
-            "optimizer_steps"
-        ) not in (None, 300):
-            # Soft: record expected 300; only flag if something else finished early without force.
-            pass
+        # GRPO (tasks/04): the adapter under evaluation must be one this run saved, and the
+        # test/ood/transfer eval must be the step-300 (= max_steps) one.
+        step_adapters = {str(k): str(v) for k, v in (budgets.get("step_adapters") or {}).items()}
+        known = set(step_adapters.values()) | {str(budgets.get("final_adapter_trained", ""))}
+        max_steps = int(budgets.get("max_steps", budgets.get("optimizer_steps", 300)) or 300)
+        eval_step = budgets.get("eval_step")
+        if str(final) not in known and eval_step is None:
+            issues.append(f"{d}: adapter {final} is not one of this run's saved checkpoints")
+        if eval_step is not None and step_adapters.get(str(eval_step)) != str(final):
+            issues.append(
+                f"{d}: budgets.eval_step={eval_step} but final_adapter={final} is not that step's adapter"
+            )
+        if eval_set == "final":
+            step300 = step_adapters.get(str(max_steps))
+            if (
+                step300 is None
+                or str(final) != step300
+                or (eval_step is not None and int(eval_step) != max_steps)
+            ):
+                issues.append(
+                    f"{d}: test/ood eval requested on {final} (eval_step={eval_step}); "
+                    f"only the step-{max_steps} adapter may be evaluated on the held-out sets"
+                )
 
     meta = d / "meta.json"
     if meta.exists():
