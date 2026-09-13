@@ -20,11 +20,17 @@ def test_default_queue_parses_and_orders_h3_pair_first():
     rq = _load()
     jobs = rq.load_queue("queue.yaml")
     names = [j["name"] for j in jobs]
-    assert names[:3] == ["train_grpo_mixed_s1", "train_grpo_curated_s1", "train_grpo_easy_s1"]
-    assert names[3:5] == ["train_grpo_random_reward_s1", "train_grpo_format_only_s1"]
+    # mixed s1 trains then evaluates first: the eval stage is exercised after one run, not eleven
+    assert names[:4] == [
+        "train_grpo_mixed_s1",
+        "eval_grpo_mixed_s1",
+        "train_grpo_curated_s1",
+        "train_grpo_easy_s1",
+    ]
+    assert names[4:6] == ["train_grpo_random_reward_s1", "train_grpo_format_only_s1"]
     assert len([n for n in names if n.startswith("train_")]) == 11
     assert len([n for n in names if n.startswith("eval_")]) == 11
-    assert all(n.startswith("train_") for n in names[:11])
+    assert all(n.startswith("train_") for n in names[2:12])
     for j in jobs:
         assert "--stage train" in j["cmd"] or "--stage eval" in j["cmd"]
         assert j["produces"]

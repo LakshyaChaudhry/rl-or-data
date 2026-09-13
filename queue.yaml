@@ -1,5 +1,6 @@
 # tasks/04 §7 default queue for the GRPO box. Order: seed 1 of the H3 pair first (mixed, curated),
-# then easy, then the two controls, then seeds 2 and 3, then all evals. Run:
+# then easy, then the two controls, then seeds 2 and 3, then all evals. EXCEPTION: mixed s1 is
+# evaluated right after it trains, so a bug in the eval stage shows up after one run, not eleven. Run:
 #   uv run python scripts/run_queue.py --queue queue.yaml    (add --dry-run to print only)
 # Markers (`produces`) make it idempotent; a killed GRPO job resumes from its latest checkpoint.
 jobs:
@@ -9,6 +10,11 @@ jobs:
     resume: true
     requires: [configs/locked/cap.yaml, data/splits/train_curated.jsonl, configs/grpo/mixed100.yaml]
     produces: [runs/grpo/grpo_mixed_s1/budgets.json]
+  - name: eval_grpo_mixed_s1
+    cmd: uv run rlordata grpo --config configs/grpo/mixed100.yaml --seed 1 --stage eval --run-dir runs/grpo/grpo_mixed_s1
+    run_dir: runs/grpo/grpo_mixed_s1
+    requires: [runs/grpo/grpo_mixed_s1/budgets.json, configs/locked/transfer.yaml]
+    produces: [runs/grpo/grpo_mixed_s1/eval/final/summary.json]
   - name: train_grpo_curated_s1
     cmd: uv run rlordata grpo --config configs/grpo/curated.yaml --seed 1 --stage train
     run_dir: runs/grpo/grpo_curated_s1
@@ -69,11 +75,6 @@ jobs:
     resume: true
     requires: [configs/locked/cap.yaml, data/splits/train_curated.jsonl, configs/grpo/easy100.yaml]
     produces: [runs/grpo/grpo_easy_s3/budgets.json]
-  - name: eval_grpo_mixed_s1
-    cmd: uv run rlordata grpo --config configs/grpo/mixed100.yaml --seed 1 --stage eval --run-dir runs/grpo/grpo_mixed_s1
-    run_dir: runs/grpo/grpo_mixed_s1
-    requires: [runs/grpo/grpo_mixed_s1/budgets.json, configs/locked/transfer.yaml]
-    produces: [runs/grpo/grpo_mixed_s1/eval/final/summary.json]
   - name: eval_grpo_curated_s1
     cmd: uv run rlordata grpo --config configs/grpo/curated.yaml --seed 1 --stage eval --run-dir runs/grpo/grpo_curated_s1
     run_dir: runs/grpo/grpo_curated_s1
