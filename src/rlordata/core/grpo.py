@@ -52,9 +52,22 @@ def group_advantages(
     eps: float = 1e-6,
     normalize_std: bool = True,
 ) -> torch.Tensor:  # [B, G]
-    """Group-relative advantages: (r - mean_G) / (std_G + eps). Zero for constant groups."""
+    """Group-relative advantages: (r - mean_G) / (std_G + eps). Zero for constant groups.
+
+    std is unbiased (torch.std, ddof=1) to match TRL scale_rewards='group'.
+    A constant group has std 0 → advantages 0 (implicit filtering).
+    """
     assert rewards.ndim == 2
-    raise NotImplementedError("Laksh: implement group_advantages")
+    mean = rewards.mean(dim=1, keepdim=True)
+    centered = rewards - mean
+    if not normalize_std:
+        return centered
+    std = rewards.std(dim=1, keepdim=True)  # unbiased
+    # constant groups: std==0 (or nan for G=1) → zero advantage
+    std = torch.where(std < eps, torch.ones_like(std), std)
+    adv = centered / (std + eps)
+    constant = rewards.max(dim=1, keepdim=True).values == rewards.min(dim=1, keepdim=True).values
+    return torch.where(constant, torch.zeros_like(adv), adv)
 
 
 def grpo_loss(
@@ -66,10 +79,28 @@ def grpo_loss(
     clip_eps: float = 0.2,
     beta: float = 0.04,
 ) -> tuple[torch.Tensor, dict[str, float]]:
-    """Clipped-ratio policy loss with KL-to-reference penalty; returns (scalar loss, stats).
-
-    stats should include: mean ratio, clip fraction, mean kl, mean advantage, n_tokens.
-    """
+    """Clipped-ratio policy loss with KL-to-reference; token-mean over the batch (DAPO-style)."""
     n, t = logp_new.shape
     assert logp_old.shape == logp_ref.shape == mask.shape == (n, t) and advantages.shape == (n,)
-    raise NotImplementedError("Laksh: implement grpo_loss")
+    m = mask.to(dtype=logp_new.dtype)
+    n_tok = m.sum().clamp_min(1.0)
+    adv = advantages.unsqueeze(1)  # [N, 1] → broadcast over T
+    ratio = torch.exp(logp_new - logp_old)
+    unclipped = ratio * adv
+    clipped = torch.clamp(ratio, 1.0 - clip_eps, 1.0 + clip_eps) * adv
+    surr = torch.minimum(unclipped, clipped)
+    # k3 KL: exp(ref-new) - (ref-new) - 1  ≥ 0; 0 iff logp_ref == logp_new
+    log_ratio_ref = logp_ref - logp_new
+    kl = torch.exp(log_ratio_ref) - log_ratio_ref - 1.0
+    per_token = surr - beta * kl
+    loss = -(per_token * m).sum() / n_tok
+    with torch.no_grad():
+        clip_frac = ((unclipped != clipped) * m).sum() / n_tok
+        stats = {
+            "mean_ratio": float((ratio * m).sum() / n_tok),
+            "clip_fraction": float(clip_frac),
+            "mean_kl": float((kl * m).sum() / n_tok),
+            "mean_advantage": float(advantages.mean()),
+            "n_tokens": float(n_tok),
+        }
+    return loss, stats

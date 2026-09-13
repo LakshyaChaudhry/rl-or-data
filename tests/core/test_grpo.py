@@ -17,11 +17,11 @@ def test_constant_group_has_zero_advantage():
 
 
 def test_mixed_group_by_hand():
-    # rewards [1,0,0,1]: mean 0.5, std (ddof=?) -> decide, document, match TRL. Fill EXPECTED by hand.
+    # [1,0,0,1]: mean 0.5; unbiased std = sqrt(1/3); A = ±0.5/sqrt(1/3) = ±sqrt(3)/2
     r = torch.tensor([[1.0, 0.0, 0.0, 1.0]])
     skip_unless_implemented(grpo_mod.group_advantages, r)
-    expected = None  # TODO(Laksh): e.g. torch.tensor([[a, -a, -a, a]]) with a computed on paper
-    assert expected is not None, "fill in the hand-computed expectation"
+    a = 0.5 / (1.0 / 3.0) ** 0.5  # sqrt(3)/2
+    expected = torch.tensor([[a, -a, -a, a]])
     assert torch.allclose(grpo_mod.group_advantages(r), expected, atol=1e-5)
 
 
@@ -32,6 +32,25 @@ def test_ratio_one_reduces_to_reinforce():
     mask = torch.ones(n, t)
     skip_unless_implemented(grpo_mod.grpo_loss, logp, logp, logp, adv, mask)
     loss, stats = grpo_mod.grpo_loss(logp, logp.clone(), logp.clone(), adv, mask, beta=0.0)
-    expected = None  # TODO(Laksh): -mean over all tokens of adv broadcast (ratio == 1, kl == 0)
-    assert expected is not None
+    expected = -(adv[:, None] * mask).sum() / mask.sum()  # ratio=1, kl=0
     assert torch.allclose(loss, expected, atol=1e-6)
+
+
+def test_zero_advantage_zero_loss_and_grad():
+    n, t = 2, 3
+    logp = torch.randn(n, t, requires_grad=True)
+    adv = torch.zeros(n)
+    mask = torch.ones(n, t)
+    loss, _ = grpo_mod.grpo_loss(logp, logp.detach(), logp.detach(), adv, mask, beta=0.0)
+    assert torch.allclose(loss, torch.zeros(()), atol=1e-8)
+    loss.backward()
+    assert torch.allclose(logp.grad, torch.zeros_like(logp))
+
+
+def test_kl_nonnegative_and_zero_when_equal():
+    n, t = 2, 4
+    logp = torch.randn(n, t)
+    adv = torch.ones(n)
+    mask = torch.ones(n, t)
+    _, stats = grpo_mod.grpo_loss(logp, logp, logp, adv, mask, beta=1.0)
+    assert stats["mean_kl"] == 0.0 or abs(stats["mean_kl"]) < 1e-6
