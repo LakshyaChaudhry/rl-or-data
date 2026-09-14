@@ -153,8 +153,10 @@ def merge_adapter(
 ) -> Path:
     """Merge a LoRA adapter into ``model_id`` and save the merged weights + tokenizer to ``out_dir``.
 
-    The merged model is what ``VLLMSampler`` evaluates (tasks/03 §5: single generation path).
-    Caller deletes ``out_dir`` after the eval; the adapter is what gets kept.
+    NOT used by any eval any more (notebook 2026-09-14): in bf16, ``W + ΔW`` rounds ~90 % of ΔW
+    entries back to ``W`` (|ΔW| ≪ half-ulp), so a bf16-merged model is mostly the base model.
+    Evals apply the adapter as a native vLLM LoRA (``VLLMSampler(lora_path=…)``). Kept only for
+    an fp32 merge where a standalone checkpoint is explicitly wanted.
     """
     import torch
     from peft import PeftModel

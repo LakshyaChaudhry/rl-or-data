@@ -7,8 +7,10 @@ Reward = ``core.verify`` (or C1/C2 wrappers in ``train/rewards.py``). Never fall
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -33,6 +35,12 @@ from rlordata.train.common import (
     write_json,
 )
 from rlordata.train.rewards import RewardRecorder, load_reward_records, make_reward_fn
+from rlordata.train.vllm_lora import (
+    POLICY_SYNC_NATIVE_LORA,
+    NativeLoraSync,
+    mismatch_logging_trainer_cls,
+    vllm_llm_with_lora,
+)
 from rlordata.types import Problem
 
 # SPEC §7 locked max prompt tokens (task §2 lists 1024; SPEC wins → 4096).
@@ -405,11 +413,30 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
         assert_prompts_fit(tokenizer, list(dataset["prompt"])) if tokenizer is not None else None
     )
 
+    # How the sampler gets the current policy (notebook 2026-09-14): colocated vLLM applies the
+    # adapter as a native LoRA. TRL's own sync merges it into the bf16 base weights, which rounds
+    # ~90 % of ΔW away, so vLLM samples from ≈ base while the trainer differentiates base+adapter;
+    # grpo_mixed_s1 collapsed at step ~150 that way. No result-bearing run may use that path.
+    use_vllm = True if not dev else _vllm_available()
+    vllm_mode = str((cfg.get("vllm") or {}).get("mode", "colocate"))
+    use_native_lora = use_vllm and vllm_mode == "colocate"
+    if use_vllm and not use_native_lora and not dev:
+        raise SystemExit(
+            f"vllm mode {vllm_mode!r} would ship the adapter through TRL's bf16 merge; only "
+            "colocate + native vLLM LoRA (train/vllm_lora.py) is allowed for result-bearing runs"
+        )
+    policy_sync = (
+        POLICY_SYNC_NATIVE_LORA
+        if use_native_lora
+        else ("trl_merge_sync" if use_vllm else "hf_generate")
+    )
+
     resolved = dict(cfg)
     resolved.update(
         {
             "seed": seed,
             "tokenizer_sha256": train_tok_hash,
+            "vllm_policy_sync": policy_sync,
             "run_name": run_name,
             "n_prompts": len(problems),
             "prompt_template": TEMPLATE,
@@ -505,15 +532,20 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
         resume_state=resume_state,
     )
 
-    trainer = GRPOTrainer(
-        model=model,
-        reward_funcs=reward_fn,
-        args=grpo_args,
-        train_dataset=dataset,
-        processing_class=tokenizer,
-        peft_config=peft_config,
-        callbacks=[callback],
-    )
+    # vLLM must be constructed with LoRA support (vllm_llm_with_lora); the subclass logs the
+    # per-step vLLM-vs-trainer log-prob gap (sampling/logp_absdiff_*), loss unchanged.
+    trainer_cls = mismatch_logging_trainer_cls() if grpo_args.use_vllm else GRPOTrainer
+    llm_ctx = vllm_llm_with_lora() if use_native_lora else contextlib.nullcontext()
+    with llm_ctx:
+        trainer = trainer_cls(
+            model=model,
+            reward_funcs=reward_fn,
+            args=grpo_args,
+            train_dataset=dataset,
+            processing_class=tokenizer,
+            peft_config=peft_config,
+            callbacks=[callback],
+        )
     # Reference = adapter-disabled base under PEFT (TRL); no separate ref model when beta=0.
     if getattr(trainer, "ref_model", None) is not None and float(g["beta_kl"]) == 0.0:
         raise SystemExit("ref_model is set despite beta=0; unexpected TRL behaviour — stop")
@@ -524,11 +556,25 @@ def train_grpo(cfg: dict[str, Any], args: Any) -> int:
         if not isinstance(trainer.model, PeftModel):
             raise SystemExit("PEFT not active on trainer.model — refuse to train without LoRA")
 
+    lora_sync: NativeLoraSync | None = None
+    if use_native_lora:
+        # Adapter snapshots for vLLM live in local tmp, never in the run dir; removed at exit.
+        lora_sync = NativeLoraSync(
+            trainer, tempfile.mkdtemp(prefix=f"rlordata_vllm_lora_{run_name}_")
+        )
+        write_json(run_dir / "vllm_policy_sync.json", lora_sync.describe())
+        print(f"[grpo] policy sync: {policy_sync} (adapter snapshots in {lora_sync.lora_dir})")
+
     t0 = time.monotonic()
     resume = str(resume_ckpt) if resume_ckpt is not None else None
     if resume:
         print(f"[grpo] resuming from {resume} (step logs trimmed to steps <= {resume_step})")
-    trainer.train(resume_from_checkpoint=resume)
+    try:
+        trainer.train(resume_from_checkpoint=resume)
+    finally:
+        if lora_sync is not None:
+            write_json(run_dir / "vllm_policy_sync.json", lora_sync.describe())
+            lora_sync.close()
     wall_h = (time.monotonic() - t0) / 3600.0
     print_cost("grpo train actual", wall_h)
 

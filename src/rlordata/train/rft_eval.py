@@ -1,8 +1,10 @@
 """Evaluate a trained adapter through the single generation path (tasks/03 §5). AGENT-OWNED.
 
-Merge the adapter into the base model in bf16 → temporary directory → ``VLLMSampler`` at the
-locked cap → the same ``eval_runner`` units, metrics and provenance as the base-model evals →
-delete the merged weights, keep the adapter, sync the run directory.
+The adapter is applied by vLLM as a *native* LoRA (``VLLMSampler(lora_path=…)``: ``enable_lora`` +
+``LoRARequest``) at the locked cap → the same ``eval_runner`` units, metrics and provenance as the
+base-model evals → sync the run directory. It is never merged into the bf16 base weights: a bf16
+merge rounds ~90 % of ΔW entries to exactly zero (per-entry |ΔW| ≪ bf16 half-ulp of W), so a merged
+model is mostly the base model (notebook 2026-09-14; ``train/vllm_lora.py``).
 
 Eval sets:
     val     ``val_mixed_100`` greedy only — what the sweep selects on (SPEC §10: val only)
@@ -45,15 +47,16 @@ from rlordata.sampling.eval_runner import (
 )
 from rlordata.train.common import (
     load_yaml,
-    merge_adapter,
     print_cost,
     read_json,
-    remove_dir,
     sync_run,
     tokenizer_hash,
     write_json,
 )
 from rlordata.types import Problem
+
+# Recorded in every adapter eval's resolved config: how vLLM applied the adapter.
+ADAPTER_MODE = "vllm_native_lora"
 
 DEFAULT_FINAL_EVAL_CONFIG = Path("configs/eval/final.yaml")
 DEFAULT_TRANSFER_CONFIG = Path("configs/locked/transfer.yaml")
@@ -172,17 +175,16 @@ def evaluate_run(cfg: dict[str, Any], run_dir: Path, args: Any) -> int:
         sum(len(u.problems) * u.decoding.n for u, _ in pending) * cap / 3000.0 / 3600.0,
     )
 
-    tmp = None
     sampler = None
     try:
         if stub:
             print("STUB SAMPLER: scripted completions, no GPU, no model weights. Not a result.")
             model_for_sampler = ModelSpec(id=cfg["model_id"], kind="base", arm=cfg["arm"])
-            merged_dir = None
         else:
-            tmp = Path(tempfile.mkdtemp(prefix="rlordata_merged_", dir=cfg.get("merge_tmp_dir")))
-            merged_dir = merge_adapter(cfg["model_id"], adapter, tmp / "merged", dtype="bfloat16")
-            model_for_sampler = ModelSpec(id=str(merged_dir), kind="base", arm=cfg["arm"])
+            # Native vLLM LoRA; never a bf16 merge (module docstring).
+            model_for_sampler = ModelSpec(
+                id=cfg["model_id"], kind="base", arm=cfg["arm"], lora_path=str(adapter)
+            )
         sampler = make_sampler(
             model_for_sampler,
             stub=stub,
@@ -219,7 +221,8 @@ def evaluate_run(cfg: dict[str, Any], run_dir: Path, args: Any) -> int:
                     "train_run_dir": str(run_dir),
                     "train_config_hash": (run_dir / "config_hash.txt").read_text().strip(),
                     "adapter": str(adapter),
-                    "merged_model_dir": str(merged_dir) if merged_dir else None,
+                    "merged_model_dir": None,
+                    "adapter_mode": ADAPTER_MODE,
                     "tokenizer_sha256_trainer": train_cfg["tokenizer_sha256"],
                     "tokenizer_sha256_vllm": vllm_tok_sha,
                     "eval_set": eval_set,
@@ -275,8 +278,6 @@ def evaluate_run(cfg: dict[str, Any], run_dir: Path, args: Any) -> int:
     finally:
         if sampler is not None and hasattr(sampler, "close"):
             sampler.close()
-        if tmp is not None:
-            remove_dir(tmp)  # merged weights are never kept (tasks/03 §5)
         sync_run(run_dir)
     _write_eval_summary(run_dir, eval_set)
     return 0

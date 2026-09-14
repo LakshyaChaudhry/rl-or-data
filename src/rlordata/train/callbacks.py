@@ -116,6 +116,10 @@ class GrpoDiagnosticsCallback:
             "lr": _get(logs, "learning_rate", "lr", "train/learning_rate"),
             "loss": _get(logs, "loss", "train/loss"),
             "num_tokens": _get(logs, "num_tokens", "train/num_tokens"),
+            # |logp_trainer - logp_vLLM| on the sampled tokens (train/vllm_lora.py): ~0.01-0.05 is
+            # healthy; the bf16-merge run reached 5 nats at step 150.
+            "sampling_logp_absdiff_mean": _get(logs, "sampling/logp_absdiff_mean"),
+            "sampling_logp_absdiff_max": _get(logs, "sampling/logp_absdiff_max"),
             "per_tier": per_tier,
             "n_active_prompts": len(active),
             "cumulative_completions": self.cumulative_completions,
