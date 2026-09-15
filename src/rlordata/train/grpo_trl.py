@@ -655,12 +655,31 @@ def _curve_from_train_log(path: Path) -> list[dict[str, Any]]:
     return out
 
 
+def _val_curve_point(m: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "accuracy": m.get("accuracy"),
+        "ci": [m.get("ci_low"), m.get("ci_high")],
+        "truncation_rate": m.get("truncation_rate"),
+        "extraction_failure_rate": m.get("extraction_failure_rate"),
+    }
+
+
+def _live_adapter(unit_dir: Path) -> str | None:
+    """Adapter path recorded in an eval unit's resolved config (None when the unit is absent)."""
+    cfg_path = unit_dir / "config.yaml"
+    if not cfg_path.exists():
+        return None
+    import yaml
+
+    return (yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}).get("adapter")
+
+
 def evaluate_grpo_checkpoints(cfg: dict[str, Any], args: Any) -> int:
     """Offline val at {100,200,300}; the final step (300) gets test/ood/transfer like RFT.
 
     Dev runs (tasks/04b) evaluate val at their final step only — never test/ood.
     """
-    from rlordata.train.rft_eval import evaluate_run
+    from rlordata.train.rft_eval import VAL_SPLIT, evaluate_run
 
     cfg = apply_dev_overrides(cfg)
     dev = is_dev(cfg)
@@ -687,41 +706,49 @@ def evaluate_grpo_checkpoints(cfg: dict[str, Any], args: Any) -> int:
     if issues:
         raise SystemExit("[sanity] refusing to evaluate GRPO run:\n  - " + "\n  - ".join(issues))
 
+    # Per-step copies live under eval_checkpoints/step_{n}/. evaluate_run writes every val-set
+    # eval to the same eval/val/ and skips a unit whose samples.jsonl exists, so a second val
+    # step must force a re-sample there (the previous step's copy is already stashed). Steps
+    # whose stash exists are skipped, which is what makes the eval stage resumable.
+    stash_root = run_dir / "eval_checkpoints"
+    force_cli = bool(getattr(args, "force", False))
     for step in val_checkpoints(cfg):
         adapter = step_adapters.get(str(step))
         if not adapter:
             print(f"[grpo-eval] no adapter for step {step}; skip")
+            continue
+        eval_set = "final" if (int(step) == max_steps and not dev) else "val"
+        stash = stash_root / f"step_{step}" / VAL_SPLIT / "greedy"
+        if (stash / "metrics.json").exists() and not force_cli:
+            m = json.loads((stash / "metrics.json").read_text(encoding="utf-8"))
+            val_curve[str(step)] = _val_curve_point(m)
+            print(f"[grpo-eval] step {step}: already stashed at {stash}; skip")
             continue
         # Temporarily point budgets.final_adapter at this checkpoint for evaluate_run and record
         # which step it is; check_final_checkpoint refuses eval_set="final" unless it is step 300.
         budgets["final_adapter"] = adapter
         budgets["eval_step"] = int(step)
         write_json(run_dir / "budgets.json", budgets)
-        eval_set = "final" if (int(step) == max_steps and not dev) else "val"
-        # Stash metrics under eval/step_{n}/ by overriding output via a symlink layout:
-        # evaluate_run writes under run_dir/eval/... — move after.
+        live = run_dir / "eval" / eval_set / VAL_SPLIT / "greedy"
         args.eval_set = eval_set
+        args.force = force_cli or (eval_set == "val" and _live_adapter(live) not in (None, adapter))
         rc = evaluate_run(cfg, run_dir, args)
+        args.force = force_cli
         if rc != 0:
             return rc
-        val_metrics = run_dir / "eval" / "val_mixed_100" / "greedy" / "metrics.json"
-        if val_metrics.exists():
-            m = json.loads(val_metrics.read_text(encoding="utf-8"))
-            val_curve[str(step)] = {
-                "accuracy": m.get("accuracy"),
-                "ci": m.get("ci") or m.get("bootstrap_ci"),
-                "truncation_rate": m.get("truncation_rate"),
-                "extraction_failure_rate": m.get("extraction_failure_rate"),
-            }
-            # Keep step-specific copy.
-            dest = run_dir / "eval_checkpoints" / f"step_{step}" / "val_mixed_100" / "greedy"
-            dest.mkdir(parents=True, exist_ok=True)
-            import shutil
+        val_metrics = live / "metrics.json"
+        if not val_metrics.exists():
+            raise SystemExit(f"[grpo-eval] step {step}: {val_metrics} missing after evaluate_run")
+        m = json.loads(val_metrics.read_text(encoding="utf-8"))
+        val_curve[str(step)] = _val_curve_point(m)
+        stash.mkdir(parents=True, exist_ok=True)
+        import shutil
 
-            for name in ("metrics.json", "samples.jsonl", "config.yaml", "meta.json"):
-                src = val_metrics.parent / name
-                if src.exists():
-                    shutil.copy2(src, dest / name)
+        for name in ("metrics.json", "samples.jsonl", "config.yaml", "meta.json"):
+            src = live / name
+            if src.exists():
+                shutil.copy2(src, stash / name)
+        write_json(curves_path, {**curves, "val_greedy": val_curve})
 
     # Restore final adapter pointer to step 300 / final.
     budgets["final_adapter"] = step_adapters.get(str(max_steps)) or budgets.get("final_adapter")
