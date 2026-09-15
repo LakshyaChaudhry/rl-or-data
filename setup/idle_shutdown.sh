@@ -51,7 +51,24 @@ UTIL_THRESHOLD=5
 LAMBDA_API=https://cloud.lambda.ai/api/v1
 [ -f /etc/rlordata/idle.env ] && set -a && . /etc/rlordata/idle.env && set +a
 
-log() { logger -t gpu_idle "$*"; echo "[gpu_idle] $*"; }
+log() {
+  logger -t gpu_idle "$*"; echo "[gpu_idle] $*"
+  # Also append to the persistent store: local syslog dies with the instance, so without this a
+  # guard termination is indistinguishable from the box vanishing (two GRPO boxes, 2026-09-15).
+  case "${RLORDATA_ARTIFACTS:-}" in
+    ""|s3://*) ;;
+    *) sudo -u "${RLORDATA_USER:-ubuntu}" -H mkdir -p "$RLORDATA_ARTIFACTS/logs" 2>/dev/null
+       printf '%s %s %s\n' "$(date -u +%FT%TZ)" "$(hostname)" "$*" \
+         | sudo -u "${RLORDATA_USER:-ubuntu}" -H tee -a "$RLORDATA_ARTIFACTS/logs/idle_guard_$(hostname).log" >/dev/null 2>&1 ;;
+  esac
+}
+
+evidence() {
+  # What was (not) running when the guard fired — the only post-mortem a terminated box leaves.
+  log "evidence gpu: $(nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv,noheader 2>/dev/null | tr '\n' ';')"
+  ps -eo pid,etimes,pcpu,rss,args --sort=-etimes 2>/dev/null | grep -E 'rlordata|run_queue|vllm|rft_|grpo' | grep -v grep | head -20 \
+    | while read -r l; do log "evidence proc: $l"; done
+}
 
 lambda_instance_id() {
   # Match this box's public IP (and, as a fallback, any local address) against the account's instances.
@@ -81,12 +98,15 @@ sync_artifacts() {
   # Best effort, bounded: the sync must not keep an idle box alive for long.
   if [ -n "${RLORDATA_REPO:-}" ] && [ -d "$RLORDATA_REPO" ]; then
     log "syncing artifacts to ${RLORDATA_ARTIFACTS:-<unset>}"
-    ( cd "$RLORDATA_REPO" && timeout 1200 sudo -u "${RLORDATA_USER:-ubuntu}" -E env PATH="/home/${RLORDATA_USER:-ubuntu}/.local/bin:$PATH" \
+    # -H: cron runs this as root and `-E` alone kept HOME=/root, so uv (as ubuntu) failed on
+    # /root/.cache/uv and NOTHING was synced before terminate (found 2026-09-15).
+    ( cd "$RLORDATA_REPO" && timeout 1200 sudo -u "${RLORDATA_USER:-ubuntu}" -E -H env PATH="/home/${RLORDATA_USER:-ubuntu}/.local/bin:$PATH" UV_NO_SYNC=1 \
         uv run python -m rlordata.artifacts sync-all ) 2>&1 | tail -n 20 | while read -r l; do log "$l"; done || log "artifact sync failed (rc=$?)"
   fi
 }
 
 terminate_or_shutdown() {
+  evidence
   sync_artifacts
   if [ -n "${LAMBDA_API_KEY:-}" ]; then
     local id; id=$(lambda_instance_id)

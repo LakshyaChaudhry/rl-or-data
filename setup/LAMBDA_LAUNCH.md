@@ -81,6 +81,23 @@ free the GPU cleanly between models, run one model per process:
 uv run rlordata eval --config configs/eval/base.yaml --models google/gemma-4-E4B-it
 ```
 
+## 3b. Relaunching the GRPO box (one command)
+
+Two GRPO boxes were lost on 2026-09-15 to the idle guard, with nothing synced (the guard's sync ran
+`uv` with root's HOME; fixed). Relaunch is now one command on a fresh instance with the filesystem
+attached — no manual keys, no manual restore, no manual queueing:
+
+```
+git clone https://github.com/LakshyaChaudhry/rl-or-data.git && cd rl-or-data && bash setup/grpo_box.sh
+```
+
+`setup/grpo_box.sh` copies `.env` from `<filesystem>/bootstrap/.env` (and Claude Code credentials from
+`<filesystem>/bootstrap/claude/` if you keep them there), builds the env, restores finished GRPO runs
+(without checkpoints) and unfinished ones (whole, so the queue resumes), restores the base-model evals
+the adapter-eval sanity gate needs, prints the queue and a cost estimate, runs `setup_gpu.sh` (guard
+armed last), and launches the queue seconds later with its log, a checkpoint sync loop and a GPU-idle
+evidence logger all writing to the store's `logs/`. `--dry-run` stops after the preview.
+
 ## 4. Leaving the box
 
 - Nothing queued? **Terminate** (console: select → *Terminate* → type `erase data on instance`), or
