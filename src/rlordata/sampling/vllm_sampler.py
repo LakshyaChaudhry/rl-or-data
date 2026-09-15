@@ -100,6 +100,15 @@ class VLLMSampler:
         if batch_invariant:
             os.environ.setdefault("VLLM_BATCH_INVARIANT", "1")
         self.batch_invariant = os.environ.get("VLLM_BATCH_INVARIANT", "0") == "1"
+        # vLLM forks its EngineCore when the parent has not touched CUDA (the eval path: no
+        # trainer, so no CUDA before the sampler exists). Torch CPU ops before that point warm
+        # libgomp's thread pool, and the forked child inherits the pool's bookkeeping without
+        # its threads, so its first parallel CPU op (UvaBuffer's pinned torch.zeros in
+        # init_device) waits forever at an OpenMP barrier with the GPU idle. Seen on the
+        # 2026-09-13 and 2026-09-15 GRPO boxes (grpo_hang_* dumps on the store). spawn is the
+        # method vLLM itself switches to whenever CUDA is already initialised. setdefault: an
+        # explicit env wins.
+        os.environ.setdefault("VLLM_WORKER_MULTIPROC_METHOD", "spawn")
 
         from vllm import LLM, SamplingParams  # lazy: GPU box only
 
