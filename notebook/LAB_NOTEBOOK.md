@@ -14,6 +14,13 @@ One entry per run or decision. Newest at the top. Copy the template.
 
 ## Entries
 
+### 2026-09-16 — grpo_random_reward_s1 (control C1) trained: mean reward 0.5009 over 19,200 records, no trend, no length drift
+- Config hash: 630d7883bff7 | git SHA: f60c59b | GPU: 1× H100 PCIe | wall-clock: 5.82 GPU-h (14:38–20:28 UTC) | est. cost: $24.99
+- What I ran / decided: queue job 5/22, no incidents, nothing decided.
+- Result (with n, seed, CI, truncation%): mean reward 0.5009 over all records (C1 gate target ≈ 0.5); per-step means 0.39–0.61 with std ≈ 0.50; frac_reward_zero_std 0 on 299/300 steps. Reward at steps 1/100/200/299: 0.453/0.531/0.531/0.531. Mean completion length 515 → 430 tokens; max clipped 1.6 %. grad_norm 0.010–0.027 (same range as the real arms); sampling_logp_absdiff_mean ≤ 0.0144 nats.
+- What I learned (one sentence): the control produces gradients as large as the real arms with no learning signal, which is exactly the null it is meant to be; its eval will show what a policy update with random advantages does to length and format on its own.
+- Next: train_grpo_format_only_s1 (6/22), then mixed/curated/easy seeds 2 and 3, then the ten evals.
+
 ### 2026-09-16 — grpo_easy_s1 trained (5.78 GPU-h, no incidents); reward saturates before step 100
 - Config hash: 9601e0f7f5ea | git SHA: a794085 | GPU: 1× H100 PCIe | wall-clock: 5.78 GPU-h (08:37–14:27 UTC) | est. cost: $24.82
 - What I ran / decided: queue job 4/22. 300 steps, 19,200 reward records, adapters at 100/200/300/final. Nothing decided.
