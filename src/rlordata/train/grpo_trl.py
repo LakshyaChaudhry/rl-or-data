@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+import os
 import tempfile
 import time
 from pathlib import Path
@@ -369,6 +370,13 @@ def _assert_trl_vllm(*, dev: bool = False) -> dict[str, str]:
 
 def train_grpo(cfg: dict[str, Any], args: Any) -> int:
     """``rlordata grpo --config …`` — one result-bearing run."""
+    # Allocator only (no effect on the loss). train_grpo_curated_s1 OOMed in the step-5 backward on
+    # an idle 80 GB card: 9.85 GiB requested (fp32 full-vocab logits of a 4-sequence micro-batch
+    # at the cap) with 7.4 GiB free while 15.9 GiB sat reserved-but-unallocated, i.e. the caching
+    # allocator had fragmented across the trainer's variable-length batches and vLLM's 30 %.
+    # expandable_segments lets segments grow in place instead. Must precede the first CUDA
+    # allocation; vLLM 0.28 only rejects it when a KV-transfer connector is configured (none here).
+    os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
     cfg = apply_dev_overrides(cfg)
     dev = is_dev(cfg)
     dry = bool(getattr(args, "dry_run", False))
