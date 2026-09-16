@@ -14,6 +14,13 @@ One entry per run or decision. Newest at the top. Copy the template.
 
 ## Entries
 
+### 2026-09-16 — grpo_easy_s1 trained (5.78 GPU-h, no incidents); reward saturates before step 100
+- Config hash: 9601e0f7f5ea | git SHA: a794085 | GPU: 1× H100 PCIe | wall-clock: 5.78 GPU-h (08:37–14:27 UTC) | est. cost: $24.82
+- What I ran / decided: queue job 4/22. 300 steps, 19,200 reward records, adapters at 100/200/300/final. Nothing decided.
+- Result (with n, seed, CI, truncation%): reward mean / frac_reward_zero_std at steps 1/100/200/299 = 0.672/0.125, 1.000/1.000, 0.984/0.875, 1.000/1.000; last-50 mean 0.982 / 0.875; 73 steps with all groups all-correct. Mean completion length 480 → 700–900 tokens (peak 1396). sampling_logp_absdiff_mean 0.009 → 0.004 nats (run max 0.0109). grad_norm ≤ 0.053. Faster than curated (5.8 vs 7.2 GPU-h) because completions are shorter.
+- What I learned (one sentence): training-reward saturation order easy (< step 100) < curated (~200) < mixed (never), so the arms differ in how much of the fixed completion budget carries gradient — a per-arm observation to carry into tasks/05, not a claim.
+- Next: train_grpo_random_reward_s1 (C1 gate: mean reward ≈ 0.5), format_only_s1, then seeds 2 and 3.
+
 ### 2026-09-16 — grpo_curated_s1 trained (7.21 GPU-h, no OOM under expandable_segments); training reward saturates by step 200
 - Config hash: ac6693350cf0 | git SHA: dc959d3 | GPU: 1× H100 PCIe | wall-clock: 7.21 GPU-h (01:22–08:35 UTC) | est. cost: $30.94
 - What I ran / decided: queue job 3/22 after the relaunch. 300 steps, 19,200 reward records, adapters at 100/200/300/final. Steady state 75 GB / 100 % util; step time 29–136 s tracking completion length. Nothing decided beyond the allocator setting recorded above.
