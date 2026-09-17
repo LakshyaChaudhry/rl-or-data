@@ -104,9 +104,24 @@ def _sync_local(src: Path, files: list[Path], dest_root: Path, key: Path) -> str
     dest.mkdir(parents=True, exist_ok=True)
     for f in files:
         target = dest / f.relative_to(src)
+        if _unchanged(f, target):
+            continue
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(f, target)
     return str(dest)
+
+
+def _unchanged(src: Path, target: Path) -> bool:
+    """True when ``target`` already holds ``src`` (same size and mtime; ``copy2`` preserves mtime).
+
+    A run dir is synced many times (every stage, the idle guard). Rewriting a finished 500 MB
+    adapter with identical bytes on each of them is slow and, if the box dies mid-copy, truncates
+    the only durable copy. Unchanged files are left alone.
+    """
+    if not target.is_file():
+        return False
+    a, b = src.stat(), target.stat()
+    return a.st_size == b.st_size and int(a.st_mtime) == int(b.st_mtime)
 
 
 def _sync_s3(src: Path, files: list[Path], dest_root: str, key: Path) -> str:

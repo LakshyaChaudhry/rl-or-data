@@ -127,3 +127,21 @@ def test_restore_copies_store_back_into_repo(tmp_path: Path, monkeypatch) -> Non
 
     with pytest.raises(RuntimeError):
         artifacts.restore(["runs"], None, repo_root=fresh)
+
+
+def test_sync_local_leaves_unchanged_files_alone(tmp_path: Path) -> None:
+    """A re-sync must not rewrite a file the store already holds; a changed file is still copied."""
+    repo = tmp_path / "repo"
+    run = repo / "runs" / "rft" / "arm" / "seed1"
+    run.mkdir(parents=True)
+    (run / "adapter.bin").write_bytes(b"x" * 64)
+    (run / "meta.json").write_text("{}")
+    store = tmp_path / "store"
+    artifacts.sync_run_dir(run, str(store), repo_root=repo, quiet=True)
+    kept = store / "runs" / "rft" / "arm" / "seed1" / "adapter.bin"
+    inode = kept.stat().st_ino
+    kept.chmod(0o444)  # a rewrite of an unchanged file would fail here
+    (run / "meta.json").write_text('{"status": "finished"}')
+    artifacts.sync_run_dir(run, str(store), repo_root=repo, quiet=True)
+    assert kept.stat().st_ino == inode
+    assert "finished" in (kept.parent / "meta.json").read_text()
