@@ -199,6 +199,25 @@ def print_cost(label: str, gpu_hours: float) -> str:
     return line
 
 
+def release_cuda_cache() -> None:
+    """Hand the trainer's cached CUDA memory back to the driver before vLLM starts in this process.
+
+    ``scripts/rft_finals.py`` trains and evaluates in one process. vLLM's engine is a separate
+    process that needs ``gpu_memory_utilization`` of the card free at start-up; PyTorch's caching
+    allocator otherwise keeps the finished trainer's ~50 GiB reserved (the removed bf16
+    ``merge_adapter`` step used to do this as a side effect; notebook 2026-09-17).
+    """
+    import gc
+    import sys
+
+    gc.collect()
+    torch = sys.modules.get("torch")
+    if torch is not None and torch.cuda.is_available() and torch.cuda.is_initialized():
+        torch.cuda.empty_cache()
+        free, total = torch.cuda.mem_get_info()
+        print(f"[eval] CUDA cache released: {free / 2**30:.1f} of {total / 2**30:.1f} GiB free")
+
+
 def sync_run(run_dir: str | Path) -> str | None:
     """Sync a run directory to the artifact store; a warned no-op when the store is unset."""
     return sync_run_dir(run_dir, quiet=False)

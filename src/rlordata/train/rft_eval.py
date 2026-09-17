@@ -49,6 +49,7 @@ from rlordata.train.common import (
     load_yaml,
     print_cost,
     read_json,
+    release_cuda_cache,
     sync_run,
     tokenizer_hash,
     write_json,
@@ -182,6 +183,7 @@ def evaluate_run(cfg: dict[str, Any], run_dir: Path, args: Any) -> int:
             model_for_sampler = ModelSpec(id=cfg["model_id"], kind="base", arm=cfg["arm"])
         else:
             # Native vLLM LoRA; never a bf16 merge (module docstring).
+            release_cuda_cache()  # a training stage may have run in this process
             model_for_sampler = ModelSpec(
                 id=cfg["model_id"], kind="base", arm=cfg["arm"], lora_path=str(adapter)
             )
