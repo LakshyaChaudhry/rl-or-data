@@ -14,6 +14,13 @@ One entry per run or decision. Newest at the top. Copy the template.
 
 ## Entries
 
+### 2026-09-17 — grpo_curated_s2 trained (9.31 GPU-h); seed 2 again ~40 % more verbose than seed 1, less saturated
+- Config hash: cdf988d0d18c | git SHA: a5079bc | GPU: 1× H100 PCIe | wall-clock: 9.31 GPU-h (11:15–20:34 UTC) | est. cost: $39.93
+- What I ran / decided: queue job 8/22, no incidents, nothing decided. Seven of eleven trained.
+- Result (with n, seed, CI, truncation%): reward / frac_reward_zero_std at steps 1/100/200/299 = 0.484/0.125, 0.906/0.500, 0.734/0.750, 0.953/0.875; last-50 mean 0.870 / 0.667 (seed 1: 0.888 / 0.698); only 2 fully-saturated steps vs seed 1's long all-correct stretch. Length 543 → 1468 at step 200, last-50 mean 1482 vs ≈ 1075 for seed 1. Cap hits 2.3 % of completions over steps 151–300 (max 12.5 % in a step). Entropy 0.38 → 0.07; sampling_logp_absdiff_mean ≤ 0.0112 nats; grad_norm ≤ 0.055.
+- What I learned (one sentence): both seed-2 runs so far (mixed, curated) diverge from seed 1 in the same direction — longer chains, more cap hits, slightly lower final training reward — which is worth checking on easy_s2 before calling it a seed effect rather than two coincidences.
+- Next: train_grpo_easy_s2 (9/22), then seed 3.
+
 ### 2026-09-17 — grpo_mixed_s2 trained (9.52 GPU-h); more verbose than seed 1, 5 % of late completions at the cap
 - Config hash: d9b08f9faeaa | git SHA: c945b7b | GPU: 1× H100 PCIe | wall-clock: 9.52 GPU-h (01:40–11:08 UTC) | est. cost: $40.85
 - What I ran / decided: queue job 7/22, no incidents, nothing decided. Mid-run I checked the lengthening against the 2026-09-14 collapse signature: entropy declined monotonically 0.31 → 0.04 (the collapse went 0.05 → 4.5), reward_std stayed ≈ 0.45, grad_norm flat ≤ 0.034, and the longest capped completion was a real bitwise-table computation, so this is sharpening onto verbose chains, not degeneration.
