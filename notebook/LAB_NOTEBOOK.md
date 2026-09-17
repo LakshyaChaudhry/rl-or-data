@@ -14,6 +14,13 @@ One entry per run or decision. Newest at the top. Copy the template.
 
 ## Entries
 
+### 2026-09-17 — grpo_mixed_s2 trained (9.52 GPU-h); more verbose than seed 1, 5 % of late completions at the cap
+- Config hash: d9b08f9faeaa | git SHA: c945b7b | GPU: 1× H100 PCIe | wall-clock: 9.52 GPU-h (01:40–11:08 UTC) | est. cost: $40.85
+- What I ran / decided: queue job 7/22, no incidents, nothing decided. Mid-run I checked the lengthening against the 2026-09-14 collapse signature: entropy declined monotonically 0.31 → 0.04 (the collapse went 0.05 → 4.5), reward_std stayed ≈ 0.45, grad_norm flat ≤ 0.034, and the longest capped completion was a real bitwise-table computation, so this is sharpening onto verbose chains, not degeneration.
+- Result (with n, seed, CI, truncation%): reward / frac_reward_zero_std at steps 1/100/200/299 = 0.547/0.000, 0.688/0.625, 0.750/0.750, 0.812/0.750; last-50 mean 0.777 / 0.618. Length 478 → 1619 at step 200 (10-step peak ≈ 1980), last-50 mean 1519 vs ≈ 1250 for seed 1. Cap hits 5.2 % of completions over steps 151–300 vs 1.6 % for seed 1; one step 26.6 %. sampling_logp_absdiff_mean ≤ 0.0107 nats.
+- What I learned (one sentence): the two mixed seeds agree for 100 steps and then diverge in verbosity, which means eval truncation on ood_hard (46 % greedy for seed 1) will likely be higher for seed 2 and is a per-seed outcome to report, not to average away.
+- Next: train_grpo_curated_s2 (8/22), easy_s2, then seed 3.
+
 ### 2026-09-17 — grpo_format_only_s1 (control C2) trained: format rate 0.83 → 1.00 by step ~46, 217 zero-gradient steps
 - Config hash: a991d6036f15 | git SHA: 668ddd1 | GPU: 1× H100 PCIe | wall-clock: 4.99 GPU-h | est. cost: $21.43
 - What I ran / decided: queue job 6/22, no incidents, nothing decided. All five seed-1 trainings are done (mixed, curated, easy, random_reward, format_only); the queue continues with seeds 2 and 3.
