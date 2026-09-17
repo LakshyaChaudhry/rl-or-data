@@ -14,6 +14,13 @@ One entry per run or decision. Newest at the top. Copy the template.
 
 ## Entries
 
+### 2026-09-17 — grpo_format_only_s1 (control C2) trained: format rate 0.83 → 1.00 by step ~46, 217 zero-gradient steps
+- Config hash: a991d6036f15 | git SHA: 668ddd1 | GPU: 1× H100 PCIe | wall-clock: 4.99 GPU-h | est. cost: $21.43
+- What I ran / decided: queue job 6/22, no incidents, nothing decided. All five seed-1 trainings are done (mixed, curated, easy, random_reward, format_only); the queue continues with seeds 2 and 3.
+- Result (with n, seed, CI, truncation%): training reward at steps 1/100/200/299 = 0.828/1.000/1.000/1.000; 217/300 steps with frac_reward_zero_std = 1. Mean completion length 507 → 547 tokens (no drift); max clipped 3.1 %. grad_norm ≤ 0.021; sampling_logp_absdiff_mean ≤ 0.0108 nats. Fastest run so far (5.0 GPU-h) since most steps skip the backward.
+- What I learned (one sentence): saturation order across seed 1 — format_only (~46) < easy (< 100) < curated (~200) < mixed (never) — is the amount of learnable signal each reward/data pair offers this base model at the locked budget.
+- Next: train_grpo_mixed_s2 (7/22); hourly checks.
+
 ### 2026-09-16 — grpo_random_reward_s1 (control C1) trained: mean reward 0.5009 over 19,200 records, no trend, no length drift
 - Config hash: 630d7883bff7 | git SHA: f60c59b | GPU: 1× H100 PCIe | wall-clock: 5.82 GPU-h (14:38–20:28 UTC) | est. cost: $24.99
 - What I ran / decided: queue job 5/22, no incidents, nothing decided.
