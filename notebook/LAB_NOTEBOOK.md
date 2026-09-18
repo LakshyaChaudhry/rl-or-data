@@ -14,6 +14,13 @@ One entry per run or decision. Newest at the top. Copy the template.
 
 ## Entries
 
+### 2026-09-18 — grpo_easy_s2 trained (4.64 GPU-h); matches seed 1, so the seed-2 verbosity is data-dependent
+- Config hash: e654797ea607 | git SHA: 63d966d | GPU: 1× H100 PCIe | wall-clock: 4.64 GPU-h (20:36–01:17 UTC) | est. cost: $19.91
+- What I ran / decided: queue job 9/22, no incidents, nothing decided. Eight of eleven trained; seed 2 complete.
+- Result (with n, seed, CI, truncation%): reward / frac_reward_zero_std at steps 1/100/200/299 = 0.719/0.375, 0.938/0.625, 0.984/0.875, 0.969/0.875; last-50 mean 0.990 / 0.930; 90 fully-saturated steps. Length last-50 mean 589 tokens — identical to seed 1 (589); cap hits 0.07 %. sampling_logp_absdiff_mean ≤ 0.0116 nats; grad_norm ≤ 0.023.
+- What I learned (one sentence): the seed-2 lengthening seen on mixed (+40 %) and curated (+40 %) does not appear on easy, so it is a property of seed × problem difficulty rather than of the seed alone — verbosity grows where the reward still has headroom.
+- Next: train_grpo_mixed_s3 (10/22); after easy_s3 the queue runs eval_grpo_curated_s1 … eval_grpo_easy_s3.
+
 ### 2026-09-17 — grpo_curated_s2 trained (9.31 GPU-h); seed 2 again ~40 % more verbose than seed 1, less saturated
 - Config hash: cdf988d0d18c | git SHA: a5079bc | GPU: 1× H100 PCIe | wall-clock: 9.31 GPU-h (11:15–20:34 UTC) | est. cost: $39.93
 - What I ran / decided: queue job 8/22, no incidents, nothing decided. Seven of eleven trained.
