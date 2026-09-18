@@ -14,6 +14,13 @@ One entry per run or decision. Newest at the top. Copy the template.
 
 ## Entries
 
+### 2026-09-18 — grpo_mixed_s3 trained (9.33 GPU-h); seeds 2 and 3 agree on the long-chain regime, seed 1 is the short outlier
+- Config hash: 73097c93e1bb | git SHA: 7f0726a | GPU: 1× H100 PCIe | wall-clock: 9.33 GPU-h (01:20–10:41 UTC) | est. cost: $40.03
+- What I ran / decided: queue job 10/22, no incidents, nothing decided. Nine of eleven trained; the mixed arm is complete across seeds.
+- Result (with n, seed, CI, truncation%): reward / frac_reward_zero_std at steps 1/100/200/299 = 0.422/0.125, 0.812/0.500, 0.984/0.875, 0.812/0.750; last-50 mean 0.805 / 0.632. Length last-50 mean 1607 (seed 1 ≈ 1250, seed 2 1519); cap hits 3.2 % over steps 151–300 (seed 1 1.6 %, seed 2 5.2 %). Entropy 0.35 → 0.06; sampling_logp_absdiff_mean ≤ 0.0119 nats; grad_norm ≤ 0.021.
+- What I learned (one sentence): across the three mixed seeds final training reward is 0.78–0.86 and late length is 1250–1600 tokens, so the per-seed spread on this arm is modest in reward and larger in verbosity, which is where the eval truncation spread will come from.
+- Next: train_grpo_curated_s3 (11/22), easy_s3 (12/22), then eval_grpo_curated_s1 … eval_grpo_easy_s3.
+
 ### 2026-09-18 — grpo_easy_s2 trained (4.64 GPU-h); matches seed 1, so the seed-2 verbosity is data-dependent
 - Config hash: e654797ea607 | git SHA: 63d966d | GPU: 1× H100 PCIe | wall-clock: 4.64 GPU-h (20:36–01:17 UTC) | est. cost: $19.91
 - What I ran / decided: queue job 9/22, no incidents, nothing decided. Eight of eleven trained; seed 2 complete.
