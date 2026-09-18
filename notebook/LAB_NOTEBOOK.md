@@ -14,6 +14,13 @@ One entry per run or decision. Newest at the top. Copy the template.
 
 ## Entries
 
+### 2026-09-18 — grpo_curated_s3 trained (8.49 GPU-h); curated arm complete, most seed-stable in training reward
+- Config hash: 7820651e8cb5 | git SHA: b0b5f64 | GPU: 1× H100 PCIe | wall-clock: 8.49 GPU-h (10:45–19:15 UTC) | est. cost: $36.41
+- What I ran / decided: queue job 11/22, no incidents, nothing decided. Ten of eleven trained.
+- Result (with n, seed, CI, truncation%): reward / frac_reward_zero_std at steps 1/100/200/299 = 0.469/0.125, 0.875/0.500, 0.859/0.875, 1.000/1.000; last-50 mean 0.887 / 0.705. Length last-50 mean 1230 (seed 1 ≈ 1075, seed 2 1482); cap hits 1.4 % over steps 151–300. Entropy 0.33 → 0.05; sampling_logp_absdiff_mean ≤ 0.0108 nats; grad_norm ≤ 0.020.
+- What I learned (one sentence): curated seeds land within 0.02 of each other in final training reward (0.87–0.89) while mixed seeds span 0.78–0.86, so the curated set is the one where three seeds will give the tightest per-arm estimate.
+- Next: train_grpo_easy_s3 (12/22, last training, ≈ 5 GPU-h), then eval_grpo_curated_s1 … eval_grpo_easy_s3 (10 evals).
+
 ### 2026-09-18 — grpo_mixed_s3 trained (9.33 GPU-h); seeds 2 and 3 agree on the long-chain regime, seed 1 is the short outlier
 - Config hash: 73097c93e1bb | git SHA: 7f0726a | GPU: 1× H100 PCIe | wall-clock: 9.33 GPU-h (01:20–10:41 UTC) | est. cost: $40.03
 - What I ran / decided: queue job 10/22, no incidents, nothing decided. Nine of eleven trained; the mixed arm is complete across seeds.
