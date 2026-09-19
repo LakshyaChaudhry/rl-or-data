@@ -281,7 +281,7 @@ def main() -> int:
             BASE_TRANSFER / split / dec / "metrics.json"
         )
         w(
-            f"- base: {fmt(bm)}"
+            f"- base: {fmt(bm) if bm else 'no base eval for this unit (tasks/02 ran greedy only on the transfer set)'}"
             + (
                 f"; pass@1/8/64 {bm['pass_at_k']['1']:.3f}/{bm['pass_at_k']['8']:.3f}/{bm['pass_at_k']['64']:.3f}"
                 if bm and dec == "pass_at_k"

@@ -200,7 +200,7 @@ Bootstrap 95 % CI; trunc = share of completions at the cap (flag > 5 % on test/v
 
 ### gsm8k_500 / mean_at_k
 
-- base: pending
+- base: no base eval for this unit (tasks/02 ran greedy only on the transfer set)
 - grpo_mixed_s1: 0.913 [0.895,0.931] n=500 trunc 0.1%
 - grpo_curated_s1: 0.931 [0.913,0.947] n=500 trunc 0.1%
 - grpo_easy_s1: 0.924 [0.905,0.942] n=500 trunc 0.1%
