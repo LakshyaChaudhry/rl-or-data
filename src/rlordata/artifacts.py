@@ -105,8 +105,25 @@ def _sync_local(src: Path, files: list[Path], dest_root: Path, key: Path) -> str
     for f in files:
         target = dest / f.relative_to(src)
         target.parent.mkdir(parents=True, exist_ok=True)
+        if _same_file(f, target):
+            continue  # copy2 preserves mtime, so size+mtime equal means already synced
         shutil.copy2(f, target)
     return str(dest)
+
+
+def _same_file(src: Path, target: Path) -> bool:
+    """True when target already holds src: same size and mtime (copy2 preserves both).
+
+    A run dir on the box that was trained here carries ~20 GB of checkpoints and adapters that
+    every post-job sync re-copied over NFS unconditionally; with the GPU idle during the copy,
+    two such syncs back to back (the eval's own, then the queue's) approached the idle guard's
+    30-minute window (box 3, 2026-09-19, eval_grpo_mixed_s2: 15 idle minutes and counting).
+    """
+    try:
+        a, b = src.stat(), target.stat()
+    except FileNotFoundError:
+        return False
+    return a.st_size == b.st_size and abs(a.st_mtime - b.st_mtime) < 1.0
 
 
 def _sync_s3(src: Path, files: list[Path], dest_root: str, key: Path) -> str:
