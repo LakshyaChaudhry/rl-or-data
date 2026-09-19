@@ -14,6 +14,13 @@ One entry per run or decision. Newest at the top. Copy the template.
 
 ## Entries
 
+### 2026-09-19 — grpo_easy_s2 evaluated: the weakest real-arm result — val 0.65, test greedy 0.70 (base 0.67), despite a training curve identical to seed 1
+- Config hash: e654797ea607 | git SHA: 63d966d (train) | GPU: 1× H100 PCIe | wall-clock: eval ≈ 0.85 GPU-h (08:37–09:27 UTC) | est. cost: ≈ $3.6
+- What I ran / decided: `eval_grpo_easy_s2` (queue 19/22), no incidents, all 9 final units protocol_vs_base ok. Nothing decided.
+- Result (with n, seed, CI, truncation%): seed 2, bootstrap 95 % CI. val_mixed_100 greedy n=100: 0.630 [0.530,0.730] / 0.670 [0.580,0.760] / 0.650 [0.550,0.740] at steps 100/200/300 (base 0.600). Step 300: test_300 greedy 0.700 [0.650,0.750] n=300 trunc 3.3 % (base 0.673); test mean@8 0.672 [0.628,0.716] (base 0.425); pass@1/8/64 0.665/0.835/0.940 (base 0.426/0.803/0.980); ood_hard_200 greedy 0.305 [0.240,0.370] trunc 21.0 % (base 0.250); ood mean@8 0.319 [0.274,0.367] (base 0.173); gsm8k_500 greedy 0.950 [0.930,0.968] (base 0.880), mean@8 0.923 [0.903,0.941].
+- What I learned (one sentence): two easy seeds with indistinguishable training (final reward 0.98–0.99, length 589 for both) land 5–8 points apart on val and test greedy (0.73/0.78 vs 0.65/0.70), so on this arm the training curve carries almost no information about the eval outcome and the per-arm estimate needs all three seeds.
+- Next: eval_grpo_mixed_s3 (20/22), curated_s3, easy_s3.
+
 ### 2026-09-19 — grpo_curated_s2 evaluated: val greedy 0.77 (= seed 1), test greedy 0.76, OOD greedy 0.29 at 45 % truncation (seed 1: 0.36 at 19.5 %)
 - Config hash: cdf988d0d18c | git SHA: a5079bc (train) | GPU: 1× H100 PCIe | wall-clock: eval ≈ 1.5 GPU-h (06:50–08:22 UTC) | est. cost: ≈ $6.5
 - What I ran / decided: `eval_grpo_curated_s2` (queue 18/22), the first job after the queue restart; no incidents; all 9 final units protocol_vs_base ok; the post-eval sync with the incremental fix took ≈ 2 min instead of ≈ 15. Nothing decided.
