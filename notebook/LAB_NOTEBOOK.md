@@ -14,6 +14,13 @@ One entry per run or decision. Newest at the top. Copy the template.
 
 ## Entries
 
+### 2026-09-19 — grpo_curated_s1 evaluated: val 0.60 → 0.77 greedy, test greedy 0.79, OOD greedy 0.36 at 19.5 % truncation (mixed_s1: 0.30 at 46.5 %)
+- Config hash: ac6693350cf0 | git SHA: dc959d3 (train), f08fdb5+ (eval) | GPU: 1× H100 PCIe | wall-clock: eval ≈ 1.3 GPU-h (00:27–01:43 UTC) | est. cost: ≈ $5.6
+- What I ran / decided: `eval_grpo_curated_s1` (queue 13/22), the first eval after the training phase; no incidents (the spawn fix held: engine up in ~1 min). All 9 final units protocol_vs_base ok; per-step val stash and curve written for steps 100/200/300. Nothing decided.
+- Result (with n, seed, CI, truncation%): seed 1, bootstrap 95 % CI. val_mixed_100 greedy n=100: step 100 0.720 [0.630,0.810], 200 0.760 [0.670,0.840], 300 0.770 [0.690,0.850], trunc 2 % each; base 0.600. Step 300: test_300 greedy 0.793 [0.747,0.840] n=300 trunc 5.3 % (flag) vs base 0.673; test mean@8 0.772 [0.734,0.809] trunc 1.8 % vs base 0.425; pass@1/8/64 on test first-100 0.767/0.925/0.970 vs base 0.426/0.803/0.980; ood_hard_200 greedy 0.360 [0.295,0.430] trunc 19.5 % vs base 0.250 (13 %); ood mean@8 0.374 [0.324,0.425] trunc 12.9 % vs base 0.173; gsm8k_500 greedy 0.924 [0.900,0.946] vs base 0.880, mean@8 0.931 [0.913,0.947].
+- What I learned (one sentence): curated_s1 reaches the same val/test greedy as mixed_s1 (0.77 / 0.79 vs 0.77 / 0.79) but with far less truncation everywhere (OOD greedy 19.5 % vs 46.5 %, test mean@8 1.8 % vs 5.3 %) and pass@64 that stays at base (0.97 vs 0.98), i.e. it sharpened without the verbosity or the diversity loss — a per-run observation for tasks/05 to test across seeds.
+- Next: eval_grpo_easy_s1 (14/22), then random_reward_s1, format_only_s1, and the seed-2/3 evals.
+
 ### 2026-09-19 — grpo_easy_s3 trained (5.03 GPU-h); all 11 tasks/04 trainings complete, 78.3 GPU-h ≈ $336
 - Config hash: 87e14b5f33ed | git SHA: fbd6446 | GPU: 1× H100 PCIe | wall-clock: 5.03 GPU-h (19:19–00:23 UTC) | est. cost: $21.59
 - What I ran / decided: queue job 12/22, no incidents, nothing decided. Training phase complete: 11 runs, 78.27 GPU-h ≈ $336 (mixed 8.1/9.5/9.3, curated 7.2/9.3/8.5, easy 5.8/4.6/5.0, random_reward 5.8, format_only 5.0), every run 300 steps / 19,200 records / adapters at 100/200/300/final, sampling_logp_absdiff_mean ≤ 0.012 nats on every run, one OOM (curated_s1 step 5, fixed by the allocator setting) and no collapse.
