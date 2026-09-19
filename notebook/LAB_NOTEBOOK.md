@@ -14,6 +14,13 @@ One entry per run or decision. Newest at the top. Copy the template.
 
 ## Entries
 
+### 2026-09-19 — grpo_easy_s3 trained (5.03 GPU-h); all 11 tasks/04 trainings complete, 78.3 GPU-h ≈ $336
+- Config hash: 87e14b5f33ed | git SHA: fbd6446 | GPU: 1× H100 PCIe | wall-clock: 5.03 GPU-h (19:19–00:23 UTC) | est. cost: $21.59
+- What I ran / decided: queue job 12/22, no incidents, nothing decided. Training phase complete: 11 runs, 78.27 GPU-h ≈ $336 (mixed 8.1/9.5/9.3, curated 7.2/9.3/8.5, easy 5.8/4.6/5.0, random_reward 5.8, format_only 5.0), every run 300 steps / 19,200 records / adapters at 100/200/300/final, sampling_logp_absdiff_mean ≤ 0.012 nats on every run, one OOM (curated_s1 step 5, fixed by the allocator setting) and no collapse.
+- Result (with n, seed, CI, truncation%): easy_s3 reward / frac_reward_zero_std at steps 1/100/200/299 = 0.594/0.000, 0.969/0.875, 1.000/1.000, 0.984/0.875; last-50 mean 0.982 / 0.875; saturated from step 172; length last-50 mean 698; cap hits 0.1 %. Per-arm final training reward across seeds: mixed 0.78–0.86, curated 0.87–0.89, easy 0.98–0.99.
+- What I learned (one sentence): across 11 runs the training-side picture is consistent — the arms differ in how much of the fixed 19,200-completion budget carries gradient (easy ≈ none after step ~100–170, curated ≈ a third, mixed most of it) and in verbosity (mixed and curated seeds 2/3 run 1.2–1.6k tokens late, easy stays < 700) — which is the context the eval numbers need.
+- Next: eval_grpo_curated_s1 (13/22) through eval_grpo_easy_s3 (22/22), ≈ 1.5 GPU-h each; then the tasks/04 acceptance report.
+
 ### 2026-09-18 — grpo_curated_s3 trained (8.49 GPU-h); curated arm complete, most seed-stable in training reward
 - Config hash: 7820651e8cb5 | git SHA: b0b5f64 | GPU: 1× H100 PCIe | wall-clock: 8.49 GPU-h (10:45–19:15 UTC) | est. cost: $36.41
 - What I ran / decided: queue job 11/22, no incidents, nothing decided. Ten of eleven trained.
