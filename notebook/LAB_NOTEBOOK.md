@@ -14,6 +14,13 @@ One entry per run or decision. Newest at the top. Copy the template.
 
 ## Entries
 
+### 2026-09-19 — grpo_random_reward_s1 (C1) evaluated: random advantages degrade the policy — val greedy 0.60 → 0.44, test greedy 0.67 → 0.48, gsm8k mean@8 → 0.65
+- Config hash: 630d7883bff7 | git SHA: f60c59b (train) | GPU: 1× H100 PCIe | wall-clock: eval ≈ 0.9 GPU-h (03:01–03:53 UTC) | est. cost: ≈ $3.8
+- What I ran / decided: `eval_grpo_random_reward_s1` (queue 15/22); the eval-stage C1 gate (mean reward ≈ 0.5 from reward_records.jsonl) passed; all 9 final units protocol_vs_base ok. Nothing decided.
+- Result (with n, seed, CI, truncation%): seed 1, bootstrap 95 % CI. val_mixed_100 greedy n=100: 0.430 [0.340,0.530] / 0.410 [0.320,0.510] / 0.440 [0.340,0.540] at steps 100/200/300 (base 0.600). Step 300: test_300 greedy 0.477 [0.420,0.533] n=300 trunc 4.7 % (base 0.673); test mean@8 0.336 [0.302,0.368] (base 0.425); pass@1/8/64 0.329/0.747/0.910 (base 0.426/0.803/0.980); ood_hard_200 greedy 0.220 [0.165,0.280] trunc 7.5 % (base 0.250); ood mean@8 0.140 [0.112,0.171] (base 0.173); gsm8k_500 greedy 0.850 [0.818,0.880] (base 0.880), mean@8 0.646 [0.624,0.669]. Format rate unchanged (0.943 vs 0.940); completions shorter than base (446 vs 527 tokens on the pass@k unit).
+- What I learned (one sentence): 300 GRPO steps with coin-flip advantages are not a no-op — they cost ~16–20 points of greedy accuracy in-distribution and ~24 points of sampled accuracy on GSM8K while leaving format intact and shortening completions, so the real arms' gains sit on top of an update process that by itself is destructive, which is exactly the counterfactual C1 was built to measure.
+- Next: eval_grpo_format_only_s1 (16/22), then the seed-2/3 evals.
+
 ### 2026-09-19 — grpo_easy_s1 evaluated: val 0.60 → 0.73 greedy, test greedy 0.78, OOD greedy 0.35 at 38 % truncation
 - Config hash: 9601e0f7f5ea | git SHA: a794085 (train) | GPU: 1× H100 PCIe | wall-clock: eval ≈ 1.25 GPU-h (01:45–03:00 UTC) | est. cost: ≈ $5.4
 - What I ran / decided: `eval_grpo_easy_s1` (queue 14/22), no incidents, all 9 final units protocol_vs_base ok, per-step stash for 100/200/300. Nothing decided.
