@@ -14,6 +14,13 @@ One entry per run or decision. Newest at the top. Copy the template.
 
 ## Entries
 
+### 2026-09-19 — grpo_curated_s3 evaluated; curated arm complete: val greedy 0.77 on all three seeds, test greedy 0.76–0.79, OOD greedy 0.29–0.36
+- Config hash: 7820651e8cb5 | git SHA: b0b5f64 (train) | GPU: 1× H100 PCIe | wall-clock: eval ≈ 1.5 GPU-h (11:12–12:41 UTC) | est. cost: ≈ $6.4
+- What I ran / decided: `eval_grpo_curated_s3` (queue 21/22), no incidents, all 9 final units protocol_vs_base ok. Nothing decided.
+- Result (with n, seed, CI, truncation%): seed 3, bootstrap 95 % CI. val_mixed_100 greedy n=100: 0.740 [0.650,0.820] / 0.730 [0.640,0.810] / 0.770 [0.680,0.850] at steps 100/200/300, trunc 4/6/5 % (base 0.600). Step 300: test_300 greedy 0.780 [0.733,0.827] n=300 trunc 8.0 % (base 0.673); test mean@8 0.756 [0.718,0.794] trunc 6.0 % (base 0.425); pass@1/8/64 0.761/0.925/0.960 (base 0.426/0.803/0.980); ood_hard_200 greedy 0.295 [0.235,0.360] trunc 40.0 % (base 0.250); ood mean@8 0.347 [0.299,0.396] trunc 28.4 % (base 0.173); gsm8k_500 greedy 0.940 [0.918,0.960], mean@8 0.929 [0.910,0.946]. Curated seeds 1/2/3: val greedy 0.770/0.770/0.770, test greedy 0.793/0.760/0.780, test mean@8 0.772/0.761/0.756, pass@64 0.97/0.97/0.96, OOD greedy 0.360/0.290/0.295 at 19.5/45/40 %.
+- What I learned (one sentence): the curated arm's val greedy is identical across seeds (0.770 ×3) and its test spread (±0.017) is wider than mixed's (±0.005), while its OOD truncation is bimodal (one seed at 19.5 %, two at 40–45 %), so the seed-1 low-truncation result stands as a real but minority outcome of the same training recipe.
+- Next: eval_grpo_easy_s3 (22/22, the last job), then `scripts/grpo_report.py` → `reports/tasks04_grpo_acceptance.md`.
+
 ### 2026-09-19 — grpo_mixed_s3 evaluated; mixed arm complete: test greedy 0.78–0.79 on all three seeds, OOD greedy 0.30–0.34 at 42–55 % truncation
 - Config hash: 73097c93e1bb | git SHA: 7f0726a (train) | GPU: 1× H100 PCIe | wall-clock: eval ≈ 1.7 GPU-h (09:28–11:12 UTC) | est. cost: ≈ $7.3
 - What I ran / decided: `eval_grpo_mixed_s3` (queue 20/22), no incidents, all 9 final units protocol_vs_base ok. Nothing decided.
