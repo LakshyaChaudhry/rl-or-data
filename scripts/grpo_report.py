@@ -34,6 +34,9 @@ ARMS = {
     "format_only": [1],
 }
 BASE = Path("runs/eval/Qwen__Qwen3-4B-Base")
+BASE_TRANSFER = Path(
+    "results/phase1/transfer_pick/Qwen__Qwen3-4B-Base"
+)  # gsm8k_500 base eval lives here
 FINAL_UNITS = [
     ("test_300", "greedy"),
     ("test_300", "mean_at_k"),
@@ -274,7 +277,9 @@ def main() -> int:
     )
     for split, dec in FINAL_UNITS:
         w(f"### {split} / {dec}\n")
-        bm = load(BASE / split / dec / "metrics.json")
+        bm = load(BASE / split / dec / "metrics.json") or load(
+            BASE_TRANSFER / split / dec / "metrics.json"
+        )
         w(
             f"- base: {fmt(bm)}"
             + (
