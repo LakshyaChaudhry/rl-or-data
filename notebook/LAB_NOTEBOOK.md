@@ -14,6 +14,13 @@ One entry per run or decision. Newest at the top. Copy the template.
 
 ## Entries
 
+### 2026-09-19 — grpo_mixed_s2 evaluated: same accuracy as seed 1 at 1.5–3× the truncation (OOD greedy 54.5 % at the cap)
+- Config hash: d9b08f9faeaa | git SHA: c945b7b (train) | GPU: 1× H100 PCIe | wall-clock: eval ≈ 1.9 GPU-h (04:39–06:32 UTC) | est. cost: ≈ $8
+- What I ran / decided: `eval_grpo_mixed_s2` (queue 17/22), no incidents; all 9 final units protocol_vs_base ok. The post-eval sync ran 12 idle GPU-minutes (568 files over NFS) and gpu_watch took its 10-minute stack dump (grpo_hang_20260919T064241Z_*: the process was in shutil.copy2 inside sync_run_dir — not a hang); the next eval started at 06:43:51 with the guard at 12 of 30. Nothing decided.
+- Result (with n, seed, CI, truncation%): seed 2, bootstrap 95 % CI. val_mixed_100 greedy n=100: 0.710 [0.620,0.800] trunc 2 % / 0.760 [0.670,0.840] 11 % / 0.750 [0.660,0.830] 9 % at steps 100/200/300 (base 0.600). Step 300: test_300 greedy 0.793 [0.747,0.837] n=300 trunc 10.3 % (base 0.673); test mean@8 0.765 [0.728,0.801] trunc 8.2 % (base 0.425); pass@1/8/64 0.740/0.907/0.970 (base 0.426/0.803/0.980); ood_hard_200 greedy 0.295 [0.235,0.360] trunc 54.5 % (mean 3,432 tokens; base 0.250 at 13 %); ood mean@8 0.291 [0.244,0.339] trunc 48.3 % (base 0.173); gsm8k_500 greedy 0.922 [0.898,0.944], mean@8 0.912 [0.893,0.929].
+- What I learned (one sentence): the training-time verbosity of seed 2 carries straight through to eval — identical accuracy to seed 1 on every split but with over half of OOD greedy completions cut at 4,352 tokens — so for the mixed arm the cap, not the reasoning, now decides the OOD number, and pass@64 (0.97) shows the diversity loss seen in seed 1 (0.95) is not systematic.
+- Next: eval_grpo_curated_s2 (18/22), easy_s2, mixed_s3, curated_s3, easy_s3. Watch the between-job sync gaps: 12 idle minutes on this one against a 30-minute guard.
+
 ### 2026-09-19 — grpo_format_only_s1 (C2) evaluated: greedy flat at base (val 0.62, test 0.64), sampled accuracy up (test mean@8 0.43 → 0.60) purely from the answer line
 - Config hash: a991d6036f15 | git SHA: 668ddd1 (train) | GPU: 1× H100 PCIe | wall-clock: eval ≈ 0.7 GPU-h (03:55–04:37 UTC) | est. cost: ≈ $3
 - What I ran / decided: `eval_grpo_format_only_s1` (queue 16/22), no incidents, all 9 final units protocol_vs_base ok. Nothing decided. Seed-1 evals complete for all five arms.
