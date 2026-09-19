@@ -14,6 +14,13 @@ One entry per run or decision. Newest at the top. Copy the template.
 
 ## Entries
 
+### 2026-09-19 — grpo_format_only_s1 (C2) evaluated: greedy flat at base (val 0.62, test 0.64), sampled accuracy up (test mean@8 0.43 → 0.60) purely from the answer line
+- Config hash: a991d6036f15 | git SHA: 668ddd1 (train) | GPU: 1× H100 PCIe | wall-clock: eval ≈ 0.7 GPU-h (03:55–04:37 UTC) | est. cost: ≈ $3
+- What I ran / decided: `eval_grpo_format_only_s1` (queue 16/22), no incidents, all 9 final units protocol_vs_base ok. Nothing decided. Seed-1 evals complete for all five arms.
+- Result (with n, seed, CI, truncation%): seed 1, bootstrap 95 % CI. val_mixed_100 greedy n=100: 0.610 [0.510,0.700] / 0.600 [0.500,0.690] / 0.620 [0.530,0.710] at steps 100/200/300 (base 0.600). Step 300: test_300 greedy 0.637 [0.580,0.690] n=300 trunc 1.0 % (base 0.673); test mean@8 0.603 [0.560,0.645] (base 0.425); pass@1/8/64 0.590/0.827/0.940 (base 0.426/0.803/0.980); ood_hard_200 greedy 0.270 [0.210,0.335] trunc 10.5 % (base 0.250); ood mean@8 0.264 [0.221,0.309] (base 0.173); gsm8k_500 greedy 0.932 [0.910,0.954] (base 0.880), mean@8 0.914 [0.895,0.933]. Answer-line rate on sampled test completions 0.997 vs base 0.774.
+- What I learned (one sentence): the format control separates the two kinds of gain — its greedy numbers sit on base everywhere while its sampled numbers rise by the amount the answer line alone recovers (test mean@8 +0.18, gsm8k greedy +0.05), so for the real arms the greedy improvement (test +0.11 to +0.12) and the sampled improvement beyond ~0.60 are what the reward signal itself bought.
+- Next: eval_grpo_mixed_s2 (17/22), curated_s2, easy_s2, mixed_s3, curated_s3, easy_s3.
+
 ### 2026-09-19 — grpo_random_reward_s1 (C1) evaluated: random advantages degrade the policy — val greedy 0.60 → 0.44, test greedy 0.67 → 0.48, gsm8k mean@8 → 0.65
 - Config hash: 630d7883bff7 | git SHA: f60c59b (train) | GPU: 1× H100 PCIe | wall-clock: eval ≈ 0.9 GPU-h (03:01–03:53 UTC) | est. cost: ≈ $3.8
 - What I ran / decided: `eval_grpo_random_reward_s1` (queue 15/22); the eval-stage C1 gate (mean reward ≈ 0.5 from reward_records.jsonl) passed; all 9 final units protocol_vs_base ok. Nothing decided.
