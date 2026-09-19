@@ -14,6 +14,13 @@ One entry per run or decision. Newest at the top. Copy the template.
 
 ## Entries
 
+### 2026-09-19 — grpo_mixed_s3 evaluated; mixed arm complete: test greedy 0.78–0.79 on all three seeds, OOD greedy 0.30–0.34 at 42–55 % truncation
+- Config hash: 73097c93e1bb | git SHA: 7f0726a (train) | GPU: 1× H100 PCIe | wall-clock: eval ≈ 1.7 GPU-h (09:28–11:12 UTC) | est. cost: ≈ $7.3
+- What I ran / decided: `eval_grpo_mixed_s3` (queue 20/22), no incidents, all 9 final units protocol_vs_base ok. Nothing decided.
+- Result (with n, seed, CI, truncation%): seed 3, bootstrap 95 % CI. val_mixed_100 greedy n=100: 0.740 [0.650,0.830] / 0.740 [0.650,0.820] / 0.760 [0.670,0.840] at steps 100/200/300, trunc 2/4/8 % (base 0.600). Step 300: test_300 greedy 0.783 [0.737,0.830] n=300 trunc 9.0 % (base 0.673); test mean@8 0.768 [0.731,0.804] trunc 6.8 % (base 0.425); pass@1/8/64 0.767/0.932/0.970 (base 0.426/0.803/0.980); ood_hard_200 greedy 0.335 [0.270,0.405] trunc 41.5 % (base 0.250); ood mean@8 0.326 [0.279,0.374] trunc 35.9 % (base 0.173); gsm8k_500 greedy 0.930 [0.908,0.952], mean@8 0.927 [0.908,0.944]. Mixed seeds 1/2/3: test greedy 0.787/0.793/0.783, test mean@8 0.778/0.765/0.768, pass@64 0.95/0.97/0.97, OOD greedy 0.295/0.295/0.335 at 46.5/54.5/41.5 %.
+- What I learned (one sentence): the mixed arm is the most seed-stable of the real arms on test (greedy within 1 point, mean@8 within 1.3 points across seeds) while its OOD numbers are all cap-limited, so its in-distribution estimate will be tight and its OOD estimate is a truncation estimate.
+- Next: eval_grpo_curated_s3 (21/22), eval_grpo_easy_s3 (22/22), then the tasks/04 acceptance report.
+
 ### 2026-09-19 — grpo_easy_s2 evaluated: the weakest real-arm result — val 0.65, test greedy 0.70 (base 0.67), despite a training curve identical to seed 1
 - Config hash: e654797ea607 | git SHA: 63d966d (train) | GPU: 1× H100 PCIe | wall-clock: eval ≈ 0.85 GPU-h (08:37–09:27 UTC) | est. cost: ≈ $3.6
 - What I ran / decided: `eval_grpo_easy_s2` (queue 19/22), no incidents, all 9 final units protocol_vs_base ok. Nothing decided.
