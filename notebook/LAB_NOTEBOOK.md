@@ -14,6 +14,13 @@ One entry per run or decision. Newest at the top. Copy the template.
 
 ## Entries
 
+### 2026-09-19 — grpo_easy_s1 evaluated: val 0.60 → 0.73 greedy, test greedy 0.78, OOD greedy 0.35 at 38 % truncation
+- Config hash: 9601e0f7f5ea | git SHA: a794085 (train) | GPU: 1× H100 PCIe | wall-clock: eval ≈ 1.25 GPU-h (01:45–03:00 UTC) | est. cost: ≈ $5.4
+- What I ran / decided: `eval_grpo_easy_s1` (queue 14/22), no incidents, all 9 final units protocol_vs_base ok, per-step stash for 100/200/300. Nothing decided.
+- Result (with n, seed, CI, truncation%): seed 1, bootstrap 95 % CI. val_mixed_100 greedy n=100: step 100 0.710 [0.620,0.800] trunc 2 %, 200 0.730 [0.640,0.820] 4 %, 300 0.730 [0.640,0.820] 5 %; base 0.600. Step 300: test_300 greedy 0.777 [0.727,0.820] n=300 trunc 4.3 % vs base 0.673; test mean@8 0.724 [0.685,0.762] trunc 2.5 % vs base 0.425; pass@1/8/64 on test first-100 0.714/0.902/0.970 vs base 0.426/0.803/0.980; ood_hard_200 greedy 0.345 [0.280,0.410] trunc 38.0 % vs base 0.250 (13 %); ood mean@8 0.334 [0.286,0.384] trunc 22.6 % vs base 0.173; gsm8k_500 greedy 0.930 [0.908,0.952] vs base 0.880, mean@8 0.924 [0.905,0.942].
+- What I learned (one sentence): the easy arm's val curve is flat after step 100 (0.71 → 0.73 → 0.73) while its training reward saturated before step 100, so the ~200 zero-signal steps bought nothing on val, and its OOD truncation (38 %) sits between curated (19.5 %) and mixed (46.5 %) despite the shortest training completions — length at eval is not just length in training.
+- Next: eval_grpo_random_reward_s1 (15/22), format_only_s1 (16/22), then the seed-2/3 evals.
+
 ### 2026-09-19 — grpo_curated_s1 evaluated: val 0.60 → 0.77 greedy, test greedy 0.79, OOD greedy 0.36 at 19.5 % truncation (mixed_s1: 0.30 at 46.5 %)
 - Config hash: ac6693350cf0 | git SHA: dc959d3 (train), f08fdb5+ (eval) | GPU: 1× H100 PCIe | wall-clock: eval ≈ 1.3 GPU-h (00:27–01:43 UTC) | est. cost: ≈ $5.6
 - What I ran / decided: `eval_grpo_curated_s1` (queue 13/22), the first eval after the training phase; no incidents (the spawn fix held: engine up in ~1 min). All 9 final units protocol_vs_base ok; per-step val stash and curve written for steps 100/200/300. Nothing decided.
