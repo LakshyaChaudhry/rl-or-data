@@ -1,7 +1,7 @@
 # tasks/06b — Iterated RFT arm, exploratory larger-cap re-eval, base gsm8k mean@8
 
-**DRAFT written by the agent on 2026-09-20 from Laksh's decisions in session; Laksh edits and signs off before
-anything runs.** Owner: agent for code and runs; Laksh for the pre-registration text and every verdict.
+Written by the agent on 2026-09-20 from Laksh's decisions in session; approved by Laksh the same day (go-ahead to build
+the orchestrator and dry-run). Owner: agent for code and runs; Laksh for the pre-registration text and every verdict.
 Branch: `tasks06b-iterated-rft`. GPU budget: ≈ 15 GPU-h on 1× H100 (≈ 12 + 2 + 0.3), idle guard on.
 
 Decided by Laksh (2026-09-20): run iterated RFT (tasks/06 item 3); rollout budget 14,016; run the restricted
