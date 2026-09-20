@@ -24,7 +24,7 @@ gsm8k_500 mean@8; **no** seeds 4–5, **no** lr sensitivity run. Still open: ite
   sampling; identical for all three seeds, like RFT-Curated). Rounds 2 and 3: 64 per prompt from the current
   policy π_{r−1} through vLLM native LoRA, T = 1.0, top_p = 1.0, locked cap 4352, locked prompt; sampler seed
   = 1000 × train_seed + round. Score with `core.verify`; dedup and EOS-append exactly as tasks/03 §3.
-- ☐ B3 (Laksh to confirm; agent's recommendation shown). Each round **continues the previous round's adapter**
+- ☑ B3 (**confirmed by Laksh 2026-09-20**, on the agent's recommendation). Each round **continues the previous round's adapter**
   and trains on **that round's kept samples only**, with the tasks/03 recipe applied per round: lr 1e-5,
   4 epochs, batch 16, fresh AdamW, fresh cosine schedule with 10 % warmup. (Alternative: restart from base on
   the union of all rounds so far.) Expected ≈ 1,900 optimizer steps / ≈ 15M tokens in total, against
