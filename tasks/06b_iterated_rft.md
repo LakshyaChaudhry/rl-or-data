@@ -53,7 +53,7 @@ gsm8k_500 mean@8; **no** seeds 4–5, **no** lr sensitivity run. Still open: ite
   seed std excludes sampling variance (one shared draw) while IterRFT's includes it.
 - Show that every existing number in `results/phase4` is byte-identical after the config change (diff the
   CSVs for the existing arms), then snapshot to `results/phase5/`.
-- Post-hoc truncation bounds (only if Laksh approves): appendix table, never in `tables/results.md` or on a
+- Post-hoc truncation bounds (**approved by Laksh 2026-09-20**): appendix table, never in `tables/results.md` or on a
   criterion line; threshold recomputed inside each scenario; ood bounds stated to be uninformative.
 
 ## C. Exploratory larger-cap re-eval (deviation; PREREGISTRATION §4)
