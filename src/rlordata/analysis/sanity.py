@@ -16,6 +16,13 @@ Added by tasks/03:
   - tokenizer identity between vLLM and the trainer is asserted in ``train/rft_eval.py`` from the
     hashes both record (``tokenizer_sha256_trainer`` / ``tokenizer_sha256_vllm``)
 
+Added by tasks/05 (cross-run, :func:`cross_run_checks`): unit integrity (stored metrics equal the
+metrics recomputed from samples.jsonl), one protocol for every compared unit, committed split
+digests, prompt bytes identical across base-model arms, final checkpoints only, seeds actually
+differ (adapter hashes, greedy outputs), budgets present, shared hyperparameters, val-only
+selection, plus listed-not-fatal notes (SPEC §7 truncation flags, git_dirty, exclusions, what
+could not be verified from a mirror).
+
     python -m rlordata.analysis.sanity --splits-dir data/splits --run-dirs runs/eval/*/test_300/greedy
 """
 
@@ -24,10 +31,14 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import sys
 from collections.abc import Iterable
+from dataclasses import dataclass
+from dataclasses import field as dc_field
 from pathlib import Path
-from typing import Any
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any
 
 import yaml
 
@@ -35,6 +46,9 @@ from rlordata.data.generator import read_jsonl
 from rlordata.data.tiers import structure_id
 from rlordata.sampling.eval_runner import REPORT_ONLY_TRUNCATION_SPLITS
 from rlordata.types import Problem
+
+if TYPE_CHECKING:
+    from rlordata.analysis.loader import Dataset, Run, Unit
 
 TRUNCATION_MAX = 0.05  # SPEC §7
 EXTRACTION_FAILURE_MAX = 0.05  # design choice; flagged, not headline-blocking
@@ -253,11 +267,16 @@ def check_adapter_nontrivial(adapter_dir: str | Path) -> list[str]:
     return issues
 
 
-def check_final_checkpoint(run_dir: str | Path, *, eval_set: str | None = None) -> list[str]:
+def check_final_checkpoint(
+    run_dir: str | Path, *, eval_set: str | None = None, root: str | Path | None = None
+) -> list[str]:
     """The adapter that gets evaluated must be the run's final checkpoint (RFT last-epoch / GRPO step 300).
 
     For GRPO runs ``eval_set="final"`` (test/ood/transfer) is only allowed on the step-300 adapter;
     ``"val"`` may evaluate any recorded step checkpoint (the val curve at 100/200/300).
+
+    ``root`` is the directory the recorded ``runs/...`` paths are relative to (the store root when
+    reading a mirror; default: the working directory, as on the training box).
     """
     d = Path(run_dir)
     b = d / "budgets.json"
@@ -266,8 +285,9 @@ def check_final_checkpoint(run_dir: str | Path, *, eval_set: str | None = None) 
     with b.open(encoding="utf-8") as f:
         budgets = json.load(f)
     issues: list[str] = []
+    base = Path(root) if root is not None else Path()
     final = Path(budgets.get("final_adapter", ""))
-    if not final or not final.exists():
+    if not budgets.get("final_adapter") or not (base / final).exists():
         issues.append(f"{d}: final adapter {final} missing")
 
     epochs = budgets.get("epoch_adapters") or []
@@ -276,7 +296,7 @@ def check_final_checkpoint(run_dir: str | Path, *, eval_set: str | None = None) 
             issues.append(
                 f"{d}: {len(epochs)} epoch adapters saved but {budgets.get('epochs')} epochs planned"
             )
-        src = final / "SOURCE.txt"
+        src = base / final / "SOURCE.txt"
         if epochs and src.exists() and Path(epochs[-1]).name not in src.read_text():
             issues.append(
                 f"{d}: final adapter is not a copy of the last epoch ({Path(epochs[-1]).name})"
@@ -412,6 +432,664 @@ def check_outputs_differ(
             f"({100 * frac:.1f}% < {100 * min_fraction:.0f}%): adapter not applied?"
         ]
     return []
+
+
+# ---------------------------------------------------------------------------
+# tasks/05: cross-run checks over a loaded Dataset (fail loudly)
+# ---------------------------------------------------------------------------
+
+GRPO_COMPLETIONS = 19200  # SPEC §8: 300 steps × 8 prompts × 8 generations
+REQUIRED_BUDGET_KEYS = (
+    "prompts",
+    "completions_available",
+    "completions_consumed",
+    "training_tokens",
+    "optimizer_steps",
+)
+STORED_METRIC_KEYS = (
+    "n_problems",
+    "accuracy",
+    "ci_low",
+    "ci_high",
+    "truncation_rate",
+    "extraction_failure_rate",
+    "answer_line_rate",
+    "mean_completion_tokens",
+)
+GRPO_CONFIG_MAY_DIFFER = ("seed", "output_dir", "run_name", "logging_dir")
+LORA_KEYS = ("r", "lora_alpha", "lora_dropout", "bias", "use_rslora", "use_dora", "task_type")
+COUNTING_SPLITS = ("val_mixed_100", "test_300", "ood_hard_200")
+
+
+@dataclass
+class CheckResult:
+    name: str
+    detail: str  # what was checked, with counts
+    failures: list[str] = dc_field(default_factory=list)
+    notes: list[str] = dc_field(default_factory=list)  # listed in the output, never fatal
+
+
+@dataclass
+class CrossRunReport:
+    checks: list[CheckResult]
+
+    @property
+    def failures(self) -> list[str]:
+        return [f"{c.name}: {f}" for c in self.checks for f in c.failures]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "ok": not self.failures,
+            "checks": [
+                {"name": c.name, "detail": c.detail, "failures": c.failures, "notes": c.notes}
+                for c in self.checks
+            ],
+        }
+
+    def to_markdown(self) -> str:
+        lines = [
+            "# Cross-run sanity (tasks/05 item 1)",
+            "",
+            f"**{'FAILED' if self.failures else 'passed'}** — {len(self.checks)} checks, "
+            f"{len(self.failures)} failure(s), {sum(len(c.notes) for c in self.checks)} note(s). "
+            "Failures abort `make analysis`; notes are listed and carried into the tables and the "
+            "grading sheet.",
+            "",
+        ]
+        for c in self.checks:
+            lines.append(f"## {c.name} — {'FAIL' if c.failures else 'ok'}")
+            lines.append("")
+            lines.append(c.detail)
+            lines.append("")
+            for f_ in c.failures:
+                lines.append(f"- **FAIL** {f_}")
+            for n in c.notes:
+                lines.append(f"- note: {n}")
+            if c.failures or c.notes:
+                lines.append("")
+        return "\n".join(lines).rstrip() + "\n"
+
+
+def _units(ds: Dataset) -> list[tuple[Run, Unit]]:
+    return [(r, u) for r in ds.all_runs() for u in r.units.values()]
+
+
+def _who(run: Run) -> str:
+    return f"{run.key}/seed{run.seed}" if run.kind in ("arm", "control") else run.key
+
+
+def _close(a: Any, b: Any) -> bool:
+    if isinstance(a, dict) and isinstance(b, dict):
+        return set(a) == set(b) and all(_close(a[k], b[k]) for k in a)
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return math.isclose(float(a), float(b), rel_tol=0.0, abs_tol=1e-12)
+    return a == b
+
+
+def check_units_complete(ds: Dataset) -> CheckResult:
+    known = {
+        (k["who"], k["split"], k["decoding"]): k["why"] for k in ds.cfg.get("known_missing") or []
+    }
+    res = CheckResult(
+        "units present",
+        f"{len(_units(ds))} units loaded for {len(ds.all_runs())} models/runs; "
+        f"{len(ds.missing)} expected unit(s) absent.",
+    )
+    for m in ds.missing:
+        why = known.get((m["who"], m["split"], m["decoding"]))
+        line = f"{m['who']} {m['split']}/{m['decoding']} does not exist"
+        if why is None:
+            res.failures.append(line)
+        else:
+            res.notes.append(f"{line} — known: {why}. Rendered as 'missing', never as zero.")
+    for key, runs in {**ds.arms, **ds.controls}.items():
+        want = [
+            int(s)
+            for s in (ds.cfg["arms"] | (ds.cfg.get("controls") or {}))[key].get(
+                "seeds", ds.cfg["seeds"]
+            )
+        ]
+        if [r.seed for r in runs] != want:
+            res.failures.append(f"{key}: seeds {[r.seed for r in runs]} != configured {want}")
+    return res
+
+
+def check_exclusions(ds: Dataset) -> CheckResult:
+    from rlordata.analysis.loader import excluded_present, excluded_reason
+
+    res = CheckResult(
+        "never-results stay out",
+        "Runs are loaded from an explicit allow-list; every loaded path is re-checked against the "
+        "never-results fragments. Present under the run root but never read as results:",
+    )
+    for run, unit in _units(ds):
+        why = excluded_reason(unit.path, ds.run_root, ds.cfg)
+        if why is not None:
+            res.failures.append(f"{_who(run)} loaded {unit.rel}, which is not a result: {why}")
+    for item in excluded_present(ds.run_root, ds.cfg):
+        if item["paths"]:
+            shown = ", ".join(item["paths"][:4]) + (
+                f", … ({len(item['paths'])} paths)" if len(item["paths"]) > 4 else ""
+            )
+            res.notes.append(f"excluded `{item['fragment']}` ({item['why']}): {shown}")
+    return res
+
+
+def check_unit_integrity(ds: Dataset) -> CheckResult:
+    res = CheckResult(
+        "unit integrity",
+        "Every unit: status finished, n_samples == planned, sampler vllm, thinking off, samples carry "
+        "the unit's config hash and seed, no truncated completion is scored correct (SPEC §5), and the "
+        "metrics recomputed from samples.jsonl with core.evaluate equal the stored metrics.json "
+        f"({', '.join(STORED_METRIC_KEYS)}, pass_at_k, per_tier).",
+    )
+    for run, u in _units(ds):
+        tag = f"{_who(run)} {u.split}/{u.decoding}"
+        if u.meta.get("status") != "finished":
+            res.failures.append(f"{tag}: status {u.meta.get('status')!r}")
+        n = u.metrics["n_samples"]
+        if not (u.meta.get("n_samples") == u.meta.get("n_samples_planned") == n):
+            res.failures.append(
+                f"{tag}: n_samples {u.meta.get('n_samples')} / planned "
+                f"{u.meta.get('n_samples_planned')} / in samples.jsonl {n}"
+            )
+        sampler = (u.config.get("sampler") or {}).get("sampler")
+        if sampler != "vllm" or u.stored_metrics.get("sampler") != "vllm":
+            res.failures.append(f"{tag}: sampler {sampler!r} (only vLLM numbers are results)")
+        if u.config.get("thinking") is not False:
+            res.failures.append(f"{tag}: thinking={u.config.get('thinking')!r}")
+        if u.sample_field_values["config_hash"] != [u.config_hash]:
+            res.failures.append(
+                f"{tag}: samples carry config hashes {u.sample_field_values['config_hash']}"
+            )
+        if u.sample_field_values["seed"] != [u.seed]:
+            res.failures.append(f"{tag}: samples carry seeds {u.sample_field_values['seed']}")
+        if u.n_truncated_correct:
+            res.failures.append(
+                f"{tag}: {u.n_truncated_correct} truncated completion(s) scored correct"
+            )
+        for k in (*STORED_METRIC_KEYS, "pass_at_k", "per_tier"):
+            if not _close(u.metrics.get(k), u.stored_metrics.get(k)):
+                res.failures.append(
+                    f"{tag}: stored {k}={u.stored_metrics.get(k)!r} != recomputed {u.metrics.get(k)!r}"
+                )
+    return res
+
+
+def check_protocol(ds: Dataset) -> CheckResult:
+    dirs = [u.path for _, u in _units(ds)]
+    res = CheckResult(
+        "one protocol",
+        f"{', '.join(PROTOCOL_FIELDS)} identical in the resolved config of all {len(dirs)} units; "
+        "cap equal to configs/locked/cap.yaml; no provisional cap.",
+        failures=check_protocol_identical(dirs),
+    )
+    cap_path = Path("configs/locked/cap.yaml")
+    if cap_path.exists():
+        with cap_path.open(encoding="utf-8") as f:
+            cap = int((yaml.safe_load(f) or {}).get("max_completion_tokens", -1))
+        bad = sorted({int(u.config["max_completion_tokens"]) for _, u in _units(ds)} - {cap})
+        if bad:
+            res.failures.append(f"units evaluated at cap {bad}, locked cap is {cap}")
+    return res
+
+
+def check_split_digests(ds: Dataset, splits_dir: str | Path) -> CheckResult:
+    from rlordata.sampling.eval_runner import parse_subset, problem_ids_digest
+
+    res = CheckResult(
+        "committed splits",
+        f"Pairwise disjointness of {splits_dir} by problem_id and pipeline structure; every counting "
+        "unit's problem_ids_sha256 and sample problem ids equal the committed split (pass@k: its "
+        "first-100 prefix); gsm8k_500 digests identical across units.",
+    )
+    splits = load_splits_dir(splits_dir)
+    res.failures += check_split_disjointness(splits)
+    gsm: dict[str, list[str]] = {}
+    for run, u in _units(ds):
+        tag = f"{_who(run)} {u.split}/{u.decoding}"
+        digest = u.config.get("problem_ids_sha256")
+        if u.split not in COUNTING_SPLITS:
+            gsm.setdefault(str(digest), []).append(tag)
+            continue
+        if u.split not in splits:
+            res.failures.append(f"{tag}: split file {u.split}.jsonl missing in {splits_dir}")
+            continue
+        problems = splits[u.split]
+        if u.config.get("subset"):
+            problems = problems[: parse_subset(u.config["subset"])[1]]
+        if digest != problem_ids_digest(problems):
+            res.failures.append(f"{tag}: problem_ids_sha256 differs from the committed split")
+        if tuple(sorted(p.problem_id for p in problems)) != u.problem_ids:
+            res.failures.append(f"{tag}: samples.jsonl problem ids differ from the committed split")
+    if len(gsm) > 1:
+        res.failures.append(
+            f"gsm8k_500 evaluated on {len(gsm)} different problem sets: {sorted(gsm)}"
+        )
+    elif gsm:
+        res.notes.append(
+            f"gsm8k_500 digest {next(iter(gsm))[:16]}… is identical in all "
+            f"{sum(len(v) for v in gsm.values())} units; it is compared between units only (the set is "
+            "downloaded, not committed)."
+        )
+    return res
+
+
+def check_prompt_drift(ds: Dataset) -> CheckResult:
+    res = CheckResult(
+        "prompt bytes",
+        "For every base-model unit (base, arms, controls) the sha256 over (problem_id, prompt) is "
+        "identical across runs for the same split/subset — no prompt-template drift between arms.",
+    )
+    groups: dict[tuple[str, str | None], dict[str, list[str]]] = {}
+    n_instruct = 0
+    for run, u in _units(ds):
+        if (u.config.get("model") or {}).get("kind") != "base":
+            n_instruct += 1
+            continue
+        groups.setdefault((u.split, u.config.get("subset")), {}).setdefault(
+            u.prompt_digest, []
+        ).append(_who(run))
+    for (split, subset), by_digest in sorted(groups.items(), key=str):
+        if len(by_digest) > 1:
+            desc = "; ".join(f"{d[:10]}…: {sorted(set(w))[:4]}" for d, w in by_digest.items())
+            res.failures.append(
+                f"{subset or split}: {len(by_digest)} distinct prompt sets — {desc}"
+            )
+    if n_instruct:
+        res.notes.append(
+            f"{n_instruct} instruct reference units wrap the same template in their chat template "
+            "(SPEC §5); they are covered by the prompt_template field check only."
+        )
+    return res
+
+
+def check_final_checkpoints(ds: Dataset) -> CheckResult:
+    root = ds.run_root.parent  # recorded paths are "runs/..."
+    res = CheckResult(
+        "final checkpoints only",
+        "Each trained run: training finished; every eval/final unit names the run's final adapter "
+        "(RFT last epoch = adapter/final, GRPO adapter/step_300 with trainer_state.global_step == "
+        "max_steps) and eval_set 'final'; RFT runs use the val-chosen lr/epochs and append_eos.",
+    )
+    unverifiable = []
+    for run in ds.trained_runs():
+        who = _who(run)
+        res.failures += check_final_checkpoint(run.run_dir, eval_set="final", root=root)
+        budgets = run.budgets or {}
+        final = str(budgets.get("final_adapter", ""))
+        for u in run.units.values():
+            tag = f"{who} {u.split}/{u.decoding}"
+            if u.sanity.get("adapter") != final or u.config.get("adapter") != final:
+                res.failures.append(
+                    f"{tag}: evaluated {u.sanity.get('adapter')!r}, final adapter is {final!r}"
+                )
+            if u.sanity.get("eval_set") != "final":
+                res.failures.append(f"{tag}: eval_set {u.sanity.get('eval_set')!r}")
+            if u.config.get("train_run_dir") != f"{ds.run_root.name}/{run.rel}":
+                res.failures.append(f"{tag}: train_run_dir {u.config.get('train_run_dir')!r}")
+            if u.sanity.get("protocol_vs_base") != "ok":
+                res.failures.append(f"{tag}: protocol_vs_base {u.sanity.get('protocol_vs_base')!r}")
+        if run.method == "grpo":
+            state = root / final / "trainer_state.json"
+            if state.exists():
+                with state.open(encoding="utf-8") as f:
+                    step = json.load(f).get("global_step")
+                if step != budgets.get("max_steps"):
+                    res.failures.append(
+                        f"{who}: {final} is at step {step}, not {budgets.get('max_steps')}"
+                    )
+            if not (root / final / "adapter_model.safetensors").exists():
+                unverifiable.append(who)
+        if run.method == "rft":
+            cfg_path = run.run_dir / "config.yaml"
+            rcfg = load_resolved_config(run.run_dir) if cfg_path.exists() else {}
+            if rcfg.get("append_eos") is not True:
+                res.failures.append(
+                    f"{who}: append_eos is {rcfg.get('append_eos')!r} (PREREGISTRATION §4)"
+                )
+            chosen = run.chosen or {}
+            if not (
+                _close(budgets.get("learning_rate"), chosen.get("learning_rate"))
+                and budgets.get("epochs") == chosen.get("epochs")
+            ):
+                res.failures.append(
+                    f"{who}: trained lr={budgets.get('learning_rate')} ep={budgets.get('epochs')}, "
+                    f"chosen.json says lr={chosen.get('learning_rate')} ep={chosen.get('epochs')}"
+                )
+    if unverifiable:
+        res.notes.append(
+            f"NOT VERIFIED here: the weights of the evaluated GRPO adapter (adapter/step_300) are not in "
+            f"this run root for {len(unverifiable)} run(s) ({', '.join(unverifiable[:3])}, …); only "
+            "adapter/final (saved by the trainer right after step 300) is. That the two hold the same "
+            "weights follows from train/grpo_trl.py, not from a byte comparison."
+        )
+    return res
+
+
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 22), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def adapter_hashes(ds: Dataset, *, cache_path: Path | None = None) -> dict[str, dict[str, Any]]:
+    """{who: {path, sha256 | None}} for every trained run's final adapter weights.
+
+    Uses the evaluated adapter when its weights are present, else ``final_adapter_trained``.
+    Hashes are cached by (path, size, mtime_ns); the cache never changes a value.
+    """
+    root = ds.run_root.parent
+    cache: dict[str, Any] = {}
+    if cache_path is not None and cache_path.exists():
+        with cache_path.open(encoding="utf-8") as f:
+            cache = json.load(f)
+    out: dict[str, dict[str, Any]] = {}
+    for run in ds.trained_runs():
+        budgets = run.budgets or {}
+        rel = None
+        for cand in (budgets.get("final_adapter"), budgets.get("final_adapter_trained")):
+            if cand and (root / cand / "adapter_model.safetensors").exists():
+                rel = f"{cand}/adapter_model.safetensors"
+                break
+        if rel is None:
+            out[_who(run)] = {"path": None, "sha256": None}
+            continue
+        st = (root / rel).stat()
+        key = f"{rel}|{st.st_size}|{st.st_mtime_ns}"
+        if key not in cache:
+            cache[key] = _sha256_file(root / rel)
+        out[_who(run)] = {"path": rel, "sha256": cache[key]}
+    if cache_path is not None:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(json.dumps(cache, indent=1, sort_keys=True), encoding="utf-8")
+    return out
+
+
+def _store_checksums(path: str | Path | None) -> dict[str, str]:
+    if not path or not Path(path).exists():
+        return {}
+    out = {}
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        parts = line.split(maxsplit=1)
+        if len(parts) == 2:
+            out[parts[1].strip().lstrip("*")] = parts[0]
+    return out
+
+
+def check_seeds_differ(ds: Dataset, *, cache_path: Path | None = None) -> CheckResult:
+    res = CheckResult(
+        "seeds actually differ",
+        "sha256 of every trained run's final adapter weights is pairwise distinct across all runs "
+        "(and equals the store's checksum listing when one is configured); greedy test_300 "
+        "completions differ between seeds of an arm; greedy val completions differ from the base "
+        f"model's on ≥ {100 * MIN_OUTPUT_DIFFERENCE:.0f} % of prompts (adapter really applied).",
+    )
+    hashes = adapter_hashes(ds, cache_path=cache_path)
+    store = _store_checksums(ds.cfg.get("store_checksums"))
+    seen: dict[str, str] = {}
+    for who, h in hashes.items():
+        if h["sha256"] is None:
+            res.failures.append(f"{who}: no adapter weights under the run root; cannot verify")
+            continue
+        if h["sha256"] in seen:
+            res.failures.append(f"{who} and {seen[h['sha256']]} have byte-identical adapters")
+        seen[h["sha256"]] = who
+        if store:
+            want = store.get(h["path"])
+            if want is None:
+                res.notes.append(f"{who}: {h['path']} is not in the store checksum listing")
+            elif want != h["sha256"]:
+                res.failures.append(f"{who}: adapter sha256 differs from the store's listing")
+        res.notes.append(f"{who}: {h['sha256'][:16]}… ({h['path']})")
+    key = ("test_300", "greedy")
+    for arm, runs in {**ds.arms, **ds.controls}.items():
+        for i, a in enumerate(runs):
+            for b in runs[i + 1 :]:
+                if key in a.units and key in b.units:
+                    ua, ub = a.units[key], b.units[key]
+                    same = sum(
+                        x == y for x, y in zip(ua.completion_sha, ub.completion_sha, strict=True)
+                    )
+                    if same == len(ua.completion_sha):
+                        res.failures.append(
+                            f"{arm}: seeds {a.seed} and {b.seed} give identical greedy test completions"
+                        )
+    vkey = ("val_mixed_100", "greedy")
+    if vkey in ds.base.units:
+        bu = ds.base.units[vkey]
+        base_s = [
+            SimpleNamespace(problem_id=p, completion=c)
+            for p, c in zip(bu.problem_ids, bu.completion_sha, strict=True)
+        ]
+        for run in ds.trained_runs():
+            if vkey in run.units:
+                u = run.units[vkey]
+                new_s = [
+                    SimpleNamespace(problem_id=p, completion=c)
+                    for p, c in zip(u.problem_ids, u.completion_sha, strict=True)
+                ]
+                res.failures += [f"{_who(run)}: {i}" for i in check_outputs_differ(base_s, new_s)]
+    return res
+
+
+def check_budgets(ds: Dataset) -> CheckResult:
+    res = CheckResult(
+        "budgets present",
+        f"budgets.json with {', '.join(REQUIRED_BUDGET_KEYS)} for every trained run; GRPO runs consumed "
+        f"exactly {GRPO_COMPLETIONS:,} completions (reward_records.jsonl line count) and are marked "
+        "result_bearing; the C1 control's training reward averages ≈ 0.5.",
+    )
+    expected = int(
+        ds.cfg.get("grpo_completions", GRPO_COMPLETIONS)
+    )  # overridden only by test fixtures
+    for run in ds.trained_runs():
+        who = _who(run)
+        if run.budgets is None:
+            res.failures.append(f"{who}: no budgets.json")
+            continue
+        lacking = [k for k in REQUIRED_BUDGET_KEYS if run.budgets.get(k) is None]
+        if lacking:
+            res.failures.append(f"{who}: budgets.json lacks {lacking}")
+        if (run.meta or {}).get("status") != "finished":
+            res.failures.append(f"{who}: training status {(run.meta or {}).get('status')!r}")
+        if run.method == "grpo":
+            res.failures += check_grpo_reward_budget(run.run_dir, expected=expected)
+            if run.budgets.get("result_bearing") is not True:
+                res.failures.append(
+                    f"{who}: result_bearing is {run.budgets.get('result_bearing')!r}"
+                )
+            if run.budgets.get("reward") == "random_bernoulli" or "random_reward" in run.rel:
+                res.failures += check_c1_reward_near_half(run.run_dir)
+    return res
+
+
+def check_shared_hyperparameters(ds: Dataset) -> CheckResult:
+    root = ds.run_root.parent
+    res = CheckResult(
+        "shared hyperparameters",
+        f"grpo_config.json identical across GRPO runs except {', '.join(GRPO_CONFIG_MAY_DIFFER)}; LoRA "
+        f"shape ({', '.join(LORA_KEYS)}, target_modules) identical in every adapter_config.json; trainer "
+        "and vLLM tokenizer hashes identical everywhere.",
+    )
+    grpo: dict[str, list[str]] = {}
+    lora: dict[str, list[str]] = {}
+    toks: dict[str, list[str]] = {}
+    for run in ds.trained_runs():
+        who = _who(run)
+        gc = run.run_dir / "grpo_config.json"
+        if run.method == "grpo":
+            if not gc.exists():
+                res.failures.append(f"{who}: no grpo_config.json")
+            else:
+                with gc.open(encoding="utf-8") as f:
+                    g = {k: v for k, v in json.load(f).items() if k not in GRPO_CONFIG_MAY_DIFFER}
+                grpo.setdefault(json.dumps(g, sort_keys=True), []).append(who)
+        budgets = run.budgets or {}
+        for cand in (budgets.get("final_adapter_trained"), budgets.get("final_adapter")):
+            ac = root / str(cand) / "adapter_config.json"
+            if cand and ac.exists():
+                with ac.open(encoding="utf-8") as f:
+                    a = json.load(f)
+                shape = {k: a.get(k) for k in LORA_KEYS} | {
+                    "target_modules": sorted(a.get("target_modules") or [])
+                }
+                lora.setdefault(json.dumps(shape, sort_keys=True), []).append(who)
+                break
+        else:
+            res.failures.append(f"{who}: no adapter_config.json")
+        for u in run.units.values():
+            pair = (u.config.get("tokenizer_sha256_trainer"), u.config.get("tokenizer_sha256_vllm"))
+            if pair[0] != pair[1] or pair[0] is None:
+                res.failures.append(f"{who} {u.split}/{u.decoding}: tokenizer hashes {pair}")
+            toks.setdefault(str(pair[0]), []).append(who)
+    for name, groups in (("grpo_config", grpo), ("LoRA shape", lora), ("tokenizer", toks)):
+        if len(groups) > 1:
+            desc = "; ".join(f"{sorted(set(w))[:3]}" for w in groups.values())
+            res.failures.append(f"{name} differs between runs: {desc}")
+    if lora:
+        res.notes.append(f"LoRA shape in all adapters: {next(iter(lora))}")
+    return res
+
+
+def check_selection_val_only(ds: Dataset) -> CheckResult:
+    res = CheckResult(
+        "model selection reads val only",
+        "Each RFT arm's chosen.json was selected on val_mixed_100 and equals the argmax of sweep.json's "
+        "val accuracy under the recorded tie-break (fewer epochs, then lower learning rate). GRPO ran "
+        "one fixed recipe: nothing was selected. The analysis itself selects nothing.",
+    )
+    for arm, rec in ds.selection.items():
+        chosen, sweep = rec["chosen"], rec["sweep"]
+        if chosen.get("selected_on") != "val_mixed_100":
+            res.failures.append(f"{arm}: chosen.json selected_on={chosen.get('selected_on')!r}")
+        results = sweep.get("results") or []
+        if not results:
+            res.failures.append(f"{arm}: sweep.json has no results; selection cannot be re-derived")
+            continue
+        if any(r.get("selection_split") != "val_mixed_100" for r in results):
+            res.failures.append(
+                f"{arm}: a sweep result was scored on something other than val_mixed_100"
+            )
+        best = min(
+            results,
+            key=lambda r: (-float(r["val_accuracy"]), int(r["epochs"]), float(r["learning_rate"])),
+        )
+        if not (
+            _close(best["learning_rate"], chosen.get("learning_rate"))
+            and best["epochs"] == chosen.get("epochs")
+        ):
+            res.failures.append(
+                f"{arm}: chosen lr={chosen.get('learning_rate')} ep={chosen.get('epochs')} but the val "
+                f"argmax is lr={best['learning_rate']} ep={best['epochs']}"
+            )
+        accs = sorted((float(r["val_accuracy"]) for r in results), reverse=True)
+        res.notes.append(
+            f"{arm}: {len(results)} configs tried on seed 1; chosen lr={chosen.get('learning_rate'):g} "
+            f"ep={chosen.get('epochs')} at val {accs[0]:.3f} (n=100); runner-up {accs[1]:.3f}, "
+            f"worst {accs[-1]:.3f} — 'best on val', not 'optimal' (PREREGISTRATION §5.1)."
+        )
+    return res
+
+
+def check_provenance_notes(ds: Dataset) -> CheckResult:
+    res = CheckResult(
+        "provenance (listed, not fatal)",
+        "Units or training runs recorded with a dirty git tree, and the GPU rate meta.json used.",
+    )
+    dirty_units = [
+        f"{_who(r)} {u.split}/{u.decoding} @ {str(u.meta.get('git_sha'))[:7]}"
+        for r, u in _units(ds)
+        if u.meta.get("git_dirty")
+    ]
+    dirty_runs = [_who(r) for r in ds.trained_runs() if (r.meta or {}).get("git_dirty")]
+    if dirty_units:
+        res.notes.append(
+            f"{len(dirty_units)} eval unit(s) record git_dirty=true: " + "; ".join(dirty_units)
+        )
+    if dirty_runs:
+        res.notes.append(f"training runs with git_dirty=true: {', '.join(dirty_runs)}")
+    rates = sorted(
+        {
+            float(u.meta["gpu_rate_usd_per_hour"])
+            for _, u in _units(ds)
+            if u.meta.get("gpu_rate_usd_per_hour")
+        }
+    )
+    billed = (ds.cfg.get("gpu_rate") or {}).get("billed_usd_per_hour")
+    res.notes.append(
+        f"meta.json cost fields use ${'/'.join(f'{r:g}' for r in rates)}/h; Lambda billed ${billed}/h. "
+        "GPU-hours are the primary quantity; every dollar figure names its rate."
+    )
+    return res
+
+
+def check_truncation_flags(ds: Dataset) -> CheckResult:
+    res = CheckResult(
+        "SPEC §7 truncation and extraction-failure flags (listed, not fatal)",
+        "A run with truncation > 5 % on test_300 is flagged and its numbers are not headline numbers; "
+        "on ood_hard_200 truncation is reported, not flagged. One line per model/run that has any "
+        "flag; flags are carried into every table and contrast that touches them. Under SPEC §5 v1.6 "
+        "a truncated completion is always an extraction failure, so the two rates are not "
+        "independent evidence.",
+    )
+    for run in ds.all_runs():
+        flagged = []
+        for u in run.units.values():
+            if u.split == "gsm8k_500":
+                continue
+            if check_rates(u.metrics, split=u.split):
+                m = u.metrics
+                flagged.append(
+                    f"{u.split}/{u.decoding} trunc {100 * m['truncation_rate']:.1f}% "
+                    f"xfail {100 * m['extraction_failure_rate']:.1f}%"
+                )
+        test = run.units.get(("test_300", "greedy"))
+        headline = test is not None and test.metrics["truncation_rate"] > TRUNCATION_MAX
+        if flagged:
+            res.notes.append(
+                f"{_who(run)}{' — NOT HEADLINE (test_300 greedy > 5 %)' if headline else ''}: "
+                + "; ".join(flagged)
+            )
+    for key, runs in ds.arms.items():
+        over = [
+            r.seed
+            for r in runs
+            if ("test_300", "greedy") in r.units
+            and r.units[("test_300", "greedy")].metrics["truncation_rate"] > TRUNCATION_MAX
+        ]
+        if over:
+            res.notes.append(
+                f"{key}: {len(over)}/{len(runs)} seeds exceed 5 % truncation on test_300 greedy (seeds {over})"
+            )
+    return res
+
+
+def cross_run_checks(
+    ds: Dataset, *, splits_dir: str | Path, cache_dir: Path | None = None
+) -> CrossRunReport:
+    """All tasks/05 item-1 checks. Any failure must abort the analysis (``report.main`` does)."""
+    return CrossRunReport(
+        [
+            check_units_complete(ds),
+            check_exclusions(ds),
+            check_unit_integrity(ds),
+            check_protocol(ds),
+            check_split_digests(ds, splits_dir),
+            check_prompt_drift(ds),
+            check_final_checkpoints(ds),
+            check_seeds_differ(
+                ds, cache_path=None if cache_dir is None else cache_dir / "adapter_sha256.json"
+            ),
+            check_budgets(ds),
+            check_shared_hyperparameters(ds),
+            check_selection_val_only(ds),
+            check_truncation_flags(ds),
+            check_provenance_notes(ds),
+        ]
+    )
 
 
 def format_problems(title: str, issues: list[str]) -> str:

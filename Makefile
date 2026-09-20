@@ -1,4 +1,4 @@
-.PHONY: setup-mac setup-gpu test test-all lint fmt gen gen-ood gen-check sample-pool cap-run cap tier tier-provisional tier-rescore rescore-cap-run tier-dry eval-base eval-dry sanity transfer-pick sync clean rft-draw rft-select rft-sweep rft-finals rft-eval-final rft-dry grpo-train grpo-eval grpo-queue
+.PHONY: setup-mac setup-gpu test test-all lint fmt gen gen-ood gen-check sample-pool cap-run cap tier tier-provisional tier-rescore rescore-cap-run tier-dry eval-base eval-dry sanity transfer-pick sync clean rft-draw rft-select rft-sweep rft-finals rft-eval-final rft-dry grpo-train grpo-eval grpo-queue analysis
 
 setup-mac:
 	bash setup/setup_mac.sh
@@ -106,6 +106,14 @@ grpo-eval:
 QUEUE ?= queue.yaml
 grpo-queue:
 	uv run python scripts/run_queue.py --queue $(QUEUE)
+
+# ---- tasks/05 (no GPU) — cross-run sanity, tables, contrasts, figures, outputs/hypotheses.md ----
+# RUN_ROOT is a store-style runs/ directory and is only ever read; any sanity failure aborts.
+# Example: make analysis RUN_ROOT=/lambda/nfs/rl-or-data/rlordata-artifacts/runs OUT=outputs
+ANALYSIS_CONFIG ?= configs/analysis/default.yaml
+analysis:
+	uv run python -m rlordata.analysis.report --config $(ANALYSIS_CONFIG) \
+		$(if $(RUN_ROOT),--run-root $(RUN_ROOT)) $(if $(OUT),--out $(OUT))
 
 sync:
 	uv run python -m rlordata.artifacts sync-all

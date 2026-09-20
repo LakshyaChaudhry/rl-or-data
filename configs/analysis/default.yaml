@@ -1,0 +1,74 @@
+# tasks/05 — analysis inputs. Agent-owned. Nothing here is a protocol constant: the cap, prompt and
+# extraction rule are read from the run dirs and *checked* against each other, never set here.
+#
+# run_root is laid out like the artifact-store root's runs/ directory: {eval,rft,grpo,transfer_pick}/...
+# It is only ever read. Override on the command line:  make analysis RUN_ROOT=/path/to/runs
+run_root: runs/store_mirror/runs
+splits_dir: data/splits
+out_dir: outputs
+# Optional: the store's checksum listing; when present, adapter hashes are also compared against it.
+store_checksums: runs/store_mirror/SHA256SUMS.store-20260919
+
+seed: 0          # the single seed for every analysis-side bootstrap (arm means, paired deltas, ratio)
+n_boot: 10000    # SPEC §10
+
+seeds: [1, 2, 3]
+
+# GPU-hours are the primary cost quantity. meta.json recorded $4.29/h; Lambda's terminate response for
+# both boxes shows $3.29/h (results/phase2/README.md, results/phase3/README.md). Every dollar figure
+# printed by the analysis names the rate it used.
+gpu_rate:
+  recorded_usd_per_hour: 4.29
+  billed_usd_per_hour: 3.29
+
+base:
+  label: Base
+  model_id: Qwen/Qwen3-4B-Base
+  dir: eval/Qwen__Qwen3-4B-Base
+  # gsm8k_500 greedy was run in tasks/02's transfer pick; there is no base gsm8k_500 mean@8 unit.
+  transfer_dir: transfer_pick/Qwen__Qwen3-4B-Base
+
+references:
+  - {label: Qwen3-4B (non-thinking), dir: eval/Qwen__Qwen3-4B}
+  - {label: Qwen2.5-7B-Instruct, dir: eval/Qwen__Qwen2.5-7B-Instruct}
+  - {label: Llama-3.1-8B-Instruct, dir: eval/meta-llama__Llama-3.1-8B-Instruct}
+
+# RFT: <dir>/chosen.json names the val-selected config; the result-bearing runs are that config at
+# `seeds`, and only their eval/final units are read. GRPO: one fixed recipe, run dir per seed.
+arms:
+  rft_easy: {label: RFT-Easy, method: rft, data_condition: train_easy_100, dir: rft/rft_easy}
+  rft_mixed: {label: RFT-Mixed, method: rft, data_condition: train_mixed_100, dir: rft/rft_mixed}
+  rft_curated: {label: RFT-Curated, method: rft, data_condition: train_curated, dir: rft/rft_curated}
+  grpo_easy: {label: GRPO-Easy, method: grpo, data_condition: train_easy_100, run_pattern: "grpo/grpo_easy_s{seed}"}
+  grpo_mixed: {label: GRPO-Mixed, method: grpo, data_condition: train_mixed_100, run_pattern: "grpo/grpo_mixed_s{seed}"}
+  grpo_curated: {label: GRPO-Curated, method: grpo, data_condition: train_curated, run_pattern: "grpo/grpo_curated_s{seed}"}
+
+controls:
+  c1_random_reward: {label: C1 random reward, method: grpo, data_condition: train_mixed_100, run_pattern: "grpo/grpo_random_reward_s{seed}", seeds: [1]}
+  c2_format_only: {label: C2 format only, method: grpo, data_condition: train_mixed_100, run_pattern: "grpo/grpo_format_only_s{seed}", seeds: [1]}
+
+# Units every trained run must have under eval/final (split, decoding).
+final_units:
+  - [val_mixed_100, greedy]
+  - [val_mixed_100, mean_at_k]
+  - [test_300, greedy]
+  - [test_300, mean_at_k]
+  - [test_300, pass_at_k]
+  - [ood_hard_200, greedy]
+  - [ood_hard_200, mean_at_k]
+  - [gsm8k_500, greedy]
+  - [gsm8k_500, mean_at_k]
+
+# Cells that are known not to exist. They render as "missing", never as zero, and do not fail sanity.
+known_missing:
+  - {who: base, split: gsm8k_500, decoding: mean_at_k, why: "never evaluated (tasks/02 ran greedy only on the transfer set)"}
+
+# Things under run_root that are not results. Fragments are matched against "/<path relative to
+# run_root>/"; the loader refuses any path containing one, and the sanity output lists which exist.
+never_results:
+  - {fragment: "_bf16merge_stale", why: "superseded RFT selection evaluated through a bf16 merge (notebook 2026-09-17)"}
+  - {fragment: "/rft_noeos_ablation/", why: "pre-amendment RFT runs trained without EOS (PREREGISTRATION §4, 2026-09-13)"}
+  - {fragment: "/grpo/_failed/", why: "2026-09-14 bf16-merge collapse of grpo_mixed_s1"}
+  - {fragment: "/dev/", why: "development runs"}
+  - {fragment: "google__gemma", why: "stub-sampler units only; Gemma was never really evaluated"}
+  - {fragment: ".stale-", why: "logs of the grpo_curated_s1 attempt that OOMed at step 5"}
