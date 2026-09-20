@@ -162,3 +162,63 @@ def run_dry_pipeline(root: Path, *, verbose: bool = False, arm: str = "mixed") -
         )
     shutil.rmtree(root, ignore_errors=not verbose)
     return rc
+
+
+def run_iter_dry_pipeline(root: Path, *, verbose: bool = False, keep: bool = False) -> int:
+    """tasks/06b end to end on the tiny world: 3 rounds × 2 seeds, stub sampler, CPU. Never a result."""
+    os.environ.setdefault("HF_HUB_OFFLINE", "1")
+    if not tokenizer_available():
+        print(f"{TOKENIZER_ID} tokenizer not cached; cannot dry-run")
+        return 3
+    if not core_implemented():
+        print("core.sft_loss / core.rft_select are not implemented yet (Laksh); dry run stops here")
+        return 4
+    w = make_rft_world(root)
+    rc = cli_main(
+        [
+            "rft",
+            "--config",
+            str(w["configs"]["mixed"]),
+            "--stage",
+            "draw",
+            "--stub",
+            "--n-total",
+            str(w["n_total"]),
+        ]
+    )
+    if rc != 0:
+        return rc
+    with Path("configs/rft/iter_curated.yaml").open(encoding="utf-8") as f:
+        cfg = deepcopy(yaml.safe_load(f))
+    with w["configs"]["curated"].open(encoding="utf-8") as f:
+        world_cfg = yaml.safe_load(f)
+    for key in ("model_id", "cap_yaml", "splits_dir", "samples_dir", "output_dir", "base_eval_dir",
+                "transfer_yaml", "pool", "ood_path", "micro_batch_size", "gradient_checkpointing", "dtype"):  # fmt: skip
+        cfg[key] = world_cfg[key]
+    cfg.update({"samples_per_round": 4, "samples_per_prompt_base_draw": w["n_total"], "epochs": 2})
+    path = root / "configs" / "iter_rft_curated.yaml"
+    with path.open("w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False)
+    from scripts.iter_rft import main as iter_main
+
+    rc = iter_main(
+        [
+            "--config",
+            str(path),
+            "--stub",
+            "--allow-cpu",
+            "--in-process",
+            "--seeds",
+            "1,2",
+            "--n-problems",
+            "6",
+        ]
+    )
+    if verbose and rc == 0:
+        for seed in (1, 2):
+            d = root / "runs" / "rft" / "iter_rft_curated" / f"seed{seed}"
+            print(sorted(p.name for p in d.iterdir()))
+            print((d / "rounds.json").read_text()[:600])
+    if not keep:
+        shutil.rmtree(root, ignore_errors=True)
+    return rc

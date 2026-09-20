@@ -1,4 +1,4 @@
-.PHONY: setup-mac setup-gpu test test-all lint fmt gen gen-ood gen-check sample-pool cap-run cap tier tier-provisional tier-rescore rescore-cap-run tier-dry eval-base eval-dry sanity transfer-pick sync clean rft-draw rft-select rft-sweep rft-finals rft-eval-final rft-dry grpo-train grpo-eval grpo-queue analysis
+.PHONY: setup-mac setup-gpu test test-all lint fmt gen gen-ood gen-check sample-pool cap-run cap tier tier-provisional tier-rescore rescore-cap-run tier-dry eval-base eval-dry sanity transfer-pick sync clean rft-draw rft-select rft-sweep rft-finals rft-eval-final rft-dry grpo-train grpo-eval grpo-queue analysis packet iter-rft iter-rft-dry exploratory-cap tasks06b-queue
 
 setup-mac:
 	bash setup/setup_mac.sh
@@ -107,12 +107,35 @@ QUEUE ?= queue.yaml
 grpo-queue:
 	uv run python scripts/run_queue.py --queue $(QUEUE)
 
+# ---- tasks/06b (GPU box): iterated RFT, exploratory larger-cap re-eval, base gsm8k mean@8 ----
+# One command on a fresh box: bash setup/tasks06b_box.sh   (restores, preflights, arms the guard, launches)
+tasks06b-queue:
+	uv run python scripts/run_queue.py --queue queue_tasks06b.yaml
+
+# Example: make iter-rft SEEDS=1
+SEEDS ?= 1,2,3
+iter-rft:
+	uv run python scripts/iter_rft.py --config configs/rft/iter_curated.yaml --seeds $(SEEDS)
+
+# EXPLORATORY (PREREGISTRATION §4, 2026-09-20): greedy test/ood at 2 x the locked cap; never a SPEC §10 number.
+exploratory-cap:
+	uv run python scripts/exploratory_cap_eval.py --config configs/eval/exploratory_cap.yaml
+
+# Local dry run of the iterated pipeline (stub sampler, tiny model, CPU; never a result).
+iter-rft-dry:
+	uv run python scripts/rft_dry_run.py --iterated
+
 # ---- tasks/05 (no GPU) — cross-run sanity, tables, contrasts, figures, outputs/hypotheses.md ----
 # RUN_ROOT is a store-style runs/ directory and is only ever read; any sanity failure aborts.
 # Example: make analysis RUN_ROOT=/lambda/nfs/rl-or-data/rlordata-artifacts/runs OUT=outputs
 ANALYSIS_CONFIG ?= configs/analysis/default.yaml
 analysis:
 	uv run python -m rlordata.analysis.report --config $(ANALYSIS_CONFIG) \
+		$(if $(RUN_ROOT),--run-root $(RUN_ROOT)) $(if $(OUT),--out $(OUT))
+
+# Results packet (≤ 300 lines of tables + results_flat.csv) from the same run root; run `make analysis` first.
+packet:
+	uv run python -m rlordata.analysis.packet --config $(ANALYSIS_CONFIG) \
 		$(if $(RUN_ROOT),--run-root $(RUN_ROOT)) $(if $(OUT),--out $(OUT))
 
 sync:

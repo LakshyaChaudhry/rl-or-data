@@ -1,0 +1,60 @@
+# tasks/06b queue (≈ 13–16 GPU-h on 1× H100). Launch with:  bash setup/tasks06b_box.sh
+#   or, on a prepared box:  uv run python scripts/run_queue.py --queue queue_tasks06b.yaml   (--dry-run to preview)
+# Order: the cheapest job first (it exercises vLLM end to end within minutes), then the exploratory
+# re-eval of the models that already exist (proves the GRPO/RFT adapters restored correctly), then
+# iterated RFT seed by seed, then the exploratory re-eval of the three new adapters.
+# Every job is idempotent: `produces` markers skip finished jobs, and inside a job every stage and
+# eval unit skips itself when its output exists, so a killed box resumes where it stopped.
+jobs:
+  - name: eval_base_gsm8k_mean8
+    cmd: uv run rlordata eval --config configs/eval/base_gsm8k_mean8.yaml
+    run_dir: runs/eval/Qwen__Qwen3-4B-Base/gsm8k_500
+    requires: [configs/locked/cap.yaml, configs/locked/transfer.yaml]
+    produces: [runs/eval/Qwen__Qwen3-4B-Base/gsm8k_500/mean_at_k/metrics.json]
+
+  - name: exploratory_cap_existing_models
+    cmd: uv run python scripts/exploratory_cap_eval.py --only base,rft_curated_s1,rft_curated_s2,rft_curated_s3,grpo_curated_s1,grpo_curated_s2,grpo_curated_s3
+    run_dir: runs/exploratory_cap8704
+    requires:
+      - runs/rft/rft_curated/seed1_lr1e-05_ep4/adapter/final/adapter_model.safetensors
+      - runs/rft/rft_curated/seed2_lr1e-05_ep4/adapter/final/adapter_model.safetensors
+      - runs/rft/rft_curated/seed3_lr1e-05_ep4/adapter/final/adapter_model.safetensors
+      - runs/grpo/grpo_curated_s1/adapter/step_300/adapter_model.safetensors
+      - runs/grpo/grpo_curated_s2/adapter/step_300/adapter_model.safetensors
+      - runs/grpo/grpo_curated_s3/adapter/step_300/adapter_model.safetensors
+    produces:
+      - runs/exploratory_cap8704/base/ood_hard_200/greedy/metrics.json
+      - runs/exploratory_cap8704/rft_curated_s3/ood_hard_200/greedy/metrics.json
+      - runs/exploratory_cap8704/grpo_curated_s3/ood_hard_200/greedy/metrics.json
+
+  - name: iter_rft_curated_s1
+    cmd: uv run python scripts/iter_rft.py --config configs/rft/iter_curated.yaml --seeds 1
+    run_dir: runs/rft/iter_rft_curated/seed1
+    requires: &iter_requires
+      - data/samples/base_train_mixed_100_k192_seed1.jsonl
+      - data/splits/train_curated.jsonl
+      - runs/eval/Qwen__Qwen3-4B-Base/val_mixed_100/greedy/samples.jsonl
+      - configs/locked/transfer.yaml
+    produces: [runs/rft/iter_rft_curated/seed1/eval/final/summary.json]
+  - name: iter_rft_curated_s2
+    cmd: uv run python scripts/iter_rft.py --config configs/rft/iter_curated.yaml --seeds 2
+    run_dir: runs/rft/iter_rft_curated/seed2
+    requires: *iter_requires
+    produces: [runs/rft/iter_rft_curated/seed2/eval/final/summary.json]
+  - name: iter_rft_curated_s3
+    cmd: uv run python scripts/iter_rft.py --config configs/rft/iter_curated.yaml --seeds 3
+    run_dir: runs/rft/iter_rft_curated/seed3
+    requires: *iter_requires
+    produces: [runs/rft/iter_rft_curated/seed3/eval/final/summary.json]
+
+  - name: exploratory_cap_iter_rft
+    cmd: uv run python scripts/exploratory_cap_eval.py --only iter_rft_curated_s1,iter_rft_curated_s2,iter_rft_curated_s3
+    run_dir: runs/exploratory_cap8704
+    requires:
+      - runs/rft/iter_rft_curated/seed1/eval/final/summary.json
+      - runs/rft/iter_rft_curated/seed2/eval/final/summary.json
+      - runs/rft/iter_rft_curated/seed3/eval/final/summary.json
+    produces:
+      - runs/exploratory_cap8704/iter_rft_curated_s1/ood_hard_200/greedy/metrics.json
+      - runs/exploratory_cap8704/iter_rft_curated_s2/ood_hard_200/greedy/metrics.json
+      - runs/exploratory_cap8704/iter_rft_curated_s3/ood_hard_200/greedy/metrics.json

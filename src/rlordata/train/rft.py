@@ -411,6 +411,7 @@ def build_lora_model(
     device: Any = None,
     gradient_checkpointing: bool = True,
     base_model: Any = None,
+    adapter_path: str | Path | None = None,
 ):  # noqa: ANN201 — (peft model, tokenizer)
     """Base model + fresh LoRA from the locked ``training.yaml``; tokenizer alongside.
 
@@ -418,9 +419,12 @@ def build_lora_model(
     (PEFT: kaiming-uniform; ``B`` is zero) is a function of the run seed (tasks/03 §3).
     ``base_model`` lets tests pass a tiny in-memory model; result-bearing runs always load
     ``model_id``.
+
+    ``adapter_path`` (tasks/06b, iterated RFT rounds ≥ 2): continue training an existing adapter
+    instead of creating a fresh one. Its LoRA shape must equal the locked one.
     """
     import torch
-    from peft import LoraConfig, get_peft_model
+    from peft import LoraConfig, PeftModel, get_peft_model
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -434,7 +438,19 @@ def build_lora_model(
             base_model.enable_input_require_grads()
     lora = LoraConfig(**lora_kwargs_from_training(training))
     seed_everything(seed)
-    model = get_peft_model(base_model, lora)
+    if adapter_path is None:
+        model = get_peft_model(base_model, lora)
+        return model, tokenizer
+    model = PeftModel.from_pretrained(base_model, str(adapter_path), is_trainable=True)
+    got = model.peft_config["default"]
+    for key in ("r", "lora_alpha", "lora_dropout", "bias"):
+        if getattr(got, key) != getattr(lora, key):
+            raise ValueError(
+                f"{adapter_path}: LoRA {key}={getattr(got, key)!r} differs from the locked "
+                f"{getattr(lora, key)!r}"
+            )
+    if set(got.target_modules) != set(lora.target_modules):
+        raise ValueError(f"{adapter_path}: LoRA target_modules differ from the locked set")
     return model, tokenizer
 
 

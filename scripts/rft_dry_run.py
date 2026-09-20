@@ -15,13 +15,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root: tests.helpers, scripts.*
 
-from rlordata.train.rft_pipeline_dry import run_dry_pipeline  # noqa: E402
+from rlordata.train.rft_pipeline_dry import run_dry_pipeline, run_iter_dry_pipeline  # noqa: E402
 
 
 def main() -> int:
     os.environ.setdefault("HF_HUB_OFFLINE", "1")
     root = Path(tempfile.mkdtemp(prefix="rlordata_rft_dry_"))
     print(f"dry-run world: {root}")
+    if "--iterated" in sys.argv[1:]:  # tasks/06b: `make iter-rft-dry`
+        return run_iter_dry_pipeline(root, verbose=True)
     return run_dry_pipeline(root, verbose=True)
 
 

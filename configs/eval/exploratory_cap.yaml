@@ -1,0 +1,27 @@
+# tasks/06b C — EXPLORATORY re-evaluation at a larger cap. A deviation from SPEC §7 and §10, approved by
+# Laksh and logged in PREREGISTRATION.md §4 (2026-09-20), decided AFTER the primary test results were
+# seen. The cap is fixed by rule (cap_multiple × the locked cap = 8,704), never chosen from results.
+# These numbers never enter the SPEC §10 criterion, the primary tables or a headline; they are
+# reported separately, asterisked: "re-generated at a larger cap to show accuracy without truncation".
+cap_yaml: configs/locked/cap.yaml
+cap_multiple: 2
+splits: [test_300, ood_hard_200]           # greedy only
+splits_dir: data/splits/
+pool: data/pool/pool.jsonl
+ood_path: data/pool/ood_hard_200.jsonl
+output_dir: runs/exploratory_cap8704/      # never runs/eval/ or any eval/final/ (the script refuses)
+model_id: Qwen/Qwen3-4B-Base
+base: {name: base, seed: 1}
+# Trained runs: the adapter evaluated is budgets.json's final_adapter — the one the primary eval read.
+runs:
+  - {name: rft_curated_s1, dir: runs/rft/rft_curated/seed1_lr1e-05_ep4, seed: 1}
+  - {name: rft_curated_s2, dir: runs/rft/rft_curated/seed2_lr1e-05_ep4, seed: 2}
+  - {name: rft_curated_s3, dir: runs/rft/rft_curated/seed3_lr1e-05_ep4, seed: 3}
+  - {name: grpo_curated_s1, dir: runs/grpo/grpo_curated_s1, seed: 1}
+  - {name: grpo_curated_s2, dir: runs/grpo/grpo_curated_s2, seed: 2}
+  - {name: grpo_curated_s3, dir: runs/grpo/grpo_curated_s3, seed: 3}
+  - {name: iter_rft_curated_s1, dir: runs/rft/iter_rft_curated/seed1, seed: 1}
+  - {name: iter_rft_curated_s2, dir: runs/rft/iter_rft_curated/seed2, seed: 2}
+  - {name: iter_rft_curated_s3, dir: runs/rft/iter_rft_curated/seed3, seed: 3}
+dtype: bfloat16
+gpu_memory_utilization: 0.9

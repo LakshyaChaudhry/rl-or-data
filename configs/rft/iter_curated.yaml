@@ -1,0 +1,31 @@
+# tasks/06b — iterated RFT on the frozen curated prompts (SPEC §8 Priority 2). Registered after the
+# primary arms' test results were seen: PREREGISTRATION.md §6 (2026-09-20); a secondary arm.
+arm: iter_rft_curated
+model_id: Qwen/Qwen3-4B-Base
+data_condition: train_curated
+training: configs/locked/training.yaml
+cap_yaml: configs/locked/cap.yaml
+# The curated set is frozen (SPEC §6): every round selects with mode "all" on those 73 prompts and
+# never re-curates from a later policy's samples.
+select: {mode: all, max_per_problem: null}
+seed: 1
+# ---- the arm's design (tasks/06b A2–A5); train/iter_rft.py refuses anything off the locked grid ----
+rounds: 3
+samples_per_round: 64            # 73 x 64 x 3 = 14,016 = the samples RFT-Curated's prompts own (SPEC §8.2)
+learning_rate: 1.0e-5            # RFT-Curated's val-chosen config, reused in every round; no new sweep
+epochs: 4                        #   (PREREGISTRATION §4 deviation, 2026-09-20)
+hyperparameters_from: runs/rft/rft_curated/chosen.json
+preregistration_commit: a9ec8af  # every result-bearing stage must descend from this commit
+# ---- paths and knobs shared with tasks/03 (agent-owned) ----
+splits_dir: data/splits/
+samples_dir: data/samples/                 # round 1 reads base_train_mixed_100_k192_seed1.jsonl
+draw_seed: 1
+samples_per_prompt_base_draw: 192
+output_dir: runs/rft/
+base_eval_dir: runs/eval/Qwen__Qwen3-4B-Base
+final_eval_config: configs/eval/final.yaml
+transfer_yaml: configs/locked/transfer.yaml
+micro_batch_size: 4
+gradient_checkpointing: true
+dtype: bf16
+gpu_memory_utilization: 0.9

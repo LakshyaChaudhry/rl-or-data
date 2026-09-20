@@ -19,7 +19,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="rlordata")
     sub = parser.add_subparsers(dest="cmd", required=True)
     parsers: dict[str, argparse.ArgumentParser] = {}
-    for name in ("gen", "tier", "eval", "rft", "grpo"):
+    for name in ("gen", "tier", "eval", "rft", "iter-rft", "grpo"):
         p = sub.add_parser(name)
         p.add_argument("--config", required=True)
         p.add_argument("--seed", type=int, default=None, help="override config seed")
@@ -76,6 +76,21 @@ def build_parser() -> argparse.ArgumentParser:
     rft.add_argument(
         "--allow-cpu", action="store_true", help="train without CUDA (smoke tests only)"
     )
+    it = parsers["iter-rft"]
+    it.add_argument(
+        "--stage",
+        choices=["sample", "train", "finalize"],
+        default="train",
+        help="tasks/06b: sample (rounds >= 2, from the previous round's adapter) | train | finalize",
+    )
+    it.add_argument("--round", type=int, default=None, help="round number (1-based)")
+    it.add_argument("--output-dir", default=None, help="override config output_dir (runs/rft)")
+    it.add_argument("--splits-dir", default=None)
+    it.add_argument("--samples-dir", default=None, help="where the base draw lives (data/samples)")
+    it.add_argument("--micro-batch-size", type=int, default=None)
+    it.add_argument("--force", action="store_true")
+    it.add_argument("--stub", action="store_true", help="StubSampler dry runs (never a result)")
+    it.add_argument("--allow-cpu", action="store_true", help="smoke tests only")
     grpo = parsers["grpo"]
     grpo.add_argument(
         "--stage",
@@ -141,6 +156,12 @@ def main(argv: list[str] | None = None) -> int:
         from rlordata.train import rft
 
         dispatch["rft"] = rft.cli_main
+    except (ImportError, AttributeError):
+        pass
+    try:
+        from rlordata.train import iter_rft
+
+        dispatch["iter-rft"] = iter_rft.cli_main
     except (ImportError, AttributeError):
         pass
     try:

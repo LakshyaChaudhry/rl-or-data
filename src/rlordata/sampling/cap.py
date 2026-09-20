@@ -20,6 +20,7 @@ any other value raises :class:`CapError`. Before it exists, construction is allo
 from __future__ import annotations
 
 import math
+import os
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -61,6 +62,22 @@ def load_locked_cap(path: str | Path = DEFAULT_CAP_PATH) -> int | None:
     return None if data is None else int(data["max_completion_tokens"])
 
 
+# The one sanctioned deviation (PREREGISTRATION §4, 2026-09-20, approved by Laksh): an exploratory
+# re-evaluation at exactly EXPLORATORY_CAP_MULTIPLE × the locked cap. It is reachable only when the
+# caller sets this environment variable to the deviation's id — scripts/exploratory_cap_eval.py
+# does, and nothing else may. Every other cap still raises.
+EXPLORATORY_CAP_MULTIPLE = 2
+EXPLORATORY_CAP_ENV = "RLORDATA_EXPLORATORY_CAP_DEVIATION"
+EXPLORATORY_CAP_DEVIATION_ID = "PREREGISTRATION-4-2026-09-20-exploratory-cap"
+
+
+def exploratory_cap_if_authorised(locked: int) -> int | None:
+    """``2 × locked`` when the deviation id is set in the environment, else None."""
+    if os.environ.get(EXPLORATORY_CAP_ENV) != EXPLORATORY_CAP_DEVIATION_ID:
+        return None
+    return EXPLORATORY_CAP_MULTIPLE * int(locked)
+
+
 def resolve_cap(
     requested: int | None,
     *,
@@ -74,6 +91,8 @@ def resolve_cap(
     """
     locked = load_locked_cap(cap_path)
     if locked is not None:
+        if requested is not None and int(requested) == exploratory_cap_if_authorised(locked):
+            return int(requested)
         if requested is not None and int(requested) != locked:
             raise CapError(
                 f"max_completion_tokens={requested} differs from the locked cap {locked} in {cap_path}. "
