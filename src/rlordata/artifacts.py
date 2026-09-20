@@ -114,14 +114,17 @@ def _sync_local(src: Path, files: list[Path], dest_root: Path, key: Path) -> str
 def _unchanged(src: Path, target: Path) -> bool:
     """True when ``target`` already holds ``src`` (same size and mtime; ``copy2`` preserves mtime).
 
-    A run dir is synced many times (every stage, the idle guard). Rewriting a finished 500 MB
-    adapter with identical bytes on each of them is slow and, if the box dies mid-copy, truncates
-    the only durable copy. Unchanged files are left alone.
+    A run dir is synced many times (every stage, the queue, the idle guard). Rewriting a finished
+    500 MB adapter with identical bytes on each of them is slow and, if the box dies mid-copy,
+    truncates the only durable copy; with ~20 GB of checkpoints per GRPO run, two unconditional
+    syncs back to back also approached the idle guard's 30-minute window while the GPU sat idle
+    (box 3, 2026-09-19, eval_grpo_mixed_s2). Unchanged files are left alone. The mtime comparison
+    tolerates sub-second differences (NFS timestamp granularity).
     """
     if not target.is_file():
         return False
     a, b = src.stat(), target.stat()
-    return a.st_size == b.st_size and int(a.st_mtime) == int(b.st_mtime)
+    return a.st_size == b.st_size and abs(a.st_mtime - b.st_mtime) < 1.0
 
 
 def _sync_s3(src: Path, files: list[Path], dest_root: str, key: Path) -> str:
