@@ -158,6 +158,30 @@ def test_exploratory_units_cannot_be_written_where_results_live(tmp_path: Path) 
     assert len(cfg["runs"]) == 9 and "exploratory" in Path(cfg["output_dir"]).name
 
 
+def test_exploratory_only_never_reads_a_run_that_was_not_asked_for(tmp_path: Path) -> None:
+    """Queue job 2 runs before the iterated-RFT run dirs exist (2026-09-20: it crashed on them)."""
+    from scripts.exploratory_cap_eval import select_models
+
+    done = tmp_path / "done"
+    done.mkdir()
+    (done / "budgets.json").write_text(json.dumps({"final_adapter": "runs/x/adapter/final"}))
+    cfg = {
+        "base": {"name": "base", "seed": 1},
+        "runs": [
+            {"name": "done_s1", "dir": str(done), "seed": 1},
+            {"name": "not_yet_s1", "dir": str(tmp_path / "not_yet"), "seed": 1},
+        ],
+    }
+    models = select_models(cfg, "base,done_s1")
+    assert [m["name"] for m in models] == ["base", "done_s1"]
+    assert models[1]["adapter"] == "runs/x/adapter/final" and models[0]["adapter"] is None
+    assert [m["name"] for m in select_models(cfg, "done_s1")] == ["done_s1"]
+    with pytest.raises(FileNotFoundError):
+        select_models(cfg, None)  # asked for (all): a missing run must still fail loudly
+    with pytest.raises(SystemExit, match="unknown"):
+        select_models(cfg, "base,typo_s1")
+
+
 def _exploratory_cap_dry(root: Path, arm: Path) -> None:
     """The exploratory script on the dry world: 2 × the world's cap, stamped, in its own tree."""
     from scripts.exploratory_cap_eval import main as exploratory_main

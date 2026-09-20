@@ -85,6 +85,25 @@ def primary_adapter(run_dir: Path) -> str:
     return adapter
 
 
+def select_models(cfg: dict[str, Any], only: str | None) -> list[dict[str, Any]]:
+    """Base + configured runs, filtered by ``--only`` BEFORE any run dir is read.
+
+    The queue evaluates the existing models while the iterated-RFT run dirs do not exist yet, so a
+    run that was not asked for must not be touched.
+    """
+    known = [cfg["base"]["name"], *(r["name"] for r in cfg["runs"])]
+    keep = set(known) if not only else set(only.split(","))
+    if keep - set(known):
+        raise SystemExit(f"--only names unknown models {sorted(keep - set(known))}; known: {known}")
+    models: list[dict[str, Any]] = []
+    if cfg["base"]["name"] in keep:
+        models.append({**cfg["base"], "adapter": None, "dir": None})
+    for run in cfg["runs"]:
+        if run["name"] in keep:
+            models.append({**run, "adapter": primary_adapter(Path(run["dir"]))})
+    return models
+
+
 def main(argv: list[str] | None = None) -> int:
     load_env()
     ap = argparse.ArgumentParser()
@@ -111,12 +130,7 @@ def main(argv: list[str] | None = None) -> int:
     note = NOTE.format(cap=cap, locked=locked)
     print(note)
 
-    models: list[dict[str, Any]] = [{**cfg["base"], "adapter": None, "dir": None}]
-    for run in cfg["runs"]:
-        models.append({**run, "adapter": primary_adapter(Path(run["dir"]))})
-    if args.only:
-        keep = set(args.only.split(","))
-        models = [m for m in models if m["name"] in keep]
+    models = select_models(cfg, args.only)
     splits_dir = Path(cfg["splits_dir"])
     greedy = DecodingSpec(name="greedy", temperature=0.0, n=1)
     n_units = len(models) * len(cfg["splits"])
