@@ -1,0 +1,45 @@
+# Inputs of analysis/packet.py that cannot be computed from the run root. Agent-owned; no protocol
+# constant lives here. Kept out of configs/analysis/default.yaml so the analysis config hash (and
+# with it every file `make analysis` writes) does not change.
+
+# H2 recovery-fraction threshold. null = none is registered; the packet then reports the ratio with
+# no PASS/FAIL. Only Laksh sets a number here, and only with a PREREGISTRATION entry to point at.
+h2_threshold: null
+h2_threshold_source: >-
+  notebook/PREREGISTRATION.md holds no number for H2: §1 'much of the gap', §3 'most', §6 (2026-09-20)
+  'No threshold is set on any "fraction of the GRPO advantage recovered"'
+
+# Section 12 rows recorded in the notebook / run root rather than derivable from numbers. One row per
+# entry (the packet has a 300-line budget, so related facts share a row). Facts only.
+anomalies:
+  - what: >-
+      Scope. The packet request names 7 trained arms; SPEC §8 defines 6 (RFT/GRPO × Easy/Mixed/Curated)
+      plus C1 and C2, and 6 + 2 exist; seeds 4–5 were not run. Runs are read from runs/store_mirror/runs
+      (read-only mirror of the artifact store, SHA-256 verified against the store on 2026-09-19), not
+      from runs/eval, runs/rft, runs/grpo; the local runs/grpo/grpo_mixed_s1 is a dry-run stub and is
+      not read.
+    where: SPEC.md §8–9; results/phase4/README.md; notebook 2026-09-19
+  - what: >-
+      Crashes and re-runs (none resumed from a checkpoint; section 2 flags them). grpo_mixed_s1: a first
+      attempt OOMed in the step-1 backward (micro-batch 8×8 → 4×16, used by every GRPO run); a second
+      attempt collapsed at step ~150 (TRL merged the LoRA into bf16 weights for vLLM) and is kept under
+      grpo/_failed, never read; the result-bearing run started from step 0 with native vLLM LoRA.
+      grpo_curated_s1: OOM in the step-5 backward, relaunched from step 0 with expandable_segments;
+      the first attempt's logs are the *.stale-* files, never read. Also never read: RFT runs trained
+      before the EOS amendment (rft_noeos_ablation) and the RFT selection evaluated through a bf16
+      merge (*_bf16merge_stale).
+    where: notebook 2026-09-13, 2026-09-14, 2026-09-16, 2026-09-17; PREREGISTRATION §4
+  - what: >-
+      Protocol files vs runs. configs/locked/prompt.yaml records extraction_rule v1.5; every unit's
+      resolved config records v1.6 (SPEC §5 v1.6, core/verify.py); cap.yaml was computed under v1.5
+      (PREREGISTRATION §3: v1.6 would give 4096; 4352 kept). The evaluated GRPO adapter
+      (adapter/step_300) is not in the mirror; adapter hashes are of adapter/final, whose equality
+      with step_300 follows from train/grpo_trl.py, not from a byte comparison.
+    where: configs/locked/prompt.yaml; SPEC.md §12 (v1.6); PREREGISTRATION §3; sanity.md 'final checkpoints only'
+  - what: >-
+      Gaps and bookkeeping. Base gsm8k_500 mean@8 was never evaluated ('missing'); google/gemma-4-E4B-it
+      has stub-sampler units only and is excluded; reference models have no gsm8k units. RFT-Curated's
+      budgets.json records 19,200 completions available (the whole train_mixed_100 draw); section 7
+      reports the completions that belong to its prompts. meta.json cost fields use $4.29/h, Lambda
+      billed $3.29/h; dollar figures here use the billed rate.
+    where: sanity.md 'units present'; tables/results.md §6; results/phase2/README.md, results/phase3/README.md

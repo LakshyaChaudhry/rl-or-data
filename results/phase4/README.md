@@ -21,6 +21,11 @@ Everything except `analysis_meta.json` (git SHA, package versions, wall-clock) i
 - `how_could_this_be_wrong.md` — auto-generated per headline contrast.
 - `sanity.md` / `sanity.json` — the 13 cross-run checks (all pass) and their notes.
 - `figures/` — (a)–(h) of tasks/05 item 4 plus (i) eval-time length and truncation by arm.
+- `results_packet.md` (300 lines, tables only, `hypotheses.md` verbatim, no verdicts) and
+  `results_flat.csv` (one row per arm, seed, split, metric, value, ci_lo, ci_hi, n) — written by
+  `make packet` (`analysis/packet.py`, 2026-09-20) from the same run root after `make analysis` was re-run at
+  a9ec8af and reproduced every file here byte for byte. Its section 12 rows 3–6 come from
+  `configs/analysis/packet_notes.yaml`; the H2 threshold there is null (none is registered).
 
 ## Read before using any number
 
