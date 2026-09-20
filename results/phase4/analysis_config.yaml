@@ -1,0 +1,108 @@
+# resolved analysis config; hash d9af2a8c5fb568bf8c89d517f61bc11e988103830d5e15628c9afa2a232007fa
+arms:
+  grpo_curated:
+    data_condition: train_curated
+    label: GRPO-Curated
+    method: grpo
+    run_pattern: grpo/grpo_curated_s{seed}
+  grpo_easy:
+    data_condition: train_easy_100
+    label: GRPO-Easy
+    method: grpo
+    run_pattern: grpo/grpo_easy_s{seed}
+  grpo_mixed:
+    data_condition: train_mixed_100
+    label: GRPO-Mixed
+    method: grpo
+    run_pattern: grpo/grpo_mixed_s{seed}
+  rft_curated:
+    data_condition: train_curated
+    dir: rft/rft_curated
+    label: RFT-Curated
+    method: rft
+  rft_easy:
+    data_condition: train_easy_100
+    dir: rft/rft_easy
+    label: RFT-Easy
+    method: rft
+  rft_mixed:
+    data_condition: train_mixed_100
+    dir: rft/rft_mixed
+    label: RFT-Mixed
+    method: rft
+base:
+  dir: eval/Qwen__Qwen3-4B-Base
+  label: Base
+  model_id: Qwen/Qwen3-4B-Base
+  transfer_dir: transfer_pick/Qwen__Qwen3-4B-Base
+controls:
+  c1_random_reward:
+    data_condition: train_mixed_100
+    label: C1 random reward
+    method: grpo
+    run_pattern: grpo/grpo_random_reward_s{seed}
+    seeds:
+    - 1
+  c2_format_only:
+    data_condition: train_mixed_100
+    label: C2 format only
+    method: grpo
+    run_pattern: grpo/grpo_format_only_s{seed}
+    seeds:
+    - 1
+final_units:
+- - val_mixed_100
+  - greedy
+- - val_mixed_100
+  - mean_at_k
+- - test_300
+  - greedy
+- - test_300
+  - mean_at_k
+- - test_300
+  - pass_at_k
+- - ood_hard_200
+  - greedy
+- - ood_hard_200
+  - mean_at_k
+- - gsm8k_500
+  - greedy
+- - gsm8k_500
+  - mean_at_k
+gpu_rate:
+  billed_usd_per_hour: 3.29
+  recorded_usd_per_hour: 4.29
+known_missing:
+- decoding: mean_at_k
+  split: gsm8k_500
+  who: base
+  why: never evaluated (tasks/02 ran greedy only on the transfer set)
+n_boot: 10000
+never_results:
+- fragment: _bf16merge_stale
+  why: superseded RFT selection evaluated through a bf16 merge (notebook 2026-09-17)
+- fragment: /rft_noeos_ablation/
+  why: "pre-amendment RFT runs trained without EOS (PREREGISTRATION \xA74, 2026-09-13)"
+- fragment: /grpo/_failed/
+  why: 2026-09-14 bf16-merge collapse of grpo_mixed_s1
+- fragment: /dev/
+  why: development runs
+- fragment: google__gemma
+  why: stub-sampler units only; Gemma was never really evaluated
+- fragment: .stale-
+  why: logs of the grpo_curated_s1 attempt that OOMed at step 5
+references:
+- dir: eval/Qwen__Qwen3-4B
+  label: Qwen3-4B (non-thinking)
+- dir: eval/Qwen__Qwen2.5-7B-Instruct
+  label: Qwen2.5-7B-Instruct
+- dir: eval/meta-llama__Llama-3.1-8B-Instruct
+  label: Llama-3.1-8B-Instruct
+run_root: runs/store_mirror/runs
+seed: 0
+seeds:
+- 1
+- 2
+- 3
+splits_dir: data/splits
+store_checksums: runs/store_mirror/SHA256SUMS.store-20260919

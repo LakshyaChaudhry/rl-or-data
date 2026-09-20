@@ -1,0 +1,155 @@
+{
+ "checks": [
+  {
+   "detail": "209 units loaded for 24 models/runs; 1 expected unit(s) absent.",
+   "failures": [],
+   "name": "units present",
+   "notes": [
+    "base gsm8k_500/mean_at_k does not exist — known: never evaluated (tasks/02 ran greedy only on the transfer set). Rendered as 'missing', never as zero."
+   ]
+  },
+  {
+   "detail": "Runs are loaded from an explicit allow-list; every loaded path is re-checked against the never-results fragments. Present under the run root but never read as results:",
+   "failures": [],
+   "name": "never-results stay out",
+   "notes": [
+    "excluded `_bf16merge_stale` (superseded RFT selection evaluated through a bf16 merge (notebook 2026-09-17)): rft/rft_curated/chosen_bf16merge_stale.json, rft/rft_curated/seed1_lr0.0001_ep2/eval/val_bf16merge_stale, rft/rft_curated/seed1_lr0.0001_ep4/eval/val_bf16merge_stale, rft/rft_curated/seed1_lr0.0001_ep8/eval/val_bf16merge_stale, … (33 paths)",
+    "excluded `/rft_noeos_ablation/` (pre-amendment RFT runs trained without EOS (PREREGISTRATION §4, 2026-09-13)): rft_noeos_ablation",
+    "excluded `/grpo/_failed/` (2026-09-14 bf16-merge collapse of grpo_mixed_s1): grpo/_failed",
+    "excluded `/dev/` (development runs): dev",
+    "excluded `google__gemma` (stub-sampler units only; Gemma was never really evaluated): eval/google__gemma-4-E4B-it, gemma_smoke/google__gemma-4-E4B-it",
+    "excluded `.stale-` (logs of the grpo_curated_s1 attempt that OOMed at step 5): grpo/grpo_curated_s1/reward_records.jsonl.stale-20260916T012148Z, grpo/grpo_curated_s1/train_log.jsonl.stale-20260916T012148Z"
+   ]
+  },
+  {
+   "detail": "Every unit: status finished, n_samples == planned, sampler vllm, thinking off, samples carry the unit's config hash and seed, no truncated completion is scored correct (SPEC §5), and the metrics recomputed from samples.jsonl with core.evaluate equal the stored metrics.json (n_problems, accuracy, ci_low, ci_high, truncation_rate, extraction_failure_rate, answer_line_rate, mean_completion_tokens, pass_at_k, per_tier).",
+   "failures": [],
+   "name": "unit integrity",
+   "notes": []
+  },
+  {
+   "detail": "max_completion_tokens, prompt_template, answer_regex, extraction_rule, max_prompt_tokens identical in the resolved config of all 209 units; cap equal to configs/locked/cap.yaml; no provisional cap.",
+   "failures": [],
+   "name": "one protocol",
+   "notes": []
+  },
+  {
+   "detail": "Pairwise disjointness of data/splits by problem_id and pipeline structure; every counting unit's problem_ids_sha256 and sample problem ids equal the committed split (pass@k: its first-100 prefix); gsm8k_500 digests identical across units.",
+   "failures": [],
+   "name": "committed splits",
+   "notes": [
+    "gsm8k_500 digest 21b915d91ce064b3… is identical in all 41 units; it is compared between units only (the set is downloaded, not committed)."
+   ]
+  },
+  {
+   "detail": "For every base-model unit (base, arms, controls) the sha256 over (problem_id, prompt) is identical across runs for the same split/subset — no prompt-template drift between arms.",
+   "failures": [],
+   "name": "prompt bytes",
+   "notes": [
+    "21 instruct reference units wrap the same template in their chat template (SPEC §5); they are covered by the prompt_template field check only."
+   ]
+  },
+  {
+   "detail": "Each trained run: training finished; every eval/final unit names the run's final adapter (RFT last epoch = adapter/final, GRPO adapter/step_300 with trainer_state.global_step == max_steps) and eval_set 'final'; RFT runs use the val-chosen lr/epochs and append_eos.",
+   "failures": [],
+   "name": "final checkpoints only",
+   "notes": [
+    "NOT VERIFIED here: the weights of the evaluated GRPO adapter (adapter/step_300) are not in this run root for 11 run(s) (grpo_easy/seed1, grpo_easy/seed2, grpo_easy/seed3, …); only adapter/final (saved by the trainer right after step 300) is. That the two hold the same weights follows from train/grpo_trl.py, not from a byte comparison."
+   ]
+  },
+  {
+   "detail": "sha256 of every trained run's final adapter weights is pairwise distinct across all runs (and equals the store's checksum listing when one is configured); greedy test_300 completions differ between seeds of an arm; greedy val completions differ from the base model's on ≥ 10 % of prompts (adapter really applied).",
+   "failures": [],
+   "name": "seeds actually differ",
+   "notes": [
+    "rft_easy/seed1: 73a96947f20659d5… (runs/rft/rft_easy/seed1_lr5e-05_ep8/adapter/final/adapter_model.safetensors)",
+    "rft_easy/seed2: 52384f039d003c32… (runs/rft/rft_easy/seed2_lr5e-05_ep8/adapter/final/adapter_model.safetensors)",
+    "rft_easy/seed3: a095d575cc2f8058… (runs/rft/rft_easy/seed3_lr5e-05_ep8/adapter/final/adapter_model.safetensors)",
+    "rft_mixed/seed1: b763bdcd418db54a… (runs/rft/rft_mixed/seed1_lr5e-05_ep4/adapter/final/adapter_model.safetensors)",
+    "rft_mixed/seed2: f5808968b3d76d0c… (runs/rft/rft_mixed/seed2_lr5e-05_ep4/adapter/final/adapter_model.safetensors)",
+    "rft_mixed/seed3: fd1999d01d40bbb0… (runs/rft/rft_mixed/seed3_lr5e-05_ep4/adapter/final/adapter_model.safetensors)",
+    "rft_curated/seed1: 90e297b9dceb776b… (runs/rft/rft_curated/seed1_lr1e-05_ep4/adapter/final/adapter_model.safetensors)",
+    "rft_curated/seed2: 2ecd060227f4aa0b… (runs/rft/rft_curated/seed2_lr1e-05_ep4/adapter/final/adapter_model.safetensors)",
+    "rft_curated/seed3: 41e0740586231dd8… (runs/rft/rft_curated/seed3_lr1e-05_ep4/adapter/final/adapter_model.safetensors)",
+    "grpo_easy/seed1: 7b5a26bbfaf544c6… (runs/grpo/grpo_easy_s1/adapter/final/adapter_model.safetensors)",
+    "grpo_easy/seed2: deccf82bdbaab6b9… (runs/grpo/grpo_easy_s2/adapter/final/adapter_model.safetensors)",
+    "grpo_easy/seed3: d3f4ba37d279e6a3… (runs/grpo/grpo_easy_s3/adapter/final/adapter_model.safetensors)",
+    "grpo_mixed/seed1: 69a7793f01a8a5ed… (runs/grpo/grpo_mixed_s1/adapter/final/adapter_model.safetensors)",
+    "grpo_mixed/seed2: 99e0f44484c540ee… (runs/grpo/grpo_mixed_s2/adapter/final/adapter_model.safetensors)",
+    "grpo_mixed/seed3: 0bace35370dc8153… (runs/grpo/grpo_mixed_s3/adapter/final/adapter_model.safetensors)",
+    "grpo_curated/seed1: 2cbd6d91f85a72d0… (runs/grpo/grpo_curated_s1/adapter/final/adapter_model.safetensors)",
+    "grpo_curated/seed2: d2ac7789d6122cde… (runs/grpo/grpo_curated_s2/adapter/final/adapter_model.safetensors)",
+    "grpo_curated/seed3: 47b2bc75caf4e709… (runs/grpo/grpo_curated_s3/adapter/final/adapter_model.safetensors)",
+    "c1_random_reward/seed1: 10fd07fedbc6b437… (runs/grpo/grpo_random_reward_s1/adapter/final/adapter_model.safetensors)",
+    "c2_format_only/seed1: 3bd36cbdf82a78f7… (runs/grpo/grpo_format_only_s1/adapter/final/adapter_model.safetensors)"
+   ]
+  },
+  {
+   "detail": "budgets.json with prompts, completions_available, completions_consumed, training_tokens, optimizer_steps for every trained run; GRPO runs consumed exactly 19,200 completions (reward_records.jsonl line count) and are marked result_bearing; the C1 control's training reward averages ≈ 0.5.",
+   "failures": [],
+   "name": "budgets present",
+   "notes": []
+  },
+  {
+   "detail": "grpo_config.json identical across GRPO runs except seed, output_dir, run_name, logging_dir; LoRA shape (r, lora_alpha, lora_dropout, bias, use_rslora, use_dora, task_type, target_modules) identical in every adapter_config.json; trainer and vLLM tokenizer hashes identical everywhere.",
+   "failures": [],
+   "name": "shared hyperparameters",
+   "notes": [
+    "LoRA shape in all adapters: {\"bias\": \"none\", \"lora_alpha\": 16, \"lora_dropout\": 0.0, \"r\": 64, \"target_modules\": [\"down_proj\", \"gate_proj\", \"k_proj\", \"o_proj\", \"q_proj\", \"up_proj\", \"v_proj\"], \"task_type\": \"CAUSAL_LM\", \"use_dora\": false, \"use_rslora\": false}"
+   ]
+  },
+  {
+   "detail": "Each RFT arm's chosen.json was selected on val_mixed_100 and equals the argmax of sweep.json's val accuracy under the recorded tie-break (fewer epochs, then lower learning rate). GRPO ran one fixed recipe: nothing was selected. The analysis itself selects nothing.",
+   "failures": [],
+   "name": "model selection reads val only",
+   "notes": [
+    "rft_easy: 9 configs tried on seed 1; chosen lr=5e-05 ep=8 at val 0.670 (n=100); runner-up 0.640, worst 0.590 — 'best on val', not 'optimal' (PREREGISTRATION §5.1).",
+    "rft_mixed: 9 configs tried on seed 1; chosen lr=5e-05 ep=4 at val 0.670 (n=100); runner-up 0.670, worst 0.570 — 'best on val', not 'optimal' (PREREGISTRATION §5.1).",
+    "rft_curated: 9 configs tried on seed 1; chosen lr=1e-05 ep=4 at val 0.660 (n=100); runner-up 0.650, worst 0.580 — 'best on val', not 'optimal' (PREREGISTRATION §5.1)."
+   ]
+  },
+  {
+   "detail": "A run with truncation > 5 % on test_300 is flagged and its numbers are not headline numbers; on ood_hard_200 truncation is reported, not flagged. One line per model/run that has any flag; flags are carried into every table and contrast that touches them. Under SPEC §5 v1.6 a truncated completion is always an extraction failure, so the two rates are not independent evidence.",
+   "failures": [],
+   "name": "SPEC §7 truncation and extraction-failure flags (listed, not fatal)",
+   "notes": [
+    "base: ood_hard_200/greedy trunc 13.0% xfail 13.0%",
+    "Qwen__Qwen3-4B: ood_hard_200/greedy trunc 22.5% xfail 22.5%",
+    "Qwen__Qwen2.5-7B-Instruct: ood_hard_200/greedy trunc 19.0% xfail 19.0%",
+    "meta-llama__Llama-3.1-8B-Instruct — NOT HEADLINE (test_300 greedy > 5 %): val_mixed_100/greedy trunc 8.0% xfail 8.0%; val_mixed_100/mean_at_k trunc 14.5% xfail 14.5%; test_300/greedy trunc 11.3% xfail 11.3%; test_300/mean_at_k trunc 15.2% xfail 15.2%; test_300/pass_at_k trunc 14.8% xfail 14.8%; ood_hard_200/greedy trunc 47.5% xfail 47.5%; ood_hard_200/mean_at_k trunc 38.8% xfail 38.8%",
+    "rft_easy/seed1: ood_hard_200/greedy trunc 14.0% xfail 14.0%",
+    "rft_easy/seed2: ood_hard_200/greedy trunc 9.5% xfail 9.5%",
+    "rft_easy/seed3: ood_hard_200/greedy trunc 8.0% xfail 8.0%",
+    "rft_mixed/seed1: ood_hard_200/greedy trunc 12.0% xfail 12.0%",
+    "rft_mixed/seed2: ood_hard_200/greedy trunc 11.0% xfail 11.0%",
+    "rft_mixed/seed3: ood_hard_200/greedy trunc 13.5% xfail 13.5%",
+    "rft_curated/seed1: ood_hard_200/greedy trunc 14.0% xfail 14.0%",
+    "rft_curated/seed2: ood_hard_200/greedy trunc 15.5% xfail 15.5%",
+    "rft_curated/seed3: ood_hard_200/greedy trunc 15.0% xfail 15.0%",
+    "grpo_easy/seed1: ood_hard_200/greedy trunc 38.0% xfail 38.0%; ood_hard_200/mean_at_k trunc 22.6% xfail 22.6%",
+    "grpo_easy/seed2: ood_hard_200/greedy trunc 21.0% xfail 21.0%; ood_hard_200/mean_at_k trunc 10.1% xfail 10.1%",
+    "grpo_easy/seed3: ood_hard_200/greedy trunc 19.5% xfail 19.5%; ood_hard_200/mean_at_k trunc 11.9% xfail 11.9%",
+    "grpo_mixed/seed1 — NOT HEADLINE (test_300 greedy > 5 %): test_300/greedy trunc 6.7% xfail 6.7%; test_300/mean_at_k trunc 5.3% xfail 5.3%; ood_hard_200/greedy trunc 46.5% xfail 46.5%; ood_hard_200/mean_at_k trunc 32.1% xfail 32.1%",
+    "grpo_mixed/seed2 — NOT HEADLINE (test_300 greedy > 5 %): val_mixed_100/greedy trunc 9.0% xfail 9.0%; val_mixed_100/mean_at_k trunc 5.1% xfail 5.1%; test_300/greedy trunc 10.3% xfail 10.3%; test_300/mean_at_k trunc 8.2% xfail 8.2%; test_300/pass_at_k trunc 7.3% xfail 7.3%; ood_hard_200/greedy trunc 54.5% xfail 54.5%; ood_hard_200/mean_at_k trunc 48.3% xfail 48.3%",
+    "grpo_mixed/seed3 — NOT HEADLINE (test_300 greedy > 5 %): val_mixed_100/greedy trunc 8.0% xfail 8.0%; val_mixed_100/mean_at_k trunc 5.5% xfail 5.5%; test_300/greedy trunc 9.0% xfail 9.0%; test_300/mean_at_k trunc 6.8% xfail 6.8%; test_300/pass_at_k trunc 5.2% xfail 5.2%; ood_hard_200/greedy trunc 41.5% xfail 41.5%; ood_hard_200/mean_at_k trunc 35.9% xfail 35.9%",
+    "grpo_curated/seed1 — NOT HEADLINE (test_300 greedy > 5 %): test_300/greedy trunc 5.3% xfail 5.3%; ood_hard_200/greedy trunc 19.5% xfail 19.5%; ood_hard_200/mean_at_k trunc 12.9% xfail 12.9%",
+    "grpo_curated/seed2 — NOT HEADLINE (test_300 greedy > 5 %): test_300/greedy trunc 9.3% xfail 9.3%; test_300/mean_at_k trunc 7.1% xfail 7.1%; test_300/pass_at_k trunc 6.0% xfail 6.0%; ood_hard_200/greedy trunc 45.0% xfail 45.0%; ood_hard_200/mean_at_k trunc 35.2% xfail 35.2%",
+    "grpo_curated/seed3 — NOT HEADLINE (test_300 greedy > 5 %): test_300/greedy trunc 8.0% xfail 8.0%; test_300/mean_at_k trunc 6.0% xfail 6.0%; ood_hard_200/greedy trunc 40.0% xfail 40.0%; ood_hard_200/mean_at_k trunc 28.4% xfail 28.4%",
+    "c1_random_reward/seed1: ood_hard_200/greedy trunc 7.5% xfail 7.5%",
+    "c2_format_only/seed1: ood_hard_200/greedy trunc 10.5% xfail 10.5%",
+    "grpo_mixed: 3/3 seeds exceed 5 % truncation on test_300 greedy (seeds [1, 2, 3])",
+    "grpo_curated: 3/3 seeds exceed 5 % truncation on test_300 greedy (seeds [1, 2, 3])"
+   ]
+  },
+  {
+   "detail": "Units or training runs recorded with a dirty git tree, and the GPU rate meta.json used.",
+   "failures": [],
+   "name": "provenance (listed, not fatal)",
+   "notes": [
+    "32 eval unit(s) record git_dirty=true: base val_mixed_100/greedy @ ffb604e; base val_mixed_100/mean_at_k @ ffb604e; base test_300/greedy @ ffb604e; base test_300/mean_at_k @ ffb604e; base test_300/pass_at_k @ ffb604e; base ood_hard_200/greedy @ ffb604e; base ood_hard_200/mean_at_k @ ffb604e; base gsm8k_500/greedy @ ffb604e; Qwen__Qwen3-4B val_mixed_100/greedy @ ffb604e; Qwen__Qwen3-4B val_mixed_100/mean_at_k @ ffb604e; Qwen__Qwen3-4B test_300/greedy @ ffb604e; Qwen__Qwen3-4B test_300/mean_at_k @ ffb604e; Qwen__Qwen3-4B test_300/pass_at_k @ ffb604e; Qwen__Qwen3-4B ood_hard_200/greedy @ ffb604e; Qwen__Qwen3-4B ood_hard_200/mean_at_k @ ffb604e; Qwen__Qwen2.5-7B-Instruct val_mixed_100/greedy @ ffb604e; Qwen__Qwen2.5-7B-Instruct val_mixed_100/mean_at_k @ ffb604e; Qwen__Qwen2.5-7B-Instruct test_300/greedy @ ffb604e; Qwen__Qwen2.5-7B-Instruct test_300/mean_at_k @ ffb604e; Qwen__Qwen2.5-7B-Instruct test_300/pass_at_k @ ffb604e; Qwen__Qwen2.5-7B-Instruct ood_hard_200/greedy @ ffb604e; Qwen__Qwen2.5-7B-Instruct ood_hard_200/mean_at_k @ ffb604e; meta-llama__Llama-3.1-8B-Instruct val_mixed_100/greedy @ ffb604e; meta-llama__Llama-3.1-8B-Instruct val_mixed_100/mean_at_k @ ffb604e; meta-llama__Llama-3.1-8B-Instruct test_300/greedy @ ffb604e; meta-llama__Llama-3.1-8B-Instruct test_300/mean_at_k @ ffb604e; meta-llama__Llama-3.1-8B-Instruct test_300/pass_at_k @ ffb604e; meta-llama__Llama-3.1-8B-Instruct ood_hard_200/greedy @ ffb604e; meta-llama__Llama-3.1-8B-Instruct ood_hard_200/mean_at_k @ ffb604e; grpo_curated/seed3 test_300/pass_at_k @ 52b4b42; grpo_curated/seed3 gsm8k_500/greedy @ 52b4b42; grpo_curated/seed3 gsm8k_500/mean_at_k @ 52b4b42",
+    "meta.json cost fields use $4.29/h; Lambda billed $3.29/h. GPU-hours are the primary quantity; every dollar figure names its rate."
+   ]
+  }
+ ],
+ "ok": true
+}

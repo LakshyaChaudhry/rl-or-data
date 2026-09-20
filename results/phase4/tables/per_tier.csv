@@ -1,0 +1,73 @@
+who,label,seed,tier,test_greedy,ci_low,ci_high,n_problems,truncation_rate,extraction_failure_rate
+base,Base,1,easy,0.92,0.86,0.97,100,0.03,0.03
+base,Base,1,medium,0.81,0.73,0.88,100,0.05,0.05
+base,Base,1,hard,0.29,0.20975000000000021,0.38,100,0.05,0.05
+Qwen__Qwen3-4B,Qwen3-4B (non-thinking),1,easy,0.95,0.9,0.99,100,0.02,0.02
+Qwen__Qwen3-4B,Qwen3-4B (non-thinking),1,medium,0.83,0.76,0.9,100,0.04,0.04
+Qwen__Qwen3-4B,Qwen3-4B (non-thinking),1,hard,0.46,0.36,0.56,100,0.06,0.06
+Qwen__Qwen2.5-7B-Instruct,Qwen2.5-7B-Instruct,1,easy,0.91,0.85,0.96,100,0.0,0.0
+Qwen__Qwen2.5-7B-Instruct,Qwen2.5-7B-Instruct,1,medium,0.76,0.67,0.84,100,0.03,0.03
+Qwen__Qwen2.5-7B-Instruct,Qwen2.5-7B-Instruct,1,hard,0.29,0.2,0.38,100,0.04,0.04
+meta-llama__Llama-3.1-8B-Instruct,Llama-3.1-8B-Instruct,1,easy,0.67,0.58,0.76,100,0.06,0.06
+meta-llama__Llama-3.1-8B-Instruct,Llama-3.1-8B-Instruct,1,medium,0.38,0.28,0.48,100,0.11,0.11
+meta-llama__Llama-3.1-8B-Instruct,Llama-3.1-8B-Instruct,1,hard,0.07,0.02,0.12,100,0.17,0.17
+rft_easy/seed1,RFT-Easy,1,easy,0.94,0.89,0.98,100,0.0,0.0
+rft_easy/seed1,RFT-Easy,1,medium,0.81,0.73,0.88,100,0.02,0.02
+rft_easy/seed1,RFT-Easy,1,hard,0.24,0.16,0.33,100,0.05,0.05
+rft_easy/seed2,RFT-Easy,2,easy,0.94,0.89,0.98,100,0.0,0.0
+rft_easy/seed2,RFT-Easy,2,medium,0.77,0.69,0.85,100,0.03,0.03
+rft_easy/seed2,RFT-Easy,2,hard,0.23,0.15,0.31,100,0.07,0.07
+rft_easy/seed3,RFT-Easy,3,easy,0.93,0.88,0.97,100,0.01,0.01
+rft_easy/seed3,RFT-Easy,3,medium,0.84,0.77,0.91,100,0.0,0.0
+rft_easy/seed3,RFT-Easy,3,hard,0.23,0.15,0.32,100,0.04,0.04
+rft_mixed/seed1,RFT-Mixed,1,easy,0.96,0.92,0.99,100,0.01,0.01
+rft_mixed/seed1,RFT-Mixed,1,medium,0.84,0.77,0.91,100,0.01,0.01
+rft_mixed/seed1,RFT-Mixed,1,hard,0.32,0.23,0.41,100,0.06,0.06
+rft_mixed/seed2,RFT-Mixed,2,easy,0.97,0.93,1.0,100,0.0,0.0
+rft_mixed/seed2,RFT-Mixed,2,medium,0.8,0.72,0.87,100,0.02,0.02
+rft_mixed/seed2,RFT-Mixed,2,hard,0.29,0.2,0.38,100,0.03,0.03
+rft_mixed/seed3,RFT-Mixed,3,easy,0.95,0.9,0.99,100,0.01,0.01
+rft_mixed/seed3,RFT-Mixed,3,medium,0.85,0.77,0.92,100,0.01,0.01
+rft_mixed/seed3,RFT-Mixed,3,hard,0.28,0.2,0.37,100,0.03,0.03
+rft_curated/seed1,RFT-Curated,1,easy,0.97,0.93,1.0,100,0.0,0.0
+rft_curated/seed1,RFT-Curated,1,medium,0.75,0.66,0.83,100,0.02,0.02
+rft_curated/seed1,RFT-Curated,1,hard,0.3,0.21,0.39,100,0.06,0.06
+rft_curated/seed2,RFT-Curated,2,easy,0.93,0.88,0.98,100,0.03,0.03
+rft_curated/seed2,RFT-Curated,2,medium,0.78,0.7,0.86,100,0.03,0.03
+rft_curated/seed2,RFT-Curated,2,hard,0.26,0.18,0.35,100,0.04,0.04
+rft_curated/seed3,RFT-Curated,3,easy,0.97,0.93,1.0,100,0.0,0.0
+rft_curated/seed3,RFT-Curated,3,medium,0.84,0.76,0.91,100,0.02,0.02
+rft_curated/seed3,RFT-Curated,3,hard,0.22,0.14,0.3,100,0.08,0.08
+grpo_easy/seed1,GRPO-Easy,1,easy,0.97,0.93,1.0,100,0.01,0.01
+grpo_easy/seed1,GRPO-Easy,1,medium,0.9,0.84,0.96,100,0.05,0.05
+grpo_easy/seed1,GRPO-Easy,1,hard,0.46,0.36,0.56,100,0.07,0.07
+grpo_easy/seed2,GRPO-Easy,2,easy,0.97,0.93,1.0,100,0.01,0.01
+grpo_easy/seed2,GRPO-Easy,2,medium,0.82,0.74,0.89,100,0.03,0.03
+grpo_easy/seed2,GRPO-Easy,2,hard,0.31,0.22,0.4,100,0.06,0.06
+grpo_easy/seed3,GRPO-Easy,3,easy,0.97,0.93,1.0,100,0.0,0.0
+grpo_easy/seed3,GRPO-Easy,3,medium,0.84,0.77,0.91,100,0.02,0.02
+grpo_easy/seed3,GRPO-Easy,3,hard,0.45,0.35,0.55,100,0.02,0.02
+grpo_mixed/seed1,GRPO-Mixed,1,easy,0.93,0.88,0.98,100,0.06,0.06
+grpo_mixed/seed1,GRPO-Mixed,1,medium,0.87,0.8,0.93,100,0.04,0.04
+grpo_mixed/seed1,GRPO-Mixed,1,hard,0.56,0.46,0.66,100,0.1,0.1
+grpo_mixed/seed2,GRPO-Mixed,2,easy,0.94,0.89,0.98,100,0.04,0.04
+grpo_mixed/seed2,GRPO-Mixed,2,medium,0.87,0.8,0.93,100,0.09,0.09
+grpo_mixed/seed2,GRPO-Mixed,2,hard,0.57,0.48,0.66,100,0.18,0.18
+grpo_mixed/seed3,GRPO-Mixed,3,easy,0.9,0.84,0.95,100,0.08,0.08
+grpo_mixed/seed3,GRPO-Mixed,3,medium,0.84,0.77,0.91,100,0.07,0.07
+grpo_mixed/seed3,GRPO-Mixed,3,hard,0.61,0.51,0.7,100,0.12,0.12
+grpo_curated/seed1,GRPO-Curated,1,easy,0.96,0.92,0.99,100,0.04,0.04
+grpo_curated/seed1,GRPO-Curated,1,medium,0.9,0.84,0.95,100,0.02,0.02
+grpo_curated/seed1,GRPO-Curated,1,hard,0.52,0.42,0.61,100,0.1,0.1
+grpo_curated/seed2,GRPO-Curated,2,easy,0.89,0.83,0.95,100,0.09,0.09
+grpo_curated/seed2,GRPO-Curated,2,medium,0.87,0.8,0.93,100,0.05,0.05
+grpo_curated/seed2,GRPO-Curated,2,hard,0.52,0.42,0.62,100,0.14,0.14
+grpo_curated/seed3,GRPO-Curated,3,easy,0.94,0.89,0.98,100,0.03,0.03
+grpo_curated/seed3,GRPO-Curated,3,medium,0.86,0.79,0.92,100,0.06,0.06
+grpo_curated/seed3,GRPO-Curated,3,hard,0.54,0.44,0.64,100,0.15,0.15
+c1_random_reward/seed1,C1 random reward,1,easy,0.79,0.71,0.87,100,0.04,0.04
+c1_random_reward/seed1,C1 random reward,1,medium,0.5,0.4,0.6,100,0.04,0.04
+c1_random_reward/seed1,C1 random reward,1,hard,0.14,0.08,0.21,100,0.06,0.06
+c2_format_only/seed1,C2 format only,1,easy,0.94,0.89,0.98,100,0.01,0.01
+c2_format_only/seed1,C2 format only,1,medium,0.73,0.64,0.82,100,0.0,0.0
+c2_format_only/seed1,C2 format only,1,hard,0.24,0.16,0.32,100,0.02,0.02
