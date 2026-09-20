@@ -1,0 +1,25 @@
+cap_yaml: configs/locked/cap.yaml
+decoding:
+  repetition_penalty: 1.0
+  temperature: 1.0
+  top_p: 1.0
+draw_seed_offset: 100000
+kind: rft_draw
+max_completion_tokens: 4352
+model_id: Qwen/Qwen3-4B-Base
+prompt_template: 'Solve the following problem. Think step by step, then give the final
+  answer on the last line in the form "Answer: <integer>".
+
+
+  Problem: {problem_text}
+
+  '
+sampler_seed: 100001
+samples_per_prompt: 192
+seed: 1
+splits:
+- train_easy_100
+- train_mixed_100
+stub: false
+tiering_k: 8
+tiering_samples: data/samples/tiering_pass8.jsonl

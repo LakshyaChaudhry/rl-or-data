@@ -1,0 +1,27 @@
+{
+  "batch_size": 16,
+  "completions_available": 19200,
+  "completions_consumed": 13834,
+  "correct_after_dedup": 13834,
+  "correct_before_dedup": 13851,
+  "epoch_adapters": [
+    "runs/rft/rft_easy/seed1_lr5e-05_ep2/adapter/epoch_1",
+    "runs/rft/rft_easy/seed1_lr5e-05_ep2/adapter/epoch_2"
+  ],
+  "epochs": 2,
+  "final_adapter": "runs/rft/rft_easy/seed1_lr5e-05_ep2/adapter/final",
+  "learning_rate": 5e-05,
+  "max_per_problem": null,
+  "optimizer_steps": 1730,
+  "per_tier_examples": {
+    "easy": 13834
+  },
+  "per_tier_prompts": {
+    "easy": 100
+  },
+  "prompts": 100,
+  "prompts_parent_split": 100,
+  "select_mode": "all",
+  "total_tokens_forwarded": 14418170,
+  "training_tokens": 11809274
+}

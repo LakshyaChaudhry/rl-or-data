@@ -1,0 +1,72 @@
+adapter: runs/grpo/grpo_curated_s2/adapter/step_300
+adapter_mode: vllm_native_lora
+answer_regex: 'normalise_answer_line(line) then: ^\s*(?:final\s+)?answer\s*:\s*\$?(?:\\boxed\{)?\s*(-?\d{1,3}(?:,\d{3})+|-?\d+)\s*\}?\$?\s*[.,]?\s*$
+  || \\boxed\{\s*(-?\d{1,3}(?:,\d{3})+|-?\d+)\s*\} || fallback: last integer in the
+  completion (not when truncated)'
+arm: grpo
+cap_is_provisional: false
+cap_yaml: configs/locked/cap.yaml
+chat_template_kwargs: null
+decoding:
+  ks:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 32
+  - 64
+  n: 64
+  name: pass_at_k
+  repetition_penalty: 1.0
+  temperature: 1.0
+  top_p: 1.0
+eval_set: final
+extraction_rule: v1.6
+kind: rft_eval
+max_completion_tokens: 4352
+max_prompt_tokens: 4096
+merged_model_dir: null
+model:
+  arm: grpo
+  id: Qwen/Qwen3-4B-Base
+  kind: base
+  lora_path: runs/grpo/grpo_curated_s2/adapter/step_300
+n_problems: 100
+problem_ids_sha256: 2be7e27b899fb50b8f79db8795b8fc451b9e85547249ff90c5017a32ef60f266
+prompt_template: 'Solve the following problem. Think step by step, then give the final
+  answer on the last line in the form "Answer: <integer>".
+
+
+  Problem: {problem_text}
+
+  '
+run_id: rft_eval_grpo_grpo_curated_s2_test_300_pass_at_k_seed2
+sampler:
+  batch_invariant: true
+  batch_invariant_env: '1'
+  cap_is_provisional: false
+  dtype: bfloat16
+  enable_prefix_caching: false
+  gpu_memory_utilization: 0.9
+  llm_kwargs: {}
+  lora_path: runs/grpo/grpo_curated_s2/adapter/step_300
+  max_completion_tokens: 4352
+  max_prompt_tokens: 4096
+  model_id: Qwen/Qwen3-4B-Base
+  model_kind: base
+  repetition_penalty: 1.0
+  sampler: vllm
+  seed: 2
+  seed_scheme: 'per_prompt: seed + prompt_index * n; vLLM child seeds add sample index'
+  vllm_version: 0.28.0
+seed: 2
+seed_train: 2
+source_config: configs/grpo/curated.yaml
+split: test_300
+subset: test_300_first100
+thinking: false
+tokenizer_sha256_trainer: 8a5ddbb142c832ba35fe2cdd28548e5997b710c9bcdd6679923110f84cdf82c2
+tokenizer_sha256_vllm: 8a5ddbb142c832ba35fe2cdd28548e5997b710c9bcdd6679923110f84cdf82c2
+train_config_hash: cdf988d0d18cbeda1b045995e843145fc0c789df34bfce6bd1e8c4ccdff5b213
+train_run_dir: runs/grpo/grpo_curated_s2

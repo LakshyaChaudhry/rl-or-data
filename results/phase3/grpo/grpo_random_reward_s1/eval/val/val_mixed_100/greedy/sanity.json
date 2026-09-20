@@ -1,0 +1,5 @@
+{
+  "adapter": "runs/grpo/grpo_random_reward_s1/adapter/step_200",
+  "eval_set": "val",
+  "protocol_vs_base": "ok"
+}

@@ -1,0 +1,6 @@
+{
+  "lora_dir": "/tmp/rlordata_vllm_lora_grpo_curated_s2_6aoj5_u3",
+  "max_lora_rank": 64,
+  "syncs": 300,
+  "vllm_policy_sync": "vllm_native_lora"
+}

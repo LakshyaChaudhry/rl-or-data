@@ -1,0 +1,64 @@
+adapter: runs/rft/rft_easy/seed1_lr1e-05_ep2/adapter/final
+answer_regex: 'normalise_answer_line(line) then: ^\s*(?:final\s+)?answer\s*:\s*\$?(?:\\boxed\{)?\s*(-?\d{1,3}(?:,\d{3})+|-?\d+)\s*\}?\$?\s*[.,]?\s*$
+  || \\boxed\{\s*(-?\d{1,3}(?:,\d{3})+|-?\d+)\s*\} || fallback: last integer in the
+  completion (not when truncated)'
+arm: rft_easy
+cap_is_provisional: false
+cap_yaml: configs/locked/cap.yaml
+chat_template_kwargs: null
+decoding:
+  ks: null
+  n: 1
+  name: greedy
+  repetition_penalty: 1.0
+  temperature: 0.0
+  top_p: 1.0
+eval_set: val
+extraction_rule: v1.6
+kind: rft_eval
+max_completion_tokens: 4352
+max_prompt_tokens: 4096
+merged_model_dir: /tmp/rlordata_merged_svro1vh6/merged
+model:
+  arm: rft_easy
+  id: Qwen/Qwen3-4B-Base
+  kind: base
+  lora_path: runs/rft/rft_easy/seed1_lr1e-05_ep2/adapter/final
+n_problems: 100
+problem_ids_sha256: f56d989915dcc48f69a71b20be8d9faa3d7f4a9880c7fea08fb1e54641b676c2
+prompt_template: 'Solve the following problem. Think step by step, then give the final
+  answer on the last line in the form "Answer: <integer>".
+
+
+  Problem: {problem_text}
+
+  '
+run_id: rft_eval_rft_easy_seed1_lr1e-05_ep2_val_mixed_100_greedy_seed1
+sampler:
+  batch_invariant: true
+  batch_invariant_env: '1'
+  cap_is_provisional: false
+  dtype: bfloat16
+  enable_prefix_caching: false
+  gpu_memory_utilization: 0.9
+  llm_kwargs: {}
+  lora_path: null
+  max_completion_tokens: 4352
+  max_prompt_tokens: 4096
+  model_id: /tmp/rlordata_merged_svro1vh6/merged
+  model_kind: base
+  repetition_penalty: 1.0
+  sampler: vllm
+  seed: 1
+  seed_scheme: 'per_prompt: seed + prompt_index * n; vLLM child seeds add sample index'
+  vllm_version: 0.28.0
+seed: 1
+seed_train: 1
+source_config: configs/rft/easy.yaml
+split: val_mixed_100
+subset: null
+thinking: false
+tokenizer_sha256_trainer: 8a5ddbb142c832ba35fe2cdd28548e5997b710c9bcdd6679923110f84cdf82c2
+tokenizer_sha256_vllm: 8a5ddbb142c832ba35fe2cdd28548e5997b710c9bcdd6679923110f84cdf82c2
+train_config_hash: 381b93395ad7074f0dac92323a2552390170c4166f04c41aae9d1e6f7dfe549b
+train_run_dir: runs/rft/rft_easy/seed1_lr1e-05_ep2

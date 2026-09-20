@@ -1,0 +1,6 @@
+### 2026-09-19 — rft_eval_grpo_grpo_curated_s3_gsm8k_500_greedy_seed3
+- Config hash: 74a517c2daf6 | git SHA: 52b4b42cc74f | GPU: NVIDIA H100 PCIe | wall-clock: | est. cost:
+- What I ran / decided:
+- Result (with n, seed, CI, truncation%):
+- What I learned (one sentence):
+- Next:

@@ -1,0 +1,73 @@
+append_eos: true
+arm: rft_easy
+batch_size: 16
+budgets:
+  completions_available: 19200
+  completions_consumed: 13834
+  correct_after_dedup: 13834
+  correct_before_dedup: 13851
+  max_per_problem: null
+  per_tier_examples:
+    easy: 13834
+  per_tier_prompts:
+    easy: 100
+  prompts: 100
+  prompts_parent_split: 100
+  select_mode: all
+cap_yaml: configs/locked/cap.yaml
+checkpoint: adapter at every epoch end; final = last epoch (no early stopping)
+data_condition: train_easy_100
+draw_file: data/samples/base_train_easy_100_k192_seed1.jsonl
+eos_token_id: 151643
+epochs: 2
+kind: rft_train
+lora:
+  bias: none
+  lora_alpha: 16
+  lora_dropout: 0.0
+  r: 64
+  target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+  task_type: CAUSAL_LM
+loss: core.sft_loss(core.completion_logprobs) token-mean, prompt masked, micro-batches
+  weighted by completion tokens
+max_completion_tokens: 4352
+micro_batch_size: 4
+model_id: Qwen/Qwen3-4B-Base
+n_examples: 13834
+optimizer:
+  betas:
+  - 0.9
+  - 0.999
+  grad_clip: 1.0
+  learning_rate: 0.0001
+  name: adamw
+  weight_decay: 0.0
+parameters:
+  total_parameters: 4154588672
+  trainable_parameters: 132120576
+precision: bfloat16
+prompt_template: 'Solve the following problem. Think step by step, then give the final
+  answer on the last line in the form "Answer: <integer>".
+
+
+  Problem: {problem_text}
+
+  '
+samples_per_prompt: 192
+schedule:
+  name: cosine
+  warmup_ratio: 0.1
+seed: 1
+select:
+  max_per_problem: null
+  mode: all
+source_config: configs/rft/easy.yaml
+tokenizer_sha256: 8a5ddbb142c832ba35fe2cdd28548e5997b710c9bcdd6679923110f84cdf82c2
+training_yaml: configs/locked/training.yaml

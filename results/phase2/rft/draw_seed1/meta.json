@@ -1,0 +1,81 @@
+{
+  "config_hash": "4853d15b6e525650d52a521d5ce8c24c842f15dae93a008a1c0fba29321f30ff",
+  "cost_usd_actual": 2.4882,
+  "finished_at": "2026-09-13T00:03:37+00:00",
+  "git_dirty": false,
+  "git_sha": "a90d24e7e00ce329978229d8a0c9f51f139990e2",
+  "gpu_hours_actual": 0.579989,
+  "gpu_rate_usd_per_hour": 4.29,
+  "gpu_type": "NVIDIA H100 PCIe",
+  "hostname": "209-20-158-209",
+  "package_versions": {
+    "numpy": "2.3.5",
+    "peft": "0.20.0",
+    "reasoning-gym": "0.1.25",
+    "rlordata": "0.1.0",
+    "torch": "2.13.0",
+    "transformers": "5.16.1",
+    "trl": "1.12.0",
+    "vllm": "0.28.0"
+  },
+  "platform": "Linux-6.8.0-1046-nvidia-x86_64-with-glibc2.35",
+  "python": "3.11.16",
+  "run_id": "rft_draw_seed1",
+  "started_at": "2026-09-12T23:28:49+00:00",
+  "status": "finished",
+  "summaries": {
+    "train_easy_100": {
+      "extraction_failure_rate": 0.006458333333333333,
+      "mean_pass_rate": 0.72140625,
+      "n_correct": 13851,
+      "n_problems": 100,
+      "n_samples": 19200,
+      "pass8_histogram": {
+        "0": 0,
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 51,
+        "7": 31,
+        "8": 18
+      },
+      "path": "data/samples/base_train_easy_100_k192_seed1.jsonl",
+      "per_tier_pass_rate": {
+        "easy": 0.7165217391304348,
+        "untiered": 0.83375
+      },
+      "samples_per_problem": 192,
+      "truncation_rate": 0.0018229166666666667
+    },
+    "train_mixed_100": {
+      "extraction_failure_rate": 0.0053125,
+      "mean_pass_rate": 0.41463541666666665,
+      "n_correct": 7961,
+      "n_problems": 100,
+      "n_samples": 19200,
+      "pass8_histogram": {
+        "0": 20,
+        "1": 14,
+        "2": 12,
+        "3": 6,
+        "4": 6,
+        "5": 9,
+        "6": 15,
+        "7": 11,
+        "8": 7
+      },
+      "path": "data/samples/base_train_mixed_100_k192_seed1.jsonl",
+      "per_tier_pass_rate": {
+        "easy": 0.72167325428195,
+        "hard": 0.09287084398976982,
+        "medium": 0.43642951251646905,
+        "untiered": 0.435
+      },
+      "samples_per_problem": 192,
+      "truncation_rate": 0.0028125
+    }
+  },
+  "wall_clock_s": 2087.96
+}

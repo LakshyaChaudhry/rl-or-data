@@ -1,0 +1,22 @@
+{
+  "checkpoint_every_steps": 25,
+  "completions_available": 19200,
+  "completions_consumed": 19200,
+  "eval_step": 300,
+  "final_adapter": "runs/grpo/grpo_format_only_s1/adapter/step_300",
+  "final_adapter_trained": "runs/grpo/grpo_format_only_s1/adapter/final",
+  "generation_batch_size": 64,
+  "gpu_hours_train": 4.994521,
+  "max_steps": 300,
+  "optimizer_steps": 300,
+  "prompts": 100,
+  "result_bearing": true,
+  "reward": "format_only",
+  "step_adapters": {
+    "100": "runs/grpo/grpo_format_only_s1/adapter/step_100",
+    "200": "runs/grpo/grpo_format_only_s1/adapter/step_200",
+    "300": "runs/grpo/grpo_format_only_s1/adapter/step_300"
+  },
+  "tokenizer_sha256": "8a5ddbb142c832ba35fe2cdd28548e5997b710c9bcdd6679923110f84cdf82c2",
+  "training_tokens": 10844177
+}

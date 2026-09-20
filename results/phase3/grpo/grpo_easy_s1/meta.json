@@ -1,0 +1,32 @@
+{
+  "arm": "grpo",
+  "config_hash": "9601e0f7f5ea14669b8045e7a9a9d5f3c3e9e86bff8c2af06541759b1bb37013",
+  "cost_usd_actual": 24.8655,
+  "data_condition": "train_easy_100",
+  "finished_at": "2026-09-16T14:27:05+00:00",
+  "git_dirty": false,
+  "git_sha": "a794085a16be965c7f55edd7ce673a20e08b2e1f",
+  "gpu_hours_actual": 5.796165,
+  "gpu_hours_train": 5.78444163016639,
+  "gpu_rate_usd_per_hour": 4.29,
+  "gpu_type": "NVIDIA H100 PCIe",
+  "hostname": "209-20-159-250",
+  "package_versions": {
+    "numpy": "2.3.5",
+    "peft": "0.20.0",
+    "reasoning-gym": "0.1.25",
+    "rlordata": "0.1.0",
+    "torch": "2.13.0",
+    "transformers": "5.16.1",
+    "trl": "1.13.0",
+    "vllm": "0.28.0"
+  },
+  "platform": "Linux-6.8.0-1046-nvidia-x86_64-with-glibc2.35",
+  "python": "3.11.16",
+  "result_bearing": true,
+  "run_id": "grpo_easy_s1",
+  "seed": 1,
+  "started_at": "2026-09-16T08:39:19+00:00",
+  "status": "finished",
+  "wall_clock_s": 20866.195
+}

@@ -1,0 +1,5 @@
+{
+  "adapter": "runs/grpo/grpo_curated_s3/adapter/step_200",
+  "eval_set": "val",
+  "protocol_vs_base": "ok"
+}

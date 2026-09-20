@@ -1,0 +1,72 @@
+adapter: runs/rft/rft_easy/seed1_lr5e-05_ep8/adapter/final
+adapter_mode: vllm_native_lora
+answer_regex: 'normalise_answer_line(line) then: ^\s*(?:final\s+)?answer\s*:\s*\$?(?:\\boxed\{)?\s*(-?\d{1,3}(?:,\d{3})+|-?\d+)\s*\}?\$?\s*[.,]?\s*$
+  || \\boxed\{\s*(-?\d{1,3}(?:,\d{3})+|-?\d+)\s*\} || fallback: last integer in the
+  completion (not when truncated)'
+arm: rft_easy
+cap_is_provisional: false
+cap_yaml: configs/locked/cap.yaml
+chat_template_kwargs: null
+decoding:
+  ks:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 32
+  - 64
+  n: 64
+  name: pass_at_k
+  repetition_penalty: 1.0
+  temperature: 1.0
+  top_p: 1.0
+eval_set: final
+extraction_rule: v1.6
+kind: rft_eval
+max_completion_tokens: 4352
+max_prompt_tokens: 4096
+merged_model_dir: null
+model:
+  arm: rft_easy
+  id: Qwen/Qwen3-4B-Base
+  kind: base
+  lora_path: runs/rft/rft_easy/seed1_lr5e-05_ep8/adapter/final
+n_problems: 100
+problem_ids_sha256: 2be7e27b899fb50b8f79db8795b8fc451b9e85547249ff90c5017a32ef60f266
+prompt_template: 'Solve the following problem. Think step by step, then give the final
+  answer on the last line in the form "Answer: <integer>".
+
+
+  Problem: {problem_text}
+
+  '
+run_id: rft_eval_rft_easy_seed1_lr5e-05_ep8_test_300_pass_at_k_seed1
+sampler:
+  batch_invariant: true
+  batch_invariant_env: '1'
+  cap_is_provisional: false
+  dtype: bfloat16
+  enable_prefix_caching: false
+  gpu_memory_utilization: 0.9
+  llm_kwargs: {}
+  lora_path: runs/rft/rft_easy/seed1_lr5e-05_ep8/adapter/final
+  max_completion_tokens: 4352
+  max_prompt_tokens: 4096
+  model_id: Qwen/Qwen3-4B-Base
+  model_kind: base
+  repetition_penalty: 1.0
+  sampler: vllm
+  seed: 1
+  seed_scheme: 'per_prompt: seed + prompt_index * n; vLLM child seeds add sample index'
+  vllm_version: 0.28.0
+seed: 1
+seed_train: 1
+source_config: configs/rft/easy.yaml
+split: test_300
+subset: test_300_first100
+thinking: false
+tokenizer_sha256_trainer: 8a5ddbb142c832ba35fe2cdd28548e5997b710c9bcdd6679923110f84cdf82c2
+tokenizer_sha256_vllm: 8a5ddbb142c832ba35fe2cdd28548e5997b710c9bcdd6679923110f84cdf82c2
+train_config_hash: d0fda31018562cc6b4552d7943b1840c9ce7e8edc8ef2be592b2443c52485efa
+train_run_dir: runs/rft/rft_easy/seed1_lr5e-05_ep8

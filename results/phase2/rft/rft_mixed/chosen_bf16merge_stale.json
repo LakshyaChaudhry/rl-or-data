@@ -1,0 +1,9 @@
+{
+  "arm": "rft_mixed",
+  "epochs": 8,
+  "learning_rate": 5e-05,
+  "selected_on": "val_mixed_100",
+  "sweep_run_dir": "runs/rft/rft_mixed/seed1_lr5e-05_ep8",
+  "tie_break": "fewer epochs, then lower learning rate",
+  "val_accuracy": 0.69
+}

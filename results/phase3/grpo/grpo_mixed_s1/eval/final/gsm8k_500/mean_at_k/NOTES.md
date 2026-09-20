@@ -1,0 +1,6 @@
+### 2026-09-16 — rft_eval_grpo_grpo_mixed_s1_gsm8k_500_mean_at_k_seed1
+- Config hash: 3c9822014fd5 | git SHA: 46066ad9057d | GPU: NVIDIA H100 PCIe | wall-clock: | est. cost:
+- What I ran / decided:
+- Result (with n, seed, CI, truncation%):
+- What I learned (one sentence):
+- Next:

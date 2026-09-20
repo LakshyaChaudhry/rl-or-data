@@ -1,0 +1,55 @@
+{
+  "accuracy": 0.918,
+  "answer_line_rate": 0.848,
+  "arm": "rft_mixed",
+  "at_cap_rate": 0.0,
+  "ci_high": 0.942,
+  "ci_low": 0.892,
+  "config_hash": "0f4dc34b5eb605acb996a3681f1b4f58dd5cd9dffdab60baae26ccd204742c2d",
+  "decoding": "greedy",
+  "extraction_failure_rate": 0.0,
+  "flags": {
+    "extraction_failure_gt_5pct": false,
+    "truncation_gt_5pct": false
+  },
+  "max_completion_tokens": 4352,
+  "mean_completion_tokens": 252.722,
+  "model_id": "Qwen/Qwen3-4B-Base",
+  "n": 1,
+  "n_problems": 500,
+  "n_samples": 500,
+  "pass_at_k": {
+    "1": 0.918
+  },
+  "per_tier": {
+    "untiered": 0.918
+  },
+  "per_tier_answer_line_rate": {
+    "untiered": 0.848
+  },
+  "per_tier_at_cap_rate": {
+    "untiered": 0.0
+  },
+  "per_tier_extraction_failure_rate": {
+    "untiered": 0.0
+  },
+  "per_tier_n": {
+    "untiered": 500
+  },
+  "per_tier_n_samples": {
+    "untiered": 500
+  },
+  "per_tier_truncation_rate": {
+    "untiered": 0.0
+  },
+  "run_id": "rft_eval_rft_mixed_seed3_lr5e-05_ep4_gsm8k_500_greedy_seed3",
+  "sampler": "vllm",
+  "samples_per_problem": 1,
+  "seed": 3,
+  "split": "gsm8k_500",
+  "subset": null,
+  "temperature": 0.0,
+  "truncation_flag_policy": "flag",
+  "truncation_over_5pct": false,
+  "truncation_rate": 0.0
+}

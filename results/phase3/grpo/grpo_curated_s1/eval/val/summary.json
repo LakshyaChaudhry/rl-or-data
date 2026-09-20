@@ -1,0 +1,23 @@
+{
+  "val_mixed_100/greedy": {
+    "accuracy": 0.76,
+    "answer_line_rate": 0.98,
+    "ci_high": 0.84,
+    "ci_low": 0.67,
+    "extraction_failure_rate": 0.02,
+    "flags": {
+      "extraction_failure_gt_5pct": false,
+      "truncation_gt_5pct": false
+    },
+    "n_problems": 100,
+    "pass_at_k": {
+      "1": 0.76
+    },
+    "per_tier": {
+      "easy": 1.0,
+      "hard": 0.4117647058823529,
+      "medium": 0.8787878787878788
+    },
+    "truncation_rate": 0.02
+  }
+}

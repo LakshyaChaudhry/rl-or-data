@@ -1,0 +1,72 @@
+{
+  "accuracy": 0.50125,
+  "answer_line_rate": 0.8225,
+  "arm": "rft_mixed",
+  "at_cap_rate": 0.00875,
+  "ci_high": 0.57375,
+  "ci_low": 0.43,
+  "config_hash": "3e2ac461baa00b20919ae47bfa4d8c999ce6b300898dee53241ab2279cd88c99",
+  "decoding": "mean_at_k",
+  "extraction_failure_rate": 0.00875,
+  "flags": {
+    "extraction_failure_gt_5pct": false,
+    "truncation_gt_5pct": false
+  },
+  "max_completion_tokens": 4352,
+  "mean_completion_tokens": 608.345,
+  "model_id": "Qwen/Qwen3-4B-Base",
+  "n": 8,
+  "n_problems": 100,
+  "n_samples": 800,
+  "pass_at_k": {
+    "1": 0.50125,
+    "2": 0.6328571428571432,
+    "4": 0.7335714285714287,
+    "8": 0.81
+  },
+  "per_tier": {
+    "easy": 0.8484848484848485,
+    "hard": 0.12867647058823528,
+    "medium": 0.5378787878787878
+  },
+  "per_tier_answer_line_rate": {
+    "easy": 0.8446969696969697,
+    "hard": 0.7904411764705882,
+    "medium": 0.8333333333333334
+  },
+  "per_tier_at_cap_rate": {
+    "easy": 0.003787878787878788,
+    "hard": 0.022058823529411766,
+    "medium": 0.0
+  },
+  "per_tier_extraction_failure_rate": {
+    "easy": 0.003787878787878788,
+    "hard": 0.022058823529411766,
+    "medium": 0.0
+  },
+  "per_tier_n": {
+    "easy": 33,
+    "hard": 34,
+    "medium": 33
+  },
+  "per_tier_n_samples": {
+    "easy": 264,
+    "hard": 272,
+    "medium": 264
+  },
+  "per_tier_truncation_rate": {
+    "easy": 0.003787878787878788,
+    "hard": 0.022058823529411766,
+    "medium": 0.0
+  },
+  "run_id": "rft_eval_rft_mixed_seed2_lr5e-05_ep4_val_mixed_100_mean_at_k_seed2",
+  "sampler": "vllm",
+  "samples_per_problem": 8,
+  "seed": 2,
+  "split": "val_mixed_100",
+  "subset": null,
+  "temperature": 1.0,
+  "truncation_flag_policy": "flag",
+  "truncation_over_5pct": false,
+  "truncation_rate": 0.00875
+}
