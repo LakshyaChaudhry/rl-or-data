@@ -243,10 +243,13 @@ def fig_pass_at_k(ds: Dataset, results: dict[str, Any], path: Path) -> None:
     n_boot, seed = int(ds.cfg["n_boot"]), int(ds.cfg["seed"])
     key = ("test_300", "pass_at_k")
     groups = {**ds.arms, **ds.controls}
+    n_rows = -(
+        -len(groups) // 4
+    )  # 8 panels in Phase 4; a ninth (tasks/06b) must not push a control out
     fig, axes = plt.subplots(
-        2,
+        n_rows,
         4,
-        figsize=(12.5, 6.4),
+        figsize=(12.5, 3.2 * n_rows),
         sharex=True,
         sharey=True,
         gridspec_kw={"hspace": 0.28, "wspace": 0.08},
@@ -314,11 +317,15 @@ def fig_pass_at_k(ds: Dataset, results: dict[str, Any], path: Path) -> None:
         ax.set_title(runs[0].label)
         ax.legend(loc="lower right", bbox_to_anchor=(1.0, 0.09), fontsize=7.5)
         ax.set_ylim(0.25, 1.02)
-    for ax in axes[-1]:
-        ax.set_xlabel("k")
+    for ax in list(axes.flat)[len(groups) :]:
+        ax.set_visible(False)
+    for i, ax in enumerate(list(axes.flat)[: len(groups)]):
+        if i + 4 >= len(groups):  # last panel of its column
+            ax.set_xlabel("k")
+            ax.tick_params(labelbottom=True)
     for ax in axes[:, 0]:
         ax.set_ylabel("pass@k (unbiased, n = 64)")
-    fig.subplots_adjust(left=0.06, right=0.99, top=0.94, bottom=0.14)
+    fig.subplots_adjust(left=0.06, right=0.99, top=0.94, bottom=0.14 if n_rows == 2 else 0.1)
     _save(
         fig, path,
         "pass@k on the first 100 problems of test_300, 64 samples per problem at T = 1. Thin lines: seeds; thick: mean across seeds; "
@@ -506,6 +513,11 @@ def fig_budget(ds: Dataset, results: dict[str, Any], path: Path) -> None:
     handles = [
         Line2D([], [], marker="o", linestyle="none", color=COLORS["rft"], label="RFT"),
         Line2D([], [], marker="o", linestyle="none", color=COLORS["grpo"], label="GRPO"),
+        *(
+            [Line2D([], [], marker="^", linestyle="none", color=COLORS["iter_rft"], label="IterRFT (secondary)")]
+            if any(r["method"] == "iter_rft" for r in results["runs"].values())
+            else []
+        ),
         Line2D([], [], marker="D", linestyle="none", color=COLORS["control"], label="controls C1/C2"),
         Line2D([], [], marker="o", linestyle="none", color=INK_2, label="easy"),
         Line2D([], [], marker="s", linestyle="none", color=INK_2, label="mixed"),
@@ -516,7 +528,9 @@ def fig_budget(ds: Dataset, results: dict[str, Any], path: Path) -> None:
     fig.subplots_adjust(left=0.07, right=0.99, top=0.92, bottom=0.2)
     _save(
         fig, path,
-        "One marker per run (seeds 1–3, shifted ±2.5 % in x so identical budgets stay visible), bootstrap 95 % CI over problems. All runs had the same 19,200-completion generation budget; RFT trains for several epochs on the "
+        "One marker per run (seeds 1–3, shifted ±2.5 % in x so identical budgets stay visible), bootstrap 95 % CI over problems. All runs had the same 19,200-completion generation budget"
+        + (" (IterRFT, registered after unblinding: 14,016)" if any(r["method"] == "iter_rft" for r in results["runs"].values()) else "")
+        + "; RFT trains for several epochs on the "
         "verified-correct subset, GRPO once on everything (SPEC §8: the gradient/token budget cannot be equalised without changing the method).",
     )  # fmt: skip
 
