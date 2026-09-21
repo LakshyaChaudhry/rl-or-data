@@ -1,0 +1,148 @@
+# resolved analysis config; hash 3ba220e48a66ecea39529d81afa447c80b7382ee25caf2856fd1b3f0ed71c1ec
+arms:
+  grpo_curated:
+    data_condition: train_curated
+    label: GRPO-Curated
+    method: grpo
+    run_pattern: grpo/grpo_curated_s{seed}
+  grpo_easy:
+    data_condition: train_easy_100
+    label: GRPO-Easy
+    method: grpo
+    run_pattern: grpo/grpo_easy_s{seed}
+  grpo_mixed:
+    data_condition: train_mixed_100
+    label: GRPO-Mixed
+    method: grpo
+    run_pattern: grpo/grpo_mixed_s{seed}
+  iter_rft_curated:
+    data_condition: train_curated
+    label: IterRFT-Curated
+    method: iter_rft
+    run_pattern: rft/iter_rft_curated/seed{seed}
+    secondary: true
+  rft_curated:
+    data_condition: train_curated
+    dir: rft/rft_curated
+    label: RFT-Curated
+    method: rft
+  rft_easy:
+    data_condition: train_easy_100
+    dir: rft/rft_easy
+    label: RFT-Easy
+    method: rft
+  rft_mixed:
+    data_condition: train_mixed_100
+    dir: rft/rft_mixed
+    label: RFT-Mixed
+    method: rft
+base:
+  dir: eval/Qwen__Qwen3-4B-Base
+  label: Base
+  model_id: Qwen/Qwen3-4B-Base
+  transfer_dir: transfer_pick/Qwen__Qwen3-4B-Base
+controls:
+  c1_random_reward:
+    data_condition: train_mixed_100
+    label: C1 random reward
+    method: grpo
+    run_pattern: grpo/grpo_random_reward_s{seed}
+    seeds:
+    - 1
+  c2_format_only:
+    data_condition: train_mixed_100
+    label: C2 format only
+    method: grpo
+    run_pattern: grpo/grpo_format_only_s{seed}
+    seeds:
+    - 1
+exploratory:
+  cap_multiple: 2
+  dir: exploratory_cap8704
+  models:
+  - arm: base
+    name: base
+    seed: 1
+  - arm: rft_curated
+    name: rft_curated_s1
+    seed: 1
+  - arm: rft_curated
+    name: rft_curated_s2
+    seed: 2
+  - arm: rft_curated
+    name: rft_curated_s3
+    seed: 3
+  - arm: grpo_curated
+    name: grpo_curated_s1
+    seed: 1
+  - arm: grpo_curated
+    name: grpo_curated_s2
+    seed: 2
+  - arm: grpo_curated
+    name: grpo_curated_s3
+    seed: 3
+  - arm: iter_rft_curated
+    name: iter_rft_curated_s1
+    seed: 1
+  - arm: iter_rft_curated
+    name: iter_rft_curated_s2
+    seed: 2
+  - arm: iter_rft_curated
+    name: iter_rft_curated_s3
+    seed: 3
+final_units:
+- - val_mixed_100
+  - greedy
+- - val_mixed_100
+  - mean_at_k
+- - test_300
+  - greedy
+- - test_300
+  - mean_at_k
+- - test_300
+  - pass_at_k
+- - ood_hard_200
+  - greedy
+- - ood_hard_200
+  - mean_at_k
+- - gsm8k_500
+  - greedy
+- - gsm8k_500
+  - mean_at_k
+gpu_rate:
+  billed_usd_per_hour: 3.29
+  recorded_usd_per_hour: 4.29
+known_missing: []
+n_boot: 10000
+never_results:
+- fragment: _bf16merge_stale
+  why: superseded RFT selection evaluated through a bf16 merge (notebook 2026-09-17)
+- fragment: /rft_noeos_ablation/
+  why: "pre-amendment RFT runs trained without EOS (PREREGISTRATION \xA74, 2026-09-13)"
+- fragment: /grpo/_failed/
+  why: 2026-09-14 bf16-merge collapse of grpo_mixed_s1
+- fragment: /dev/
+  why: development runs
+- fragment: google__gemma
+  why: stub-sampler units only; Gemma was never really evaluated
+- fragment: .stale-
+  why: logs of the grpo_curated_s1 attempt that OOMed at step 5
+- fragment: /exploratory_cap
+  why: "tasks/06b C: re-generated at 2 \xD7 the locked cap after the primary results\
+    \ were seen (PREREGISTRATION \xA74, 2026-09-20); never a SPEC \xA710 number, reported\
+    \ only in its own asterisked table"
+references:
+- dir: eval/Qwen__Qwen3-4B
+  label: Qwen3-4B (non-thinking)
+- dir: eval/Qwen__Qwen2.5-7B-Instruct
+  label: Qwen2.5-7B-Instruct
+- dir: eval/meta-llama__Llama-3.1-8B-Instruct
+  label: Llama-3.1-8B-Instruct
+run_root: runs/store_mirror/runs
+seed: 0
+seeds:
+- 1
+- 2
+- 3
+splits_dir: data/splits
+store_checksums: runs/store_mirror/SHA256SUMS.store-20260919

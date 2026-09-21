@@ -1,0 +1,17 @@
+{
+ "analysis_config_hash": "3ba220e48a66ecea39529d81afa447c80b7382ee25caf2856fd1b3f0ed71c1ec",
+ "git_dirty": false,
+ "git_sha": "ed1d408390da2d06e44a3cffdf06b996fc08755a",
+ "gpu_type": "none (CPU-only analysis)",
+ "package_versions": {
+  "numpy": "2.3.5",
+  "peft": "0.20.0",
+  "reasoning-gym": "missing",
+  "rlordata": "0.1.0",
+  "torch": "2.13.0",
+  "transformers": "5.16.1",
+  "trl": "missing",
+  "vllm": "missing"
+ },
+ "wall_clock_s": 27.8
+}
