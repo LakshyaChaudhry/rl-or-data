@@ -2,7 +2,9 @@
 
 A committed snapshot of `outputs/` (gitignored) as written by `make analysis` at ed1d408 on 2026-09-21
 from `runs/store_mirror/runs`, plus the small provenance files of the new runs under `runs/` (no samples,
-no weights). Analysis config `configs/analysis/default.yaml`, hash `3ba220e48a66`; bootstrap seed 0,
+no weights). Figures (d) and (g) were regenerated at 61e1cf3 (tasks/07: the ninth arm had pushed the C2
+panel out of (d); (g) gained the IterRFT legend entry) — tables and sheets are byte-identical to ed1d408.
+Analysis config `configs/analysis/default.yaml`, hash `3ba220e48a66`; bootstrap seed 0,
 10,000 resamples; SPEC v1.8. Sanity: 13 checks pass with the new arm included. No file exceeds 1 MB.
 
 **Everything Phase 4 reported is unchanged.** `uv run python scripts/compare_phase_tables.py results/phase4

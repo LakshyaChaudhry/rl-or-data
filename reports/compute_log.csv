@@ -1,0 +1,44 @@
+group,category,n_meta_files,gpu_hours
+RFT-Easy,train,3,21.2787
+RFT-Easy,sweep,8,30.0685
+RFT-Easy,eval_final,27,1.4005
+RFT-Easy,eval_selection,9,0.2062
+RFT-Easy,eval_superseded,9,0.1571
+RFT-Mixed,train,3,6.9714
+RFT-Mixed,sweep,8,22.1138
+RFT-Mixed,eval_final,27,1.5234
+RFT-Mixed,eval_selection,9,0.2276
+RFT-Mixed,eval_superseded,9,0.1764
+RFT-Curated,train,3,5.8647
+RFT-Curated,sweep,8,18.4704
+RFT-Curated,eval_final,27,1.5252
+RFT-Curated,eval_selection,9,0.2344
+RFT-Curated,eval_superseded,9,0.1677
+GRPO-Easy,train,3,15.5019
+GRPO-Easy,eval_final,27,2.6673
+GRPO-Easy,eval_selection,12,0.3116
+GRPO-Mixed,train,3,27.0463
+GRPO-Mixed,eval_final,27,4.6660
+GRPO-Mixed,eval_selection,12,0.3238
+GRPO-Curated,train,3,25.0476
+GRPO-Curated,eval_final,27,4.0645
+GRPO-Curated,eval_selection,12,0.3219
+IterRFT-Curated (secondary),train,3,7.9842
+IterRFT-Curated (secondary),eval_final,27,1.6271
+IterRFT-Curated (secondary),eval_selection,9,0.2160
+C1 random reward,train,1,5.8463
+C1 random reward,eval_final,9,0.4256
+C1 random reward,eval_selection,4,0.1033
+C2 format only,train,1,5.0054
+C2 format only,eval_final,9,0.4464
+C2 format only,eval_selection,4,0.0637
+base + reference model evals (Phase 1; base gsm8k mean@8 from tasks/06b),other,36,3.1226
+pass@8 tiering of the pool (Phase 1),other,2,0.9028
+provisional cap run (Phase 1),other,1,0.0795
+transfer-set pick (Phase 1),other,3,0.0510
+"RFT base draw, 192 samples per prompt (shared by every RFT arm and seed)",other,1,0.5800
+"EXPLORATORY cap-8,704 re-eval (tasks/06b; never a SPEC §10 number)",other,20,1.4551
+RFT runs before the EOS amendment (never results; PREREGISTRATION §4),other,14,17.6371
+failed GRPO attempt: bf16-merge collapse of grpo_mixed_s1 (never a result),other,11,16.4937
+Gemma smoke test (stub-level; Gemma was never evaluated),other,7,0.1258
+development runs,other,33,0.1887
