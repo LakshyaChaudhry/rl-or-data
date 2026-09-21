@@ -557,6 +557,13 @@ def section_budgets(
             )
             passes = [int(b["completions_consumed"]) * int(b["epochs"]) for b in bs]
             cons = f"{bs[0]['completions_consumed']:,} distinct × {bs[0]['epochs']} epochs = {passes[0]:,}"
+        elif (
+            runs[0].method == "iter_rft"
+        ):  # tasks/06b: round 1 from the shared base draw, rounds 2–3 on-policy
+            gen = int(np.mean([b["completions_available"] for b in bs]))
+            gen_txt = f"{gen:,} per seed (round 1: first 64 per prompt of the shared base draw; rounds 2–3 on-policy)"
+            kept = [int(b["completions_consumed"]) for b in bs]
+            cons = f"{' / '.join(f'{k:,}' for k in kept)} distinct × {bs[0]['epochs']} epochs"
         else:
             gen = int(np.mean([b["completions_consumed"] for b in bs]))
             gen_txt = f"{gen:,} (on-policy, per seed)"

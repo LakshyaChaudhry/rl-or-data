@@ -42,6 +42,10 @@ arms:
   grpo_easy: {label: GRPO-Easy, method: grpo, data_condition: train_easy_100, run_pattern: "grpo/grpo_easy_s{seed}"}
   grpo_mixed: {label: GRPO-Mixed, method: grpo, data_condition: train_mixed_100, run_pattern: "grpo/grpo_mixed_s{seed}"}
   grpo_curated: {label: GRPO-Curated, method: grpo, data_condition: train_curated, run_pattern: "grpo/grpo_curated_s{seed}"}
+  # tasks/06b, SECONDARY: registered after unblinding (PREREGISTRATION §6, 2026-09-20). No sweep, no
+  # chosen.json: lr/epochs are reused from RFT-Curated and recorded in the run config. 3 rounds × 64
+  # samples per prompt on the frozen train_curated; final = after round 3.
+  iter_rft_curated: {label: IterRFT-Curated, method: iter_rft, data_condition: train_curated, run_pattern: "rft/iter_rft_curated/seed{seed}", secondary: true}
 
 controls:
   c1_random_reward: {label: C1 random reward, method: grpo, data_condition: train_mixed_100, run_pattern: "grpo/grpo_random_reward_s{seed}", seeds: [1]}
@@ -60,8 +64,8 @@ final_units:
   - [gsm8k_500, mean_at_k]
 
 # Cells that are known not to exist. They render as "missing", never as zero, and do not fail sanity.
-known_missing:
-  - {who: base, split: gsm8k_500, decoding: mean_at_k, why: "never evaluated (tasks/02 ran greedy only on the transfer set)"}
+# (tasks/06b D, 2026-09-20: base gsm8k_500 mean@8 now exists; the entry that stood here is gone.)
+known_missing: []
 
 # Things under run_root that are not results. Fragments are matched against "/<path relative to
 # run_root>/"; the loader refuses any path containing one, and the sanity output lists which exist.
@@ -72,3 +76,23 @@ never_results:
   - {fragment: "/dev/", why: "development runs"}
   - {fragment: "google__gemma", why: "stub-sampler units only; Gemma was never really evaluated"}
   - {fragment: ".stale-", why: "logs of the grpo_curated_s1 attempt that OOMed at step 5"}
+  - {fragment: "/exploratory_cap", why: "tasks/06b C: re-generated at 2 × the locked cap after the primary results were seen (PREREGISTRATION §4, 2026-09-20); never a SPEC §10 number, reported only in its own asterisked table"}
+
+# tasks/06b C — EXPLORATORY re-evaluation at 2 × the locked cap (PREREGISTRATION §4 deviation, 2026-09-20).
+# Never loaded as a result (see never_results); read only by analysis/appendix.py, which refuses a unit
+# that is not stamped `exploratory: true` at exactly cap_multiple × the locked cap, and printed only in
+# outputs/appendix/exploratory_cap.md, asterisked.
+exploratory:
+  dir: exploratory_cap8704
+  cap_multiple: 2
+  models:
+    - {name: base, arm: base, seed: 1}
+    - {name: rft_curated_s1, arm: rft_curated, seed: 1}
+    - {name: rft_curated_s2, arm: rft_curated, seed: 2}
+    - {name: rft_curated_s3, arm: rft_curated, seed: 3}
+    - {name: grpo_curated_s1, arm: grpo_curated, seed: 1}
+    - {name: grpo_curated_s2, arm: grpo_curated, seed: 2}
+    - {name: grpo_curated_s3, arm: grpo_curated, seed: 3}
+    - {name: iter_rft_curated_s1, arm: iter_rft_curated, seed: 1}
+    - {name: iter_rft_curated_s2, arm: iter_rft_curated, seed: 2}
+    - {name: iter_rft_curated_s3, arm: iter_rft_curated, seed: 3}

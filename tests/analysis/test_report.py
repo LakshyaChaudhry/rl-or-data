@@ -431,7 +431,8 @@ def test_structure_does_not_depend_on_test_or_ood_results(
 def test_default_config_names_real_protocol_files() -> None:
     cfg = loader.load_config(REPO / "configs/analysis/default.yaml")
     assert cfg["n_boot"] == 10_000 and cfg["seeds"] == [1, 2, 3]
-    assert set(cfg["arms"]) == {
+    confirmatory = {k for k, a in cfg["arms"].items() if not a.get("secondary")}
+    assert confirmatory == {
         "rft_easy",
         "rft_mixed",
         "rft_curated",
@@ -439,6 +440,10 @@ def test_default_config_names_real_protocol_files() -> None:
         "grpo_mixed",
         "grpo_curated",
     }
+    # tasks/06b: one secondary arm, registered after unblinding; its contrasts never join CONTRASTS
+    assert set(cfg["arms"]) - confirmatory == {"iter_rft_curated"}
+    assert not {c.key for c in report.CONTRASTS} & {c.key for c in report.SECONDARY_CONTRASTS}
+    assert all({c.a, c.b} & {"iter_rft_curated"} for c in report.SECONDARY_CONTRASTS)
     assert {c.key for c in report.CONTRASTS} >= {
         "H1_rft",
         "H1_grpo",

@@ -82,6 +82,21 @@ CONTRASTS: tuple[ContrastSpec, ...] = (
     ContrastSpec("aux_grpo_curation", "aux", "grpo_curated", "grpo_mixed", False),
 )
 
+# tasks/06b: registered AFTER unblinding (PREREGISTRATION §6, 2026-09-20), so never part of the
+# confirmatory H1–H3 analysis. Evaluated only when the arm is configured; appended after CONTRASTS so
+# every confirmatory row keeps its place. H3 = S2 + S1 exactly.
+SECONDARY_HYPOTHESIS = "secondary (registered after unblinding)"
+SECONDARY_CONTRASTS: tuple[ContrastSpec, ...] = (
+    ContrastSpec("S1_iter_vs_rft", SECONDARY_HYPOTHESIS, "iter_rft_curated", "rft_curated", True),
+    ContrastSpec("S2_grpo_vs_iter", SECONDARY_HYPOTHESIS, "grpo_curated", "iter_rft_curated", True),
+)
+
+
+def active_contrasts(ds: Dataset) -> tuple[ContrastSpec, ...]:
+    """CONTRASTS plus the secondary contrasts whose arms are configured."""
+    have = {"base", *ds.arms, *ds.controls}
+    return (*CONTRASTS, *(c for c in SECONDARY_CONTRASTS if {c.a, c.b} <= have))
+
 
 # ---------------------------------------------------------------------------
 # numbers
@@ -336,7 +351,7 @@ def build_results(ds: Dataset) -> dict[str, Any]:
             "tiers": arm_tier_cells(runs, n_boot=n_boot, seed=seed),
             "selection": ds.selection.get(key),
         }
-    for spec in CONTRASTS:
+    for spec in active_contrasts(ds):
         blocks = {
             m: contrast_block(ds, spec, m, n_boot=n_boot, seed=seed) for m in (*PRIMARY, *SECONDARY)
         }
@@ -518,6 +533,13 @@ def results_markdown(ds: Dataset, results: dict[str, Any], cfg_hash: str) -> str
             )
         elif a["method"] == "grpo":
             note = " — one fixed recipe (SPEC §9), nothing tuned"
+        elif a["method"] == "iter_rft":
+            b0 = results["budgets"][f"{key}/seed{a['seeds'][0]}"]
+            note = (
+                " — SECONDARY arm, registered after unblinding (PREREGISTRATION §6, 2026-09-20): 3 rounds × "
+                f"64 samples per prompt, each round continues the previous adapter; no sweep, lr={b0['learning_rate']:g}, "
+                f"epochs={b0['epochs']} reused from RFT-Curated; final = after round 3"
+            )
         out += [f"### {a['label']} ({a['data_condition']}){note}", ""]
         header = [
             "seed",
@@ -1114,7 +1136,9 @@ def wrong_list(ds: Dataset, results: dict[str, Any], key: str) -> list[str]:
         f"{bud('optimizer_steps', spec['b'], arm_b)}. Configurations tried on val: "
         f"{sel_a['n_configs_tried'] if sel_a else 1} vs {sel_b['n_configs_tried'] if sel_b else 1}"
         + (
-            " — RFT's config is the best of 9 on a 100-problem val set (partly noise; 'best on val', not "
+            _iter_rft_config_note(results, arm_a, arm_b)
+            if "iter_rft" in (arm_a["method"], arm_b["method"])
+            else " — RFT's config is the best of 9 on a 100-problem val set (partly noise; 'best on val', not "
             "'optimal'), GRPO ran one fixed recipe; the asymmetry tilts toward RFT (PREREGISTRATION §5)."
             if bool(sel_a) != bool(sel_b)
             else (
@@ -1144,6 +1168,8 @@ def wrong_list(ds: Dataset, results: dict[str, Any], key: str) -> list[str]:
         "equally. Evaluation side: both arms are scored on the identical problems (asserted), so there "
         "is no tier gap in test_300 (100/100/100) or ood_hard_200."
     )
+    if "iter_rft" in (arm_a["method"], arm_b["method"]):
+        out.append(SECONDARY_NOTE)
     # 5. seeds
     out.append(
         f"**Seed range overlap.** test greedy per seed: {la} {fmt_seeds(t['a_per_seed'])} vs {lb} "
@@ -1161,6 +1187,38 @@ def wrong_list(ds: Dataset, results: dict[str, Any], key: str) -> list[str]:
     return out
 
 
+SECONDARY_NOTE = (
+    "**Registered after unblinding; unequal seed variance.** This contrast was registered on 2026-09-20, "
+    "after the test_300 and ood_hard_200 results of all six arms had been seen (PREREGISTRATION §6): it is "
+    "secondary, not part of the confirmatory H1–H3 analysis. RFT-Curated's three seeds train on one shared "
+    "base-model draw, so its seed std omits sampling variance; IterRFT's rounds 2–3 are sampled per seed "
+    "from the current policy, so its seed std includes it (round 1 is the first 64 per prompt of the same "
+    "shared draw for every seed). The pooled seed std in the criterion mixes the two."
+)
+
+
+def _iter_rft_config_note(
+    results: dict[str, Any], arm_a: dict[str, Any], arm_b: dict[str, Any]
+) -> str:
+    """'Configurations tried' text for a contrast with the iterated-RFT arm on one side."""
+    other = arm_b if arm_a["method"] == "iter_rft" else arm_a
+    it = arm_a if arm_a["method"] == "iter_rft" else arm_b
+    key = next(k for k, a in results["arms"].items() if a is it)
+    b = results["budgets"][f"{key}/seed{it['seeds'][0]}"]
+    txt = (
+        f" — {it['label']} ran no sweep: it reuses lr={b['learning_rate']:g}/ep={b['epochs']}, the config "
+        "RFT-Curated selected as best of 9 on val for single-round RFT, not tuned for this arm "
+        "(PREREGISTRATION §4 deviation, §6); generation budget 3 rounds × 64 per prompt = 14,016 rollouts "
+        "(4,672 from the shared base draw, 9,344 from the current policy)"
+    )
+    if other.get("selection"):
+        return (
+            txt
+            + f"; {other['label']} uses the same val-selected config on its 14,016 draw samples."
+        )
+    return txt + f"; {other['label']} ran one fixed recipe on 19,200 on-policy rollouts (SPEC §9)."
+
+
 def wrong_markdown(ds: Dataset, results: dict[str, Any], cfg_hash: str) -> str:
     out = [
         "# How could this be wrong? (tasks/05 item 6, auto-generated per headline contrast)",
@@ -1169,7 +1227,7 @@ def wrong_markdown(ds: Dataset, results: dict[str, Any], cfg_hash: str) -> str:
         "1–3 (n = 300 test, 200 ood, greedy); CIs are paired problem bootstraps.",
         "",
     ]
-    for spec in CONTRASTS:
+    for spec in active_contrasts(ds):
         if not spec.headline:
             continue
         out += [f"## {spec.key}: {_label(results, spec.a)} − {_label(results, spec.b)}", ""]
@@ -1210,7 +1268,10 @@ def _contrast_section(results: dict[str, Any], key: str) -> list[str]:
 
 
 def hypotheses_markdown(ds: Dataset, results: dict[str, Any], cfg_hash: str) -> str:
-    arms = results["arms"]
+    # The confirmatory sections read the confirmatory arms only: a secondary arm (tasks/06b, registered
+    # after unblinding) gets its own section at the end and must not change a word above it.
+    secondary = {k for k, spec in ds.cfg["arms"].items() if spec.get("secondary")}
+    arms = {k: a for k, a in results["arms"].items() if k not in secondary}
     flagged = {
         a["label"]: a["cells"]["test_greedy"]["flagged_seeds"]
         for a in arms.values()
@@ -1381,7 +1442,68 @@ def hypotheses_markdown(ds: Dataset, results: dict[str, Any], cfg_hash: str) -> 
         VERDICT,
         "",
     ]
+    if "S1_iter_vs_rft" in results["contrasts"] and "S2_grpo_vs_iter" in results["contrasts"]:
+        out += _secondary_section(results)
     return "\n".join(out).rstrip() + "\n"
+
+
+def _secondary_section(results: dict[str, Any]) -> list[str]:
+    """tasks/06b B: the iterated-RFT contrasts, after every confirmatory section, verdict blank."""
+    c = results["contrasts"]
+    s1, s2, h3 = (c[k]["metrics"] for k in ("S1_iter_vs_rft", "S2_grpo_vs_iter", "H3"))
+    t1, t2, t3 = s1["test_greedy"], s2["test_greedy"], h3["test_greedy"]
+    o1, o2 = s1["ood_greedy"], s2["ood_greedy"]
+    crit2 = c["S2_grpo_vs_iter"]["criterion"]
+    share = (
+        f"{100 * t1['mean_delta'] / t3['mean_delta']:.0f} % / {100 * t2['mean_delta'] / t3['mean_delta']:.0f} %"
+        if t3["mean_delta"]
+        else "n/a"
+    )
+
+    def signs(block: dict[str, Any]) -> str:
+        return " / ".join(
+            "+" if d > 0 else ("−" if d < 0 else "0") for d in block["delta_per_seed"]
+        )
+
+    return [
+        "## Secondary — iterated RFT (PREREGISTRATION §6; **registered after unblinding, not confirmatory**)",
+        "",
+        "> §6 (2026-09-20), written after the test_300 and ood_hard_200 results of all six arms, both controls "
+        "and the reference models had been seen: (i) IterRFT − RFT-Curated: what three policy refreshes of the "
+        "sampler add within a positives-only SFT objective. (ii) GRPO-Curated − IterRFT: what remains. "
+        "H3 = (ii) + (i) exactly. SPEC §10 criterion unchanged. No threshold is set on any 'fraction of the "
+        "GRPO advantage recovered'; if such a fraction is reported it is descriptive only.",
+        ">",
+        "> Predictions (Laksh, before running): (i) 'small positive — a few points, maybe not past seed noise'; "
+        "(ii) 'still clearly positive; most of the H3 gap remains with GRPO'; same signs on ood_hard_200: 'yes "
+        "on both contrasts'. What would change his mind about H3: IterRFT closes most of the gap to "
+        "GRPO-Curated (Δ within ~2× pooled seed std of zero, or flips); also if IterRFT ≤ RFT-Curated on test.",
+        "",
+        "**Seed variance is not comparable between the arms.** RFT-Curated's three seeds train on one shared "
+        "base-model draw, so its seed std omits sampling variance; IterRFT's rounds 2–3 are sampled per seed "
+        "from the current policy, so its seed std includes it. The pooled seed std below mixes the two. "
+        "**What (ii) does not isolate** (§6): besides negative samples and group-relative advantages, GRPO "
+        "still differs in 300 policy refreshes vs 3, one pass per sample vs 4 epochs, lr 5e-5 vs 1e-5, 19,200 vs "
+        "14,016 rollouts, and adaptive zero-advantage filtering. IterRFT ran no sweep: lr/epochs are reused "
+        "from RFT-Curated (PREREGISTRATION §4 deviation). The SPEC §7 truncation flag applies as everywhere.",
+        "",
+        *_contrast_section(results, "S1_iter_vs_rft"),
+        *_contrast_section(results, "S2_grpo_vs_iter"),
+        f"- Decomposition on test_300 greedy (exact by construction): H3 Δ {sgn(t3['mean_delta'])} = (ii) "
+        f"{sgn(t2['mean_delta'])} + (i) {sgn(t1['mean_delta'])}; shares of the H3 Δ (i) / (ii): {share} — "
+        "descriptive only, no threshold is registered.",
+        f"- Signs per seed (seeds {','.join(map(str, t1['seeds']))}): (i) test {signs(t1)}, ood {signs(o1)}; "
+        f"(ii) test {signs(t2)}, ood {signs(o2)}. Mean Δ on ood: (i) {sgn(o1['mean_delta'])} "
+        f"[{sgn(o1['ci_low'])}, {sgn(o1['ci_high'])}], (ii) {sgn(o2['mean_delta'])} [{sgn(o2['ci_low'])}, "
+        f"{sgn(o2['ci_high'])}].",
+        "- 'Change my mind' conditions, evaluated mechanically: (ii) within 2 × pooled seed std of zero on "
+        f"test: **{'no' if crit2 and crit2['magnitude_ok'] else 'yes'}** (|Δ| {f3(abs(t2['mean_delta']))} vs "
+        f"{f3(crit2['threshold']) if crit2 else MISSING}); (ii) flips sign: **{'yes' if t2['mean_delta'] <= 0 else 'no'}**; "
+        f"IterRFT ≤ RFT-Curated on test: **{'yes' if t1['mean_delta'] <= 0 else 'no'}** (Δ {sgn(t1['mean_delta'])}).",
+        "",
+        VERDICT,
+        "",
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -1389,7 +1511,54 @@ def hypotheses_markdown(ds: Dataset, results: dict[str, Any], cfg_hash: str) -> 
 # ---------------------------------------------------------------------------
 
 
-def write_outputs(ds: Dataset, sanity_report: sanity.CrossRunReport, out: Path) -> dict[str, Any]:
+def write_appendices(
+    ds: Dataset, results: dict[str, Any], out: Path, cfg_hash: str, cache: Path | None
+) -> None:
+    """tasks/06b: truncation bounds and the exploratory larger-cap table, in their own directory."""
+    from rlordata.analysis import appendix
+
+    app = out / "appendix"
+    app.mkdir(parents=True, exist_ok=True)
+    rows = appendix.bounds_rows(ds)
+    (app / "truncation_bounds.md").write_text(
+        appendix.bounds_markdown(ds, results, rows, cfg_hash), encoding="utf-8"
+    )
+    with (app / "truncation_bounds.csv").open("w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f, lineterminator="\n")
+        w.writerow(["contrast", "a", "b", "split", "scenario", "n_problems", "seeds", "a_per_seed",
+                    "b_per_seed", "delta_per_seed", "mean_delta", "ci_low", "ci_high",
+                    "two_pooled_seed_std", "abs_delta_above_it"])  # fmt: skip
+        for r in rows:
+            w.writerow([r["contrast"], r["a"], r["b"], r["split"], r["scenario"], r["n_problems"],
+                        "/".join(map(str, r["seeds"])), "/".join(map(repr, r["a_per_seed"])),
+                        "/".join(map(repr, r["b_per_seed"])), "/".join(map(repr, r["delta_per_seed"])),
+                        r["mean_delta"], r["ci_low"], r["ci_high"], r["two_pooled_seed_std"], r["exceeds"]])  # fmt: skip
+    if not ds.cfg.get("exploratory"):
+        return
+    hashes = sanity.adapter_hashes(
+        ds, cache_path=None if cache is None else cache / "adapter_sha256.json"
+    )
+    erows = appendix.exploratory_rows(ds, {k: v["sha256"] for k, v in hashes.items()})
+    if erows is None:
+        return
+    (app / "exploratory_cap.md").write_text(
+        appendix.exploratory_markdown(ds, erows, cfg_hash), encoding="utf-8"
+    )
+    with (app / "exploratory_cap.csv").open("w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f, lineterminator="\n")
+        cols = ["model", "who", "seed", "split", "n_problems", "locked_cap", "exploratory_cap",
+                "primary_accuracy", "primary_truncation", "accuracy", "truncation", "mean_tokens",
+                "n_cut_primary", "cut_now_right", "cut_still_cut", "n_uncut", "uncut_same_text",
+                "uncut_right_to_wrong", "uncut_wrong_to_right", "same_host", "hosts", "config_hash",
+                "adapter_checked"]  # fmt: skip
+        w.writerow([*cols, "ci_low", "ci_high", "exploratory"])
+        for r in erows:
+            w.writerow([*(r[c] for c in cols), r["ci"][0], r["ci"][1], True])
+
+
+def write_outputs(
+    ds: Dataset, sanity_report: sanity.CrossRunReport, out: Path, *, cache: Path | None = None
+) -> dict[str, Any]:
     cfg_hash = loader.analysis_config_hash(ds.cfg)
     tables = out / "tables"
     tables.mkdir(parents=True, exist_ok=True)
@@ -1415,6 +1584,7 @@ def write_outputs(ds: Dataset, sanity_report: sanity.CrossRunReport, out: Path) 
         wrong_markdown(ds, results, cfg_hash), encoding="utf-8"
     )
     (out / "hypotheses.md").write_text(hypotheses_markdown(ds, results, cfg_hash), encoding="utf-8")
+    write_appendices(ds, results, out, cfg_hash, cache)
     return results
 
 
@@ -1450,7 +1620,7 @@ def main(argv: list[str] | None = None) -> int:
             f"[analysis] {len(rep.failures)} sanity failure(s): no table, contrast or figure was written."
         )
         return 1
-    results = write_outputs(ds, rep, out)
+    results = write_outputs(ds, rep, out, cache=cache)
     if not args.no_figures:
         from rlordata.analysis import plots
 

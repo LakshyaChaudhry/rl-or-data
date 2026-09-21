@@ -34,7 +34,8 @@ SURFACE = "#fcfcfb"
 INK = "#0b0b0b"
 INK_2 = "#52514e"
 GRID = "#e4e3df"
-COLORS = {"rft": "#2a78d6", "grpo": "#eb6834", "control": "#1baf7a", "base": "#7a7974"}
+COLORS = {"rft": "#2a78d6", "grpo": "#eb6834", "control": "#1baf7a", "base": "#7a7974",
+          "iter_rft": "#8a5cd6"}  # iter_rft: tasks/06b secondary arm  # fmt: skip
 MARKERS = {"train_easy_100": "o", "train_mixed_100": "s", "train_curated": "^", None: "D"}
 TIERS = ("easy", "medium", "hard")
 SMOOTH = 25  # steps; rolling window for training curves
@@ -137,12 +138,17 @@ def _dot_columns(
     ax.grid(axis="x", visible=False)
 
 
-def _legend_dots(ax: plt.Axes) -> None:
+def _legend_dots(ax: plt.Axes, *, iter_rft: bool = False) -> None:
     from matplotlib.lines import Line2D
 
     handles = [
         Line2D([], [], marker="o", linestyle="none", markerfacecolor=COLORS["rft"], markeredgecolor=COLORS["rft"], label="RFT seed (95 % CI)"),
         Line2D([], [], marker="o", linestyle="none", markerfacecolor=COLORS["grpo"], markeredgecolor=COLORS["grpo"], label="GRPO seed"),
+        *(
+            [Line2D([], [], marker="o", linestyle="none", markerfacecolor=COLORS["iter_rft"], markeredgecolor=COLORS["iter_rft"], label="IterRFT seed (secondary, registered after unblinding)")]
+            if iter_rft
+            else []
+        ),
         Line2D([], [], marker="o", linestyle="none", markerfacecolor=COLORS["control"], markeredgecolor=COLORS["control"], label="control (1 seed)"),
         Line2D([], [], marker="o", linestyle="none", markerfacecolor=COLORS["base"], markeredgecolor=COLORS["base"], label="base / reference"),
         Line2D([], [], marker="o", linestyle="none", markerfacecolor=SURFACE, markeredgecolor=INK_2, markeredgewidth=1.6, label="hollow: truncation > 5 %"),
@@ -167,7 +173,10 @@ def fig_accuracy_by_arm(
     fig, (ax, ax2) = plt.subplots(
         2,
         1,
-        figsize=(10.5, 6.6),
+        figsize=(
+            10.5 + 0.9 * max(0, len(cols) - 12),
+            6.6,
+        ),  # 12 columns in Phase 4; wider per extra arm
         height_ratios=[3, 1.25],
         sharex=True,
         gridspec_kw={"hspace": 0.12},
@@ -178,7 +187,7 @@ def fig_accuracy_by_arm(
     ax.set_ylabel("greedy accuracy")
     ymax = max(c["ci_high"] for c in cells.values() if c)
     ax.set_ylim(0, min(1.0, ymax + 0.22))
-    _legend_dots(ax)
+    _legend_dots(ax, iter_rft=any(c["method"] == "iter_rft" for c in cols))
     for x, col in enumerate(cols):
         present = [cells[w] for w in col["whos"] if cells.get(w) is not None]
         offsets = np.linspace(-0.22, 0.10, len(present)) if len(present) > 1 else [0.0]
@@ -221,7 +230,7 @@ def fig_per_tier(ds: Dataset, results: dict[str, Any], path: Path) -> None:
         ax.set_title(f"{tier} tier (n = {n}; tiers by the base model's pass@8)")
         ax.set_ylabel("test greedy accuracy")
         ax.set_ylim(0, 1.05)
-    _legend_dots(axes[0])
+    _legend_dots(axes[0], iter_rft=any(c["method"] == "iter_rft" for c in cols))
     fig.subplots_adjust(left=0.08, right=0.985, top=0.95, bottom=0.12)
     _save(
         fig, path,

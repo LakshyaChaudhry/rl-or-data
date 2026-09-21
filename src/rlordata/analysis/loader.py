@@ -469,7 +469,7 @@ def load_dataset(cfg: dict[str, Any], *, cache_dir: Path | None = None, jobs: in
         for key, spec in group.items():
             arm_seeds = [int(s) for s in spec.get("seeds", seeds)]
             chosen = None
-            if spec["method"] == "rft":
+            if spec["method"] == "rft":  # sweep-selected RFT: run dirs come from chosen.json
                 arm_dir = guard(run_root / spec["dir"], run_root, cfg)
                 chosen, dirs = rft_run_dirs(arm_dir, arm_seeds)
                 selection[key] = _selection_record(arm_dir, chosen, run_root, cfg)
