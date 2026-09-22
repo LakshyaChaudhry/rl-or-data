@@ -23,7 +23,11 @@ from rlordata.analysis import loader, report, sanity
 from rlordata.analysis.loader import Dataset, Run
 
 REPO_URL = "https://github.com/LakshyaChaudhry/rl-or-data"
-COLLECTION_TITLE = "rl-or-data: is it the RL or the data? (LoRA adapters, Qwen3-4B-Base)"
+COLLECTION_TITLE = "rl-or-data: is it the RL or the data? (LoRA adapters)"  # Hub limit: 60 chars
+COLLECTION_DESCRIPTION = (
+    "LoRA adapters of every trained run in the study: RFT vs GRPO on Qwen3-4B-Base under matched prompt "
+    f"and rollout budgets, 3 seeds per arm, plus controls and the secondary iterated-RFT arm. {REPO_URL}"
+)
 METRICS = (
     ("val_greedy", "val_mixed_100 greedy"),
     ("test_greedy", "test_300 greedy"),
@@ -216,7 +220,11 @@ def main(argv: list[str] | None = None) -> int:
 
     api = HfApi()
     collection = api.create_collection(
-        COLLECTION_TITLE, namespace=args.namespace, private=args.private, exists_ok=True
+        COLLECTION_TITLE,
+        namespace=args.namespace,
+        description=COLLECTION_DESCRIPTION,
+        private=args.private,
+        exists_ok=True,
     )
     for name, folder in staged:
         repo_id = f"{args.namespace}/{name}"
