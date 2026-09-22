@@ -92,6 +92,10 @@ units — superseded, failed, pre-amendment and exploratory runs are refused by 
 
 ## Release
 
-Adapters: `uv run python scripts/hf_release.py` stages one folder per run with a model card (base model,
-data condition, seed, config hash, budgets, the run's own evaluation with n, CI and truncation) and uploads
-nothing; `--push --namespace <name>` publishes them under one collection.
+Adapters: every trained run's final LoRA adapter (23: 6 arms × 3 seeds, 2 controls, the secondary
+iterated-RFT arm × 3) is on the Hugging Face Hub in one collection —
+<https://huggingface.co/collections/LakshC/rl-or-data-is-it-the-rl-or-the-data-lora-adapters-6ab22615cf8f3073cb1d17ae>
+— **private until the write-up is out**; each model card states base model, data condition, seed, config
+hash, budgets, and the run's own evaluation with n, CI and truncation, and every weights file was verified
+against the local copy by sha256 after upload. Regenerate the staging with
+`uv run python scripts/hf_release.py` (uploads nothing; `--push --namespace <name>` publishes).
