@@ -25,8 +25,13 @@ from rlordata.analysis.loader import Dataset, Run
 REPO_URL = "https://github.com/LakshyaChaudhry/rl-or-data"
 COLLECTION_TITLE = "rl-or-data: is it the RL or the data? (LoRA adapters)"  # Hub limit: 60 chars
 COLLECTION_DESCRIPTION = (
-    "LoRA adapters of every trained run in the study: RFT vs GRPO on Qwen3-4B-Base under matched prompt "
-    f"and rollout budgets, 3 seeds per arm, plus controls and the secondary iterated-RFT arm. {REPO_URL}"
+    "RFT vs GRPO on Qwen3-4B-Base at matched budgets: 3 seeds per arm, controls, iterated RFT. "
+    f"{REPO_URL}"
+)
+# Hub limits (a 400 at create_collection otherwise): title <= 60 chars, description <= 150.
+assert len(COLLECTION_TITLE) <= 60 and len(COLLECTION_DESCRIPTION) <= 150, (
+    len(COLLECTION_TITLE),
+    len(COLLECTION_DESCRIPTION),
 )
 METRICS = (
     ("val_greedy", "val_mixed_100 greedy"),
