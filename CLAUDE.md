@@ -53,6 +53,11 @@ make gen           # generate the problem pool and splits (after tasks/01)
 make eval-base     # base-model + reference evals (after tasks/02)
 ```
 
+## Skills and handoffs
+
+- `.claude/skills/preflight` is the launch gate. Run it before any training, sweep or eval job over about 1 GPU-hour, and before reporting that a run is ready. It checks that arms differ only where intended (cap, EOS handling, template, verifier, seeds), measures truncation on a smoke test, and estimates cost. Wait for Laksh's go-ahead before launching.
+- `.claude/skills/handoff` writes the brief for a fresh agent (local or on a GPU box) into `handoffs/`. An agent on a GPU box pushes to its own branch, never to `main`, and never deletes samples, checkpoints or eval outputs from other runs.
+
 ## Things you must never do
 
 - Edit `src/rlordata/core/**` or `configs/locked/**`.
