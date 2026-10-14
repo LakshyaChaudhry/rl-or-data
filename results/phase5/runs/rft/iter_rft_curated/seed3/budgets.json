@@ -1,0 +1,42 @@
+{
+  "batch_size": 16,
+  "completions_available": 14016,
+  "completions_consumed": 7827,
+  "epoch_adapters": [
+    "runs/rft/iter_rft_curated/seed3/round_3/adapter/epoch_1",
+    "runs/rft/iter_rft_curated/seed3/round_3/adapter/epoch_2",
+    "runs/rft/iter_rft_curated/seed3/round_3/adapter/epoch_3",
+    "runs/rft/iter_rft_curated/seed3/round_3/adapter/epoch_4"
+  ],
+  "epochs": 4,
+  "final_adapter": "runs/rft/iter_rft_curated/seed3/adapter/final",
+  "learning_rate": 1e-05,
+  "max_per_problem": null,
+  "optimizer_steps": 1960,
+  "per_round": [
+    {
+      "completions_consumed": 2262,
+      "optimizer_steps": 568,
+      "prompts": 73,
+      "training_tokens": 4568096
+    },
+    {
+      "completions_consumed": 2573,
+      "optimizer_steps": 644,
+      "prompts": 73,
+      "training_tokens": 5564936
+    },
+    {
+      "completions_consumed": 2992,
+      "optimizer_steps": 748,
+      "prompts": 73,
+      "training_tokens": 6816872
+    }
+  ],
+  "prompts": 73,
+  "prompts_parent_split": 73,
+  "rounds": 3,
+  "samples_per_round": 64,
+  "select_mode": "all",
+  "training_tokens": 16949904
+}

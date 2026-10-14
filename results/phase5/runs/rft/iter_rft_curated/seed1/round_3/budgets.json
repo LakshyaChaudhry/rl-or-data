@@ -1,0 +1,35 @@
+{
+  "batch_size": 16,
+  "completions_available": 4672,
+  "completions_consumed": 2927,
+  "correct_after_dedup": 2927,
+  "correct_before_dedup": 2927,
+  "epoch_adapters": [
+    "runs/rft/iter_rft_curated/seed1/round_3/adapter/epoch_1",
+    "runs/rft/iter_rft_curated/seed1/round_3/adapter/epoch_2",
+    "runs/rft/iter_rft_curated/seed1/round_3/adapter/epoch_3",
+    "runs/rft/iter_rft_curated/seed1/round_3/adapter/epoch_4"
+  ],
+  "epochs": 4,
+  "final_adapter": "runs/rft/iter_rft_curated/seed1/round_3/adapter/final",
+  "init_adapter": "runs/rft/iter_rft_curated/seed1/round_2/adapter/final",
+  "learning_rate": 1e-05,
+  "max_per_problem": null,
+  "optimizer_steps": 732,
+  "per_tier_examples": {
+    "easy": 1398,
+    "hard": 228,
+    "medium": 1301
+  },
+  "per_tier_prompts": {
+    "easy": 26,
+    "hard": 14,
+    "medium": 32
+  },
+  "prompts": 72,
+  "prompts_parent_split": 73,
+  "round": 3,
+  "select_mode": "all",
+  "total_tokens_forwarded": 7530660,
+  "training_tokens": 6381060
+}

@@ -5,6 +5,8 @@ __pycache__/
 .ruff_cache/
 outputs/
 runs/
+# small provenance files of the tasks/06b runs (no samples, no weights) are committed
+!results/phase5/runs/
 data/samples/
 data/splits_dry/
 *.jsonl.gz
@@ -14,3 +16,5 @@ wandb/
 *.bin
 .DS_Store
 logs/
+# local paper drafts and aggregation notes; the final paper goes in paper/
+paper_materials/

@@ -1,0 +1,73 @@
+{
+  "accuracy": 0.6966666666666667,
+  "answer_line_rate": 0.9666666666666667,
+  "arm": "iter_rft_curated_s1",
+  "at_cap_rate": 0.013333333333333334,
+  "cap_deviation": "PREREGISTRATION-4-2026-09-20-exploratory-cap",
+  "ci_high": 0.7466666666666667,
+  "ci_low": 0.6433333333333333,
+  "config_hash": "e0a56e0319c717c732e603d49c86989cbb6a0c3bbe1c810fef0f4a642287fe55",
+  "decoding": "greedy",
+  "exploratory": true,
+  "extraction_failure_rate": 0.013333333333333334,
+  "flags": {
+    "extraction_failure_gt_5pct": false,
+    "truncation_gt_5pct": false
+  },
+  "locked_cap": 4352,
+  "max_completion_tokens": 8704,
+  "mean_completion_tokens": 877.4766666666667,
+  "model_id": "Qwen/Qwen3-4B-Base",
+  "n": 1,
+  "n_problems": 300,
+  "n_samples": 300,
+  "note": "EXPLORATORY: re-generated at a cap of 8704 tokens (2 x the locked 4352) to show what accuracy would have been without truncation. Run after the primary results were seen; the policies were trained with completions capped at 4352. Not a SPEC \u00a710 number.",
+  "pass_at_k": {
+    "1": 0.6966666666666667
+  },
+  "per_tier": {
+    "easy": 0.97,
+    "hard": 0.33,
+    "medium": 0.79
+  },
+  "per_tier_answer_line_rate": {
+    "easy": 0.98,
+    "hard": 0.96,
+    "medium": 0.96
+  },
+  "per_tier_at_cap_rate": {
+    "easy": 0.0,
+    "hard": 0.03,
+    "medium": 0.01
+  },
+  "per_tier_extraction_failure_rate": {
+    "easy": 0.0,
+    "hard": 0.03,
+    "medium": 0.01
+  },
+  "per_tier_n": {
+    "easy": 100,
+    "hard": 100,
+    "medium": 100
+  },
+  "per_tier_n_samples": {
+    "easy": 100,
+    "hard": 100,
+    "medium": 100
+  },
+  "per_tier_truncation_rate": {
+    "easy": 0.0,
+    "hard": 0.03,
+    "medium": 0.01
+  },
+  "run_id": "exploratory_cap8704_iter_rft_curated_s1_test_300_greedy_seed1",
+  "sampler": "vllm",
+  "samples_per_problem": 1,
+  "seed": 1,
+  "split": "test_300",
+  "subset": null,
+  "temperature": 0.0,
+  "truncation_flag_policy": "flag",
+  "truncation_over_5pct": false,
+  "truncation_rate": 0.013333333333333334
+}

@@ -1,0 +1,73 @@
+{
+  "accuracy": 0.325,
+  "answer_line_rate": 0.84,
+  "arm": "iter_rft_curated_s3",
+  "at_cap_rate": 0.1,
+  "cap_deviation": "PREREGISTRATION-4-2026-09-20-exploratory-cap",
+  "ci_high": 0.39,
+  "ci_low": 0.26,
+  "config_hash": "5f8512fc1ea02aea67a39cde6f30786bab1905e69b05e48dc54149f6c9c1371c",
+  "decoding": "greedy",
+  "exploratory": true,
+  "extraction_failure_rate": 0.1,
+  "flags": {
+    "extraction_failure_gt_5pct": true,
+    "truncation_gt_5pct": false
+  },
+  "locked_cap": 4352,
+  "max_completion_tokens": 8704,
+  "mean_completion_tokens": 2063.485,
+  "model_id": "Qwen/Qwen3-4B-Base",
+  "n": 1,
+  "n_problems": 200,
+  "n_samples": 200,
+  "note": "EXPLORATORY: re-generated at a cap of 8704 tokens (2 x the locked 4352) to show what accuracy would have been without truncation. Run after the primary results were seen; the policies were trained with completions capped at 4352. Not a SPEC \u00a710 number.",
+  "pass_at_k": {
+    "1": 0.325
+  },
+  "per_tier": {
+    "easy": 0.7142857142857143,
+    "hard": 0.18705035971223022,
+    "medium": 0.6170212765957447
+  },
+  "per_tier_answer_line_rate": {
+    "easy": 0.7857142857142857,
+    "hard": 0.8201438848920863,
+    "medium": 0.9148936170212766
+  },
+  "per_tier_at_cap_rate": {
+    "easy": 0.14285714285714285,
+    "hard": 0.1079136690647482,
+    "medium": 0.06382978723404255
+  },
+  "per_tier_extraction_failure_rate": {
+    "easy": 0.14285714285714285,
+    "hard": 0.1079136690647482,
+    "medium": 0.06382978723404255
+  },
+  "per_tier_n": {
+    "easy": 14,
+    "hard": 139,
+    "medium": 47
+  },
+  "per_tier_n_samples": {
+    "easy": 14,
+    "hard": 139,
+    "medium": 47
+  },
+  "per_tier_truncation_rate": {
+    "easy": 0.14285714285714285,
+    "hard": 0.1079136690647482,
+    "medium": 0.06382978723404255
+  },
+  "run_id": "exploratory_cap8704_iter_rft_curated_s3_ood_hard_200_greedy_seed3",
+  "sampler": "vllm",
+  "samples_per_problem": 1,
+  "seed": 3,
+  "split": "ood_hard_200",
+  "subset": null,
+  "temperature": 0.0,
+  "truncation_flag_policy": "report_only",
+  "truncation_over_5pct": true,
+  "truncation_rate": 0.1
+}

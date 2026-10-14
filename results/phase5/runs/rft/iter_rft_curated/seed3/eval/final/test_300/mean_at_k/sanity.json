@@ -1,0 +1,5 @@
+{
+  "adapter": "runs/rft/iter_rft_curated/seed3/adapter/final",
+  "eval_set": "final",
+  "protocol_vs_base": "ok"
+}

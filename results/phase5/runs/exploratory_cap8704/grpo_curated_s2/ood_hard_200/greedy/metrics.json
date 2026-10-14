@@ -1,0 +1,73 @@
+{
+  "accuracy": 0.395,
+  "answer_line_rate": 0.68,
+  "arm": "grpo_curated_s2",
+  "at_cap_rate": 0.31,
+  "cap_deviation": "PREREGISTRATION-4-2026-09-20-exploratory-cap",
+  "ci_high": 0.465,
+  "ci_low": 0.33,
+  "config_hash": "dc276740a25ba7dba6a4dae823a2f9c1a0562ae4c515f4a97d35c8a0e992b54d",
+  "decoding": "greedy",
+  "exploratory": true,
+  "extraction_failure_rate": 0.31,
+  "flags": {
+    "extraction_failure_gt_5pct": true,
+    "truncation_gt_5pct": false
+  },
+  "locked_cap": 4352,
+  "max_completion_tokens": 8704,
+  "mean_completion_tokens": 4671.155,
+  "model_id": "Qwen/Qwen3-4B-Base",
+  "n": 1,
+  "n_problems": 200,
+  "n_samples": 200,
+  "note": "EXPLORATORY: re-generated at a cap of 8704 tokens (2 x the locked 4352) to show what accuracy would have been without truncation. Run after the primary results were seen; the policies were trained with completions capped at 4352. Not a SPEC \u00a710 number.",
+  "pass_at_k": {
+    "1": 0.395
+  },
+  "per_tier": {
+    "easy": 0.7857142857142857,
+    "hard": 0.2733812949640288,
+    "medium": 0.6382978723404256
+  },
+  "per_tier_answer_line_rate": {
+    "easy": 0.7857142857142857,
+    "hard": 0.6474820143884892,
+    "medium": 0.7446808510638298
+  },
+  "per_tier_at_cap_rate": {
+    "easy": 0.21428571428571427,
+    "hard": 0.3381294964028777,
+    "medium": 0.2553191489361702
+  },
+  "per_tier_extraction_failure_rate": {
+    "easy": 0.21428571428571427,
+    "hard": 0.3381294964028777,
+    "medium": 0.2553191489361702
+  },
+  "per_tier_n": {
+    "easy": 14,
+    "hard": 139,
+    "medium": 47
+  },
+  "per_tier_n_samples": {
+    "easy": 14,
+    "hard": 139,
+    "medium": 47
+  },
+  "per_tier_truncation_rate": {
+    "easy": 0.21428571428571427,
+    "hard": 0.3381294964028777,
+    "medium": 0.2553191489361702
+  },
+  "run_id": "exploratory_cap8704_grpo_curated_s2_ood_hard_200_greedy_seed2",
+  "sampler": "vllm",
+  "samples_per_problem": 1,
+  "seed": 2,
+  "split": "ood_hard_200",
+  "subset": null,
+  "temperature": 0.0,
+  "truncation_flag_policy": "report_only",
+  "truncation_over_5pct": true,
+  "truncation_rate": 0.31
+}

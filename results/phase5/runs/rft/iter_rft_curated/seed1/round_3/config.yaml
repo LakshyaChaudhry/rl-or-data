@@ -1,0 +1,85 @@
+append_eos: true
+arm: iter_rft_curated
+batch_size: 16
+budgets:
+  completions_available: 4672
+  completions_consumed: 2927
+  correct_after_dedup: 2927
+  correct_before_dedup: 2927
+  max_per_problem: null
+  per_tier_examples:
+    easy: 1398
+    hard: 228
+    medium: 1301
+  per_tier_prompts:
+    easy: 26
+    hard: 14
+    medium: 32
+  prompts: 72
+  prompts_parent_split: 73
+  select_mode: all
+cap_yaml: configs/locked/cap.yaml
+checkpoint: adapter at every epoch end; final = last epoch (no early stopping)
+data_condition: train_curated
+draw_file: runs/rft/iter_rft_curated/seed1/round_3/samples.jsonl
+eos_token_id: 151643
+epochs: 4
+hyperparameters_from: runs/rft/rft_curated/chosen.json
+init_adapter: runs/rft/iter_rft_curated/seed1/round_2/adapter/final
+kind: iter_rft_round
+lora:
+  bias: none
+  lora_alpha: 16
+  lora_dropout: 0.0
+  r: 64
+  target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+  task_type: CAUSAL_LM
+loss: core.sft_loss(core.completion_logprobs) token-mean, prompt masked, micro-batches
+  weighted by completion tokens
+max_completion_tokens: 4352
+micro_batch_size: 4
+model_id: Qwen/Qwen3-4B-Base
+n_examples: 2927
+optimizer:
+  betas:
+  - 0.9
+  - 0.999
+  grad_clip: 1.0
+  learning_rate: 1.0e-05
+  name: adamw
+  weight_decay: 0.0
+parameters:
+  total_parameters: 4154588672
+  trainable_parameters: 132120576
+precision: bfloat16
+preregistration_commit: a9ec8af
+prompt_template: 'Solve the following problem. Think step by step, then give the final
+  answer on the last line in the form "Answer: <integer>".
+
+
+  Problem: {problem_text}
+
+  '
+round: 3
+round_source: policy
+round_training_rule: "continue previous adapter on this round's kept samples only;\
+  \ fresh AdamW and cosine schedule (PREREGISTRATION \xA76)"
+rounds: 3
+samples_per_prompt: 64
+schedule:
+  name: cosine
+  warmup_ratio: 0.1
+seed: 1
+select:
+  max_per_problem: null
+  mode: all
+source_config: configs/rft/iter_curated.yaml
+tokenizer_sha256: 8a5ddbb142c832ba35fe2cdd28548e5997b710c9bcdd6679923110f84cdf82c2
+training_yaml: configs/locked/training.yaml

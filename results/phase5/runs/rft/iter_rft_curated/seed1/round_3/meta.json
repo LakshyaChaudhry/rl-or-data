@@ -1,0 +1,33 @@
+{
+  "arm": "iter_rft_curated",
+  "config_hash": "89b91c5b39904612d0159b5d84eda2417defc6f2446c5e90ad07c1e76fdb9065",
+  "cost_usd_actual": 3.8677,
+  "finished_at": "2026-09-21T00:01:24+00:00",
+  "git_dirty": false,
+  "git_sha": "4d97b07a50c0ba3a85d7112aa703ef2f841dc379",
+  "gpu_hours_actual": 0.901563,
+  "gpu_rate_usd_per_hour": 4.29,
+  "gpu_type": "NVIDIA H100 PCIe",
+  "hostname": "209-20-159-151",
+  "last_loss": 0.22344457365836973,
+  "optimizer_steps": 732,
+  "package_versions": {
+    "numpy": "2.3.5",
+    "peft": "0.20.0",
+    "reasoning-gym": "0.1.25",
+    "rlordata": "0.1.0",
+    "torch": "2.13.0",
+    "transformers": "5.16.1",
+    "trl": "1.13.0",
+    "vllm": "0.28.0"
+  },
+  "platform": "Linux-6.8.0-1046-nvidia-x86_64-with-glibc2.35",
+  "python": "3.11.16",
+  "round": 3,
+  "run_id": "iter_rft_iter_rft_curated_seed1_round3",
+  "seed": 1,
+  "started_at": "2026-09-20T23:07:18+00:00",
+  "status": "finished",
+  "training_tokens": 6381060,
+  "wall_clock_s": 3245.625
+}
