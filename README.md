@@ -3,8 +3,25 @@
 Under matched prompt and rollout budgets, how much of low-data RLVR's gain comes from **data selection**
 and how much from the **RL objective itself**? A controlled, pre-registered comparison of
 rejection-sampling fine-tuning (RFT) and GRPO on procedurally generated counting problems, in the regime
-of Bauer et al. (Snorkel, MLSys 2026): `Qwen/Qwen3-4B-Base`, LoRA, 100 training prompts, 19,200 sampled
-completions per arm, three seeds per arm, one token cap for everything.
+of Bauer et al. (Snorkel, MLSys 2026): `Qwen/Qwen3-4B-Base`, LoRA, 100-prompt training sets (73 for the
+curated set), a 19,200-completion rollout budget (14,016 for RFT on the curated set), three seeds per arm,
+one token cap for everything.
+
+## Findings
+
+All numbers are greedy accuracy on `test_300` (300 problems), mean over seeds 1–3, paired seed-wise
+differences with a per-problem bootstrap 95 % CI. Full tables: `results/phase5/tables/`.
+
+- **GRPO beats tuned RFT at every prompt set:** +10.9 points on the curated prompts [+6.7, +15.1]
+  (pre-registered), and +8.4 / +9.2 on the easy / mixed prompts, where rollouts are also matched
+  (exploratory, defined after the test results were seen: `results/phase5/appendix/exploratory_grpo_vs_rft.md`).
+  On test the gap survives the least favourable treatment of truncated completions; on `ood_hard_200`,
+  truncation is too frequent to conclude anything.
+- **Curating prompts does not help RFT** (−2.7 points vs RFT-Mixed), contrary to the pre-registered prediction.
+- **Mixed-difficulty data helps RFT** (+3.7); for GRPO the gain (+4.4) does not meet the criterion.
+- **Iterated RFT (secondary)** recovers 3.2 of the 10.9-point curated gap, about 30 %.
+
+A write-up is in preparation; this README will link it.
 
 - `SPEC.md` — the locked protocol (v1.8). It wins every disagreement. `notebook/PREREGISTRATION.md` —
   hypotheses, predictions and logged deviations; `notebook/LAB_NOTEBOOK.md` — one entry per run or decision.
@@ -12,6 +29,8 @@ completions per arm, three seeds per arm, one token cap for everything.
   **Start with `results/phase5/README.md`.** Hypotheses are graded by the author in `hypotheses.md`;
   nothing in the code writes a verdict.
 - `reports/compute_log.md` — GPU type, GPU-hours and cost per arm.
+- `results/phase5/appendix/exploratory_grpo_vs_rft.{md,json}` — the two exploratory GRPO − RFT contrasts
+  (easy, mixed); not part of the pre-registered analysis.
 - `src/rlordata/core/` — hand-written: verifier, log-probs, SFT loss, RFT selection, GRPO math, metrics.
   Everything else under `src/`, `scripts/`, `setup/`, `configs/` (outside `configs/locked/`) is
   agent-written against task files in `tasks/`; `CLAUDE.md` holds the rules those agents worked under.
@@ -65,6 +84,8 @@ bash setup/tasks06b_box.sh        # = make tasks06b-queue after restore + prefli
 make analysis                     # RUN_ROOT=<store>/runs OUT=outputs to point it elsewhere
 uv run python scripts/compare_phase_tables.py results/phase4 results/phase5 --expect-changed base,gsm8k_mean8
 uv run python scripts/compute_log.py
+uv run python -m rlordata.analysis.exploratory_contrasts   # exploratory GRPO − RFT on easy / mixed
+uv run python -m rlordata.analysis.paper_figures           # vector PDFs for the write-up -> outputs/figures/paper/
 ```
 
 Local dry runs of every GPU pipeline with a stub sampler and a tiny model (never results):
@@ -87,8 +108,14 @@ units — superseded, failed, pre-amendment and exploratory runs are refused by 
   and GPU model): 6–10 % of problems change correctness on re-generation, up to about 2 points of
   `test_300` accuracy for a single run. Arms were evaluated on different hosts. This is small next to the
   large contrasts and comparable to the small ones.
+- **The curated pair is matched on prompts, not rollouts:** GRPO samples 19,200 completions on the 73
+  curated prompts; RFT has the 14,016 base-model samples that belong to them. The easy and mixed pairs
+  are matched on both.
+- **RFT's three seeds share one base-model draw**, so their spread omits sampling variance.
 - Three seeds, one model family, LoRA, one synthetic task family, tiers defined by the trained model's own
   pass rate. `google/gemma-4-E4B-it` was planned as a reference model and was never evaluated.
+- `configs/locked/prompt.yaml` still names extraction rule `v1.5`; the code and every result use the
+  layered `v1.6` rule (SPEC §5, `src/rlordata/core/verify.py`). The locked file was not edited.
 
 ## Release
 
