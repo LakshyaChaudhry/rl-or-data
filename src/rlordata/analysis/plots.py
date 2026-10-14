@@ -79,6 +79,15 @@ def _save(fig: plt.Figure, path: Path, caption: str) -> None:
     plt.close(fig)
 
 
+def _save_paper(fig: plt.Figure, path: Path) -> None:
+    """Paper version: no burned-in caption; vector PDF plus a PNG preview; no timestamps."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    meta = {"Creator": None, "Producer": None, "CreationDate": None}
+    fig.savefig(path, facecolor="white", metadata=meta)
+    fig.savefig(path.with_suffix(".png"), dpi=200, facecolor="white", metadata={"Software": None})
+    plt.close(fig)
+
+
 def _columns(ds: Dataset, results: dict[str, Any], *, refs: bool = False) -> list[dict[str, Any]]:
     """Plot columns in a fixed order: Base, the six arms, the controls (and optionally references)."""
     cols = [{"label": "Base", "kind": "base", "method": None, "whos": ["base"], "arm": None}]
@@ -111,6 +120,9 @@ def _dot_columns(
     cols: list[dict[str, Any]],
     cells: dict[str, dict[str, Any] | None],
     summaries: dict[str, Any],
+    *,
+    hollow_flag: bool = True,
+    xtick_fontsize: float = 8,
 ) -> None:
     """Every run a dot with its CI; arm mean ± seed std as a dark bar to the right of the dots."""
     for x, col in enumerate(cols):
@@ -118,7 +130,7 @@ def _dot_columns(
         present = [(w, cells.get(w)) for w in col["whos"] if cells.get(w) is not None]
         offsets = np.linspace(-0.22, 0.10, len(present)) if len(present) > 1 else [0.0]
         for off, (_, c) in zip(offsets, present, strict=True):
-            hollow = c["truncation_rate"] > TRUNCATION_MAX
+            hollow = hollow_flag and c["truncation_rate"] > TRUNCATION_MAX
             ax.errorbar(
                 x + off, c["value"], yerr=[[c["value"] - c["ci_low"]], [c["ci_high"] - c["value"]]],
                 fmt="none", ecolor=color, elinewidth=1.0, alpha=0.55, zorder=2,
@@ -134,12 +146,27 @@ def _dot_columns(
                 markeredgewidth=2.0, elinewidth=2.0, capsize=0, zorder=4,
             )  # fmt: skip
     ax.set_xticks(range(len(cols)))
-    ax.set_xticklabels([c["label"] for c in cols], fontsize=8)
+    ax.set_xticklabels([c["label"] for c in cols], fontsize=xtick_fontsize)
     ax.grid(axis="x", visible=False)
 
 
-def _legend_dots(ax: plt.Axes, *, iter_rft: bool = False) -> None:
+def _legend_dots(ax: plt.Axes, *, iter_rft: bool = False, paper: bool = False) -> None:
     from matplotlib.lines import Line2D
+
+    if paper:  # one row above the figure; no truncation-flag entry, no protocol wording
+        handles = [
+            Line2D([], [], marker="o", linestyle="none", color=COLORS["rft"], label="RFT seed"),
+            Line2D([], [], marker="o", linestyle="none", color=COLORS["grpo"], label="GRPO seed"),
+            *([Line2D([], [], marker="o", linestyle="none", color=COLORS["iter_rft"], label="IterRFT seed")] if iter_rft else []),
+            Line2D([], [], marker="o", linestyle="none", color=COLORS["control"], label="control (1 seed)"),
+            Line2D([], [], marker="o", linestyle="none", color=COLORS["base"], label="Base"),
+            Line2D([], [], marker="_", linestyle="none", color=INK, markersize=9, markeredgewidth=2.0, label="mean ± seed sd"),
+        ]  # fmt: skip
+        ax.figure.legend(
+            handles=handles, loc="upper center", ncols=3, fontsize=7,
+            bbox_to_anchor=(0.5, 1.0), handletextpad=0.2, columnspacing=0.9,
+        )  # fmt: skip
+        return
 
     handles = [
         Line2D([], [], marker="o", linestyle="none", markerfacecolor=COLORS["rft"], markeredgecolor=COLORS["rft"], label="RFT seed (95 % CI)"),
@@ -217,20 +244,41 @@ def fig_accuracy_by_arm(
     _save(fig, path, note)
 
 
-def fig_per_tier(ds: Dataset, results: dict[str, Any], path: Path) -> None:
+def fig_per_tier(ds: Dataset, results: dict[str, Any], path: Path, *, paper: bool = False) -> None:
+    """``paper``: no caption, no truncation-flag hollows, legend above, each row scaled to its data."""
     cols = _columns(ds, results)
-    fig, axes = plt.subplots(3, 1, figsize=(9.5, 8.4), sharex=True, gridspec_kw={"hspace": 0.18})
+    size = (5.5, 6.0) if paper else (9.5, 8.4)
+    gap = 0.28 if paper else 0.18
+    fig, axes = plt.subplots(3, 1, figsize=size, sharex=True, gridspec_kw={"hspace": gap})
     for ax, tier in zip(axes, TIERS, strict=True):
         cells = {w: r["tiers"].get(tier) for w, r in results["runs"].items()}
         summaries = {
             k: a["tiers"].get(tier) and {**a["tiers"][tier]} for k, a in results["arms"].items()
         }
-        _dot_columns(ax, cols, cells, summaries)
+        fs = 7 if paper else 8
+        _dot_columns(ax, cols, cells, summaries, hollow_flag=not paper, xtick_fontsize=fs)
         n = next(c["n_problems"] for c in cells.values() if c)
-        ax.set_title(f"{tier} tier (n = {n}; tiers by the base model's pass@8)")
-        ax.set_ylabel("test greedy accuracy")
-        ax.set_ylim(0, 1.05)
-    _legend_dots(axes[0], iter_rft=any(c["method"] == "iter_rft" for c in cols))
+        if paper:
+            whos = {w for col in cols for w in col["whos"]}
+            shown = [c for w, c in cells.items() if c and w in whos]
+            lo = max(0.0, np.floor((min(c["ci_low"] for c in shown) - 0.02) * 20) / 20)
+            hi = min(1.02, max(c["ci_high"] for c in shown) + 0.03)
+            ax.set_ylim(lo, hi)
+            ax.set_title(f"{tier.capitalize()} tier (n = {n})", fontsize=8.5)
+            ax.set_facecolor("white")
+            ax.tick_params(axis="y", labelsize=7.5)
+            ax.set_ylabel("Test greedy accuracy", fontsize=8)
+            ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0, decimals=0))
+        else:
+            ax.set_title(f"{tier} tier (n = {n}; tiers by the base model's pass@8)")
+            ax.set_ylabel("test greedy accuracy")
+            ax.set_ylim(0, 1.05)
+    _legend_dots(axes[0], iter_rft=any(c["method"] == "iter_rft" for c in cols), paper=paper)
+    if paper:
+        fig.subplots_adjust(left=0.13, right=0.99, top=0.89, bottom=0.1)
+        fig.align_ylabels(axes)
+        _save_paper(fig, path)
+        return
     fig.subplots_adjust(left=0.08, right=0.985, top=0.95, bottom=0.12)
     _save(
         fig, path,
@@ -239,17 +287,19 @@ def fig_per_tier(ds: Dataset, results: dict[str, Any], path: Path) -> None:
     )  # fmt: skip
 
 
-def fig_pass_at_k(ds: Dataset, results: dict[str, Any], path: Path) -> None:
+def fig_pass_at_k(ds: Dataset, results: dict[str, Any], path: Path, *, paper: bool = False) -> None:
+    """``paper``: 3 columns, no caption, no per-panel legends or truncation text, one shared legend."""
     n_boot, seed = int(ds.cfg["n_boot"]), int(ds.cfg["seed"])
     key = ("test_300", "pass_at_k")
     groups = {**ds.arms, **ds.controls}
+    n_cols = 3 if paper else 4
     n_rows = -(
-        -len(groups) // 4
+        -len(groups) // n_cols
     )  # 8 panels in Phase 4; a ninth (tasks/06b) must not push a control out
     fig, axes = plt.subplots(
         n_rows,
-        4,
-        figsize=(12.5, 3.2 * n_rows),
+        n_cols,
+        figsize=(5.5, 1.75 * n_rows + 0.55) if paper else (12.5, 3.2 * n_rows),
         sharex=True,
         sharey=True,
         gridspec_kw={"hspace": 0.28, "wspace": 0.08},
@@ -259,6 +309,15 @@ def fig_pass_at_k(ds: Dataset, results: dict[str, Any], path: Path) -> None:
     for ax, runs in zip(axes.flat, groups.values(), strict=False):
         color = _color(runs[0].kind, runs[0].method)
         if base is not None:
+            if paper:  # Base is one evaluation, but its per-problem CI is as wide as the arms'
+                bs = [
+                    stats.summarize_arm([1], [base.pass_at(k)], n_boot=n_boot, seed=seed)
+                    for k in ks
+                ]
+                ax.fill_between(
+                    ks, [b.ci_low for b in bs], [b.ci_high for b in bs],
+                    color=COLORS["base"], alpha=0.12, linewidth=0,
+                )  # fmt: skip
             ax.plot(
                 ks,
                 [base.metrics["pass_at_k"][str(k)] for k in ks],
@@ -302,29 +361,59 @@ def fig_pass_at_k(ds: Dataset, results: dict[str, Any], path: Path) -> None:
                 else f"{runs[0].label} (1 seed)",
             )
             tr = [u.metrics["truncation_rate"] for u in units]
-            ax.text(
-                0.97,
-                0.04,
-                "truncation " + " / ".join(f"{100 * t:.1f}%" for t in tr),
-                transform=ax.transAxes,
-                ha="right",
-                fontsize=7.5,
-                color=INK_2,
-            )
+            if not paper:
+                ax.text(
+                    0.97,
+                    0.04,
+                    "truncation " + " / ".join(f"{100 * t:.1f}%" for t in tr),
+                    transform=ax.transAxes,
+                    ha="right",
+                    fontsize=7.5,
+                    color=INK_2,
+                )
         ax.set_xscale("log", base=2)
         ax.set_xticks(ks)
         ax.set_xticklabels([str(k) for k in ks])
-        ax.set_title(runs[0].label)
-        ax.legend(loc="lower right", bbox_to_anchor=(1.0, 0.09), fontsize=7.5)
+        if paper:
+            ax.set_title(runs[0].label, fontsize=8.5)
+            ax.set_facecolor("white")
+            ax.tick_params(labelsize=7)
+            ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0, decimals=0))
+        else:
+            ax.set_title(runs[0].label)
+            ax.legend(loc="lower right", bbox_to_anchor=(1.0, 0.09), fontsize=7.5)
         ax.set_ylim(0.25, 1.02)
     for ax in list(axes.flat)[len(groups) :]:
         ax.set_visible(False)
     for i, ax in enumerate(list(axes.flat)[: len(groups)]):
-        if i + 4 >= len(groups):  # last panel of its column
-            ax.set_xlabel("k")
+        if i + n_cols >= len(groups):  # last panel of its column
+            ax.set_xlabel("k", fontsize=8 if paper else None)
             ax.tick_params(labelbottom=True)
     for ax in axes[:, 0]:
-        ax.set_ylabel("pass@k (unbiased, n = 64)")
+        ax.set_ylabel(
+            "pass@k" if paper else "pass@k (unbiased, n = 64)", fontsize=8 if paper else None
+        )
+    if paper:
+        from matplotlib.lines import Line2D
+
+        handles = [
+            Line2D([], [], color=COLORS["base"], marker="o", markersize=3.5, label="Base"),
+            Line2D([], [], color=INK_2, linewidth=1.2, alpha=0.6, label="single seed"),
+            Line2D(
+                [],
+                [],
+                color=INK_2,
+                marker="o",
+                markersize=3.5,
+                label="mean over seeds",
+            ),
+        ]
+        fig.legend(
+            handles=handles, loc="upper center", ncols=3, fontsize=7.5, bbox_to_anchor=(0.5, 1.0)
+        )
+        fig.subplots_adjust(left=0.12, right=0.99, top=0.9, bottom=0.09, hspace=0.38, wspace=0.1)
+        _save_paper(fig, path)
+        return
     fig.subplots_adjust(left=0.06, right=0.99, top=0.94, bottom=0.14 if n_rows == 2 else 0.1)
     _save(
         fig, path,
@@ -410,13 +499,14 @@ def fig_reward_vs_val(ds: Dataset, path: Path) -> None:
     )  # fmt: skip
 
 
-def fig_zero_std(ds: Dataset, path: Path) -> None:
+def fig_zero_std(ds: Dataset, path: Path, *, paper: bool = False) -> None:
+    """``paper``: no caption, compact size, empty panels (easy-only prompt set) labelled."""
     groups = _grpo_groups(ds, controls=False)
     panels = ("all", *TIERS)
     fig, axes = plt.subplots(
         len(groups),
         len(panels),
-        figsize=(12, 2.6 * len(groups) + 0.8),
+        figsize=(5.5, 1.45 * len(groups) + 0.55) if paper else (12, 2.6 * len(groups) + 0.8),
         sharex=True,
         sharey=True,
         squeeze=False,
@@ -434,17 +524,40 @@ def fig_zero_std(ds: Dataset, path: Path) -> None:
                         [t and t.get("frac_reward_zero_std") for t in tier],
                         [float((t or {}).get("n", 0)) / 8.0 for t in tier],
                     )
+                if paper:  # the trailing window is not full yet: 1-2 steps of a few groups
+                    ys = np.where(np.arange(len(ys)) < SMOOTH - 1, np.nan, ys)
                 ax.plot(
                     [r["step"] for r in rows], ys, color=COLORS["grpo"], linewidth=1.1, alpha=0.8
                 )
-            ax.set_title(
-                f"{runs[0].label} — {'all prompts' if panel == 'all' else panel + ' tier'}",
-                fontsize=9,
-            )
+            where = "all prompts" if panel == "all" else panel + " tier"
+            if paper:  # column titles on the top row only; arm names go on the y-axis
+                if ax.get_subplotspec().is_first_row():
+                    ax.set_title(where.capitalize(), fontsize=8)
+                ax.set_facecolor("white")
+            else:
+                ax.set_title(f"{runs[0].label} — {where}", fontsize=9)
             ax.set_ylim(0, 1.02)
-        row[0].set_ylabel("groups with zero\nreward std (share)")
+            if paper:
+                ax.set_xticks([100, 200, 300])  # a 0 tick collides with the neighbour's 300
+                ax.tick_params(labelsize=7)
+                ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0, decimals=0))
+                if all(np.isnan(np.asarray(ln.get_ydata(), dtype=float)).all() for ln in ax.lines):
+                    ax.text(150, 0.5, f"no {panel} prompts", ha="center", va="center",
+                            fontsize=7, color=INK_2)  # fmt: skip
+        if paper:
+            row[0].set_ylabel(runs[0].label, fontsize=8, fontweight="bold")
+        else:
+            row[0].set_ylabel("groups with zero\nreward std (share)")
     for ax in axes[-1]:
-        ax.set_xlabel("optimizer step")
+        if paper:
+            ax.set_xlabel("GRPO step", fontsize=7.5)
+        else:
+            ax.set_xlabel("optimizer step")
+    if paper:
+        fig.supylabel("Share of groups with no learning signal", fontsize=8, x=0.005)
+        fig.subplots_adjust(left=0.14, right=0.99, top=0.94, bottom=0.1, hspace=0.25, wspace=0.1)
+        _save_paper(fig, path)
+        return
     fig.subplots_adjust(left=0.07, right=0.99, top=0.94, bottom=0.13)
     _save(
         fig, path,
@@ -594,18 +707,35 @@ def fig_length_over_training(ds: Dataset, path: Path) -> None:
     )  # fmt: skip
 
 
-def fig_eval_length(ds: Dataset, results: dict[str, Any], path: Path) -> None:
+def fig_eval_length(
+    ds: Dataset, results: dict[str, Any], path: Path, *, paper: bool = False
+) -> None:
+    """``paper``: no caption, no protocol-flag line, compact size."""
     cols = _columns(ds, results)
     fig, axes = plt.subplots(
-        2, 2, figsize=(12, 6.4), sharex=True, gridspec_kw={"hspace": 0.14, "wspace": 0.16}
+        2,
+        2,
+        figsize=(5.5, 4.4) if paper else (12, 6.4),
+        sharex=True,
+        gridspec_kw={"hspace": 0.14, "wspace": 0.2 if paper else 0.16},
     )
     for j, (metric, name) in enumerate(
         (("test_greedy", "test_300"), ("ood_greedy", "ood_hard_200"))
     ):
         for i, (field, scale, ylabel) in enumerate(
             (
-                ("mean_completion_tokens", 1.0, "mean completion\nlength (tokens)"),
-                ("truncation_rate", 100.0, "truncated at the cap (%)"),
+                (
+                    "mean_completion_tokens",
+                    1.0,
+                    "Mean completion\nlength (tokens)"
+                    if paper
+                    else "mean completion\nlength (tokens)",
+                ),
+                (
+                    "truncation_rate",
+                    100.0,
+                    "Truncated at the\ncap (%)" if paper else "truncated at the cap (%)",
+                ),
             )
         ):
             ax = axes[i][j]
@@ -617,18 +747,32 @@ def fig_eval_length(ds: Dataset, results: dict[str, Any], path: Path) -> None:
                     [x + o for o in offsets],
                     [scale * c[field] for c in cells],
                     marker="o",
-                    markersize=6.5,
+                    markersize=4.5 if paper else 6.5,
                     linestyle="none",
                     color=_color(col["kind"], col["method"]),
-                    markeredgecolor=SURFACE,
+                    markeredgecolor="white" if paper else SURFACE,
                     markeredgewidth=1.0,
                 )
             ax.set_xticks(range(len(cols)))
-            ax.set_xticklabels([c["label"] for c in cols], fontsize=8)
+            if paper:
+                one_line = [  # arm names hyphenated (as in the text); control names spaced
+                    c["label"]
+                    .replace("\n", " " if c["kind"] == "control" else "-", 1)
+                    .replace("\n", " ")
+                    for c in cols
+                ]
+                ax.set_xticklabels(
+                    one_line, fontsize=7, rotation=40, ha="right", rotation_mode="anchor"
+                )
+            else:
+                ax.set_xticklabels([c["label"] for c in cols], fontsize=8)
             ax.grid(axis="x", visible=False)
             ax.set_ylim(bottom=0)
+            if paper:
+                ax.set_facecolor("white")
+                ax.tick_params(axis="y", labelsize=7)
             if j == 0:
-                ax.set_ylabel(ylabel)
+                ax.set_ylabel(ylabel, fontsize=8 if paper else None)
             if i == 0:
                 n = next(
                     results["runs"][w]["cells"][metric]["n_problems"]
@@ -636,8 +780,11 @@ def fig_eval_length(ds: Dataset, results: dict[str, Any], path: Path) -> None:
                     for w in c_["whos"]
                     if results["runs"][w]["cells"][metric]
                 )
-                ax.set_title(f"{name} greedy (n = {n} completions per run)")
-            if i == 1 and j == 0:
+                if paper:
+                    ax.set_title(f"{name} (n = {n})", fontsize=8.5)
+                else:
+                    ax.set_title(f"{name} greedy (n = {n} completions per run)")
+            if i == 1 and j == 0 and not paper:
                 ax.axhline(100 * TRUNCATION_MAX, color=INK_2, linewidth=0.8)
                 ax.text(
                     len(cols) - 0.5,
@@ -648,6 +795,10 @@ def fig_eval_length(ds: Dataset, results: dict[str, Any], path: Path) -> None:
                     va="bottom",
                     ha="right",
                 )
+    if paper:
+        fig.subplots_adjust(left=0.13, right=0.99, top=0.94, bottom=0.21)
+        _save_paper(fig, path)
+        return
     fig.subplots_adjust(left=0.07, right=0.99, top=0.94, bottom=0.15)
     _save(
         fig, path,
