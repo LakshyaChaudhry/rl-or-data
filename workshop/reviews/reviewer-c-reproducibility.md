@@ -126,3 +126,31 @@ Page 6 gives the analysis hash prefix `3ba220e48a66`. Individual training and ev
 | LoRA adapters | Page 6: described as private, not re-checked. This review does not treat them as public. |
 
 The logged tables are checkable. The training texts, the scored strings, and the weights are not, and the 6-page PDF drops the sweep grid, the cap formula, the generator operators, the package versions, and the compute record that the preprint had put in appendices.
+
+## Second pass
+
+Re-read `main.pdf` (7 pages) and `shared.tex` only. Status is against B1 and M1 through M5 above. Adapters are still not treated as public.
+
+### B1. Still open
+
+The reproducibility note on page 6 still says the Hugging Face adapters were described as private at the time of the preprint and were not re-checked as public for this draft. §2.2 on page 2 still describes the shared base-model draw (192 completions per prompt, once, shared by every RFT arm and seed) and does not name a committed sample file. The code URL on page 6 still points at the repository for code, per-seed metrics, and the pre-registration. It does not add an artifact id or a checksum for the weights or for that draw.
+
+### M1. Partly fixed
+
+§2.1 on page 2 now states the cap rule that was missing: fixed before the splits existed, the larger of 2,048 and 1.25 times the largest per-cell 99th percentile of correct base-model lengths, rounded up to a multiple of 256. The same paragraph says a later extractor would have given 4,096 and that 4,352 was kept. The extractor sentence now says the fallback is the last integer anywhere in the completion. What remains open is the rest of that rule. Page 2 still does not mention decoration stripping, a "Final" prefix, or digit-group commas, and it still does not say that the locked prompt config names an older extractor than the one used for the tables.
+
+### M2. Partly fixed
+
+§2.3 on page 2 now reports the Mixed tie: RFT-Mixed also scored 67% at \(10^{-4}\) for 4 epochs, and the tie-break kept the lower learning rate. The same sentence says seed 1 of that sweep is one of the three seeds in the test mean. The other 24 validation cells are still absent, including the 3-point and 1-point margins on Easy and Curated.
+
+### M3. Partly fixed
+
+Page 6 now lists the stack for the logged runs: Python 3.11.16, PyTorch 2.13.0, Transformers 5.16.1, PEFT 0.20.0, TRL 1.13.0, and vLLM 0.28.0. §2.2 on page 2 still omits clip \(\varepsilon\), group advantage normalization by mean and standard deviation, `top_p`, weight decay, LoRA dropout, the module names, dtype, the RFT batch size, greedy temperature, and the prompt-token limit.
+
+### M4. Fixed
+
+The reproducibility note on page 6 no longer sends every interval to one file. Registered and secondary intervals are placed in `results/phase5/tables/contrasts.md`. The two post hoc GRPO-minus-RFT intervals are placed in `results/phase5/appendix/exploratory_grpo_vs_rft.md`. Truncation bounds are placed in `results/phase5/appendix/truncation_bounds.md`. The analysis hash is labeled a prefix (`3ba220e48a66`), with 10,000 resamples and bootstrap seed 0.
+
+### M5. Partly fixed
+
+§2.2 on page 2 now states the three missing choices: round 1 is the first 64 samples per prompt of the shared draw, each round starts a fresh AdamW optimizer and cosine schedule, and the reported checkpoint is the end of round 3. It also says rounds 2 and 3 refresh the sampler twice after that draw, against GRPO's 300 updates. §3.4 on page 5 repeats "resampling twice." The limitations on page 6 still say the iterated arm refreshes only three times. Those two counts disagree.
