@@ -133,3 +133,44 @@ The draft does not dishonestly claim a neuro-symbolic contribution. It also does
 Editorial format: both PDFs are US Letter, two-column, Type 1 only, free of hyperref and of an ICLR footer, with references flowing after the text, and with main content inside the 8-page NeSy-FM official-list cap. The style files match the author kit. The remaining format defect is that all four table captions sit above the tables.
 
 Unresolved venue and author decisions: no venue is selected, the NeSy-FM official list and the organizer site disagree on the deadline and on what a page cap excludes, the anonymous PDF is conditional and its first page forbids public sharing, and under-review status is unknown. This draft is not ready to submit.
+
+## Second pass
+
+Rechecked after the PDFs were rebuilt. Named PDF info dictionary creation time `D:20261108040049Z`. Anonymous PDF `D:20261108040050Z`. This pass re-read `main.pdf`, `main-anonymous.pdf`, and `shared.tex`, and re-ran `sha256sum` on the preserved arXiv PDF. The paper was not edited.
+
+### M1 is fixed
+
+Captions now sit under the tables. In `shared.tex`, each of the four `table*` environments ends the `tabular` before `\caption`, and `\label` follows the caption. `\small` wraps only the grid. Both PDFs show the caption after the last row of that grid:
+
+- Table 1, page 3, after the C2 format-reward row.
+- Table 2, page 4, after the Qwen3-4B row.
+- Table 3, page 4, after the GRPO-Curated minus IterRFT row.
+- Table 4, page 5, after the IterRFT-Curated row.
+
+The same order is in the anonymous PDF. The first-pass defect, captions above the grids, is gone.
+
+### Page count
+
+`pdfinfo` reports 7 pages for each PDF, US Letter, 612 by 792 pt. The first pass was 6 pages. References still start on page 6, after Reproducibility and the AI use statement, and they continue onto page 7. Page 7 is bibliography only: word boxes stop at x = 292.5 pt and y = 273.2 pt, so the text is a short left column. Main content excluding references ends on page 6. That remains inside the NeSy-FM official-list cap of 8 pages of main content excluding references. Counting references as well, the file is 7 pages. There is still no appendix. The extra page does not cross either length rule recorded in the first pass.
+
+### Overfull boxes, fonts, metadata
+
+`main.log` and `main-anonymous.log` contain zero lines matching `Overfull`. Underfull boxes remain and are not overflow. Both logs report an underfull vbox of badness 10000 while shipping page 4. The named log also reports underfull hboxes of badness 1102 and 3229 at `shared.tex` lines 251 to 253, the repository URL paragraph on page 6. Word boxes on pages 1 through 6 run from x = 54.0 pt to x = 558.0 pt.
+
+Every font in both PDFs is Type 1, embedded and subset. There is no Type 3 font. Decompressed PDFs contain no `/Annot`, `/URI`, or `/Link`. The named info dictionary has `/TemplateVersion (2027.1)` and no Title or Author. The anonymous info dictionary has no Title, Author, or TemplateVersion. Neither PDF contains "ICLR", "under review", or a "Preprint." running head. Named page 1 shows the author and no footer. Anonymous page 1 says "Anonymous submission" and places the kit prohibition at the bottom of the left column, including the words "strictly prohibited."
+
+### Anonymity leaks
+
+The anonymous PDF text contains no "Lakshya", "Chaudhry", "Purdue", "lchaudhr", "github.com", or "2610.25812". The named PDF still has those, on page 1 and in the reproducibility paragraph on page 6, which is what the preprint option is for. The anonymous reproducibility paragraph now says the repository is one this file does not name. It no longer says the omitted identifier names the author. The anonymous file still says "the longer preprint" in the body and "the preprint" in the AI use statement, without giving an identifier. That residue matters only if a later venue requires anonymity. The anonymous page 1 notice still forbids public sharing of that file.
+
+The title on page 1 of both PDFs is now "GRPO and Rejection-Sampling Fine-Tuning on a Procedural Counting Task". The first-pass nit about the lowercase pronoun "it" no longer matches the file.
+
+### Preserved original
+
+`sha256sum /workspace/workshop/preserved-arxiv-v1/2610.25812.pdf` is still `7d28a0b7186e789ce7680f0b37edfc924c50b1f28a235b1cc4b9358c50740074`.
+
+### Readiness
+
+Editorial format: M1 is fixed. Both PDFs are US Letter and two-column, Type 1 only, free of overfull boxes and of an ICLR footer, with references after the text. Main content is inside the 8-page NeSy-FM official-list cap.
+
+Unresolved venue and author-status decisions: no venue is selected, the NeSy-FM official list and the organizer site still disagree on the deadline and on what a page cap excludes, the anonymous PDF is conditional and its first page forbids public sharing, and under-review status is unknown. This draft is not ready to submit.
