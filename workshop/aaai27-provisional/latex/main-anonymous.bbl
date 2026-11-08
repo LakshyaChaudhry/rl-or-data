@@ -1,0 +1,111 @@
+\begin{thebibliography}{14}
+\providecommand{\natexlab}[1]{#1}
+
+\bibitem[{Bauer et~al.(2026)Bauer, Walshe, Pham, Vishwakarma, Parchami, Sala,
+  and Varma}]{bauer2026}
+Bauer, J.; Walshe, T.; Pham, D.; Vishwakarma, H.; Parchami, A.; Sala, F.; and
+  Varma, P. 2026.
+\newblock Learning from Less: Measuring the Effectiveness of {RLVR} in Low Data
+  and Compute Regimes.
+\newblock In \emph{Proceedings of Machine Learning and Systems (MLSys)}.
+
+\bibitem[{Gulcehre et~al.(2023)Gulcehre, Paine, Srinivasan, Konyushkova,
+  Weerts, Sharma, Siddhant, Ahern, Wang, Gu, Macherey, Doucet, Firat, and
+  de~Freitas}]{gulcehre2023rest}
+Gulcehre, C.; Paine, T.~L.; Srinivasan, S.; Konyushkova, K.; Weerts, L.;
+  Sharma, A.; Siddhant, A.; Ahern, A.; Wang, M.; Gu, C.; Macherey, W.; Doucet,
+  A.; Firat, O.; and de~Freitas, N. 2023.
+\newblock Reinforced Self-Training ({ReST}) for Language Modeling.
+\newblock \emph{arXiv preprint arXiv:2308.08998}.
+
+\bibitem[{Kwon et~al.(2023)Kwon, Li, Zhuang, Sheng, Zheng, Yu, Gonzalez, Zhang,
+  and Stoica}]{kwon2023vllm}
+Kwon, W.; Li, Z.; Zhuang, S.; Sheng, Y.; Zheng, L.; Yu, C.~H.; Gonzalez, J.~E.;
+  Zhang, H.; and Stoica, I. 2023.
+\newblock Efficient Memory Management for Large Language Model Serving with
+  {PagedAttention}.
+\newblock In \emph{Proceedings of the 29th Symposium on Operating Systems
+  Principles (SOSP)}.
+
+\bibitem[{Liu et~al.(2025)Liu, Chen, Li, Qi, Pang, Du, Lee, and
+  Lin}]{liu2025understanding}
+Liu, Z.; Chen, C.; Li, W.; Qi, P.; Pang, T.; Du, C.; Lee, W.~S.; and Lin, M.
+  2025.
+\newblock Understanding {R1-Zero}-Like Training: A Critical Perspective.
+\newblock \emph{arXiv preprint arXiv:2503.20783}.
+
+\bibitem[{Lu et~al.(2026)Lu, Feng, Yuan, Li, and Sun}]{lu2026why}
+Lu, A.; Feng, T.; Yuan, H.; Li, W.; and Sun, Y. 2026.
+\newblock Why Does {RL} Generalize Better Than {SFT}? A Data-Centric
+  Perspective on {VLM} Post-Training.
+\newblock \emph{arXiv preprint arXiv:2602.10815}.
+
+\bibitem[{Samineni et~al.(2025)Samineni, Kalwar, Valmeekam, Stechly, and
+  Kambhampati}]{samineni2025rl}
+Samineni, S.~R.; Kalwar, D.; Valmeekam, K.; Stechly, K.; and Kambhampati, S.
+  2025.
+\newblock {RL} in Name Only? Analyzing the Structural Assumptions in {RL}
+  Post-training for {LLMs}.
+\newblock \emph{arXiv preprint arXiv:2505.13697}.
+
+\bibitem[{Shao et~al.(2024)Shao, Wang, Zhu, Xu, Song, Bi, Zhang, Zhang, Li, Wu,
+  and Guo}]{shao2024deepseekmath}
+Shao, Z.; Wang, P.; Zhu, Q.; Xu, R.; Song, J.; Bi, X.; Zhang, H.; Zhang, M.;
+  Li, Y.~K.; Wu, Y.; and Guo, D. 2024.
+\newblock {DeepSeekMath}: Pushing the Limits of Mathematical Reasoning in Open
+  Language Models.
+\newblock \emph{arXiv preprint arXiv:2402.03300}.
+
+\bibitem[{Singh et~al.(2024)Singh, Co-Reyes, Agarwal et~al.}]{singh2024beyond}
+Singh, A.; Co-Reyes, J.~D.; Agarwal, R.; et~al. 2024.
+\newblock Beyond Human Data: Scaling Self-Training for Problem-Solving with
+  Language Models.
+\newblock \emph{Transactions on Machine Learning Research}.
+\newblock ArXiv:2312.06585.
+
+\bibitem[{Xiong et~al.(2025)Xiong, Yao, Xu, Pang, Wang, Sahoo, Li, Jiang,
+  Zhang, Xiong, and Dong}]{xiong2025minimalist}
+Xiong, W.; Yao, J.; Xu, Y.; Pang, B.; Wang, L.; Sahoo, D.; Li, J.; Jiang, N.;
+  Zhang, T.; Xiong, C.; and Dong, H. 2025.
+\newblock A Minimalist Approach to {LLM} Reasoning: from Rejection Sampling to
+  Reinforce.
+\newblock \emph{arXiv preprint arXiv:2504.11343}.
+
+\bibitem[{Yu et~al.(2025)Yu, Zhang, Zhu et~al.}]{yu2025dapo}
+Yu, Q.; Zhang, Z.; Zhu, R.; et~al. 2025.
+\newblock {DAPO}: An Open-Source {LLM} Reinforcement Learning System at Scale.
+\newblock \emph{arXiv preprint arXiv:2503.14476}.
+
+\bibitem[{Yuan et~al.(2023)Yuan, Yuan, Li, Dong, Lu, Tan, Zhou, and
+  Zhou}]{yuan2023scaling}
+Yuan, Z.; Yuan, H.; Li, C.; Dong, G.; Lu, K.; Tan, C.; Zhou, C.; and Zhou, J.
+  2023.
+\newblock Scaling Relationship on Learning Mathematical Reasoning with Large
+  Language Models.
+\newblock \emph{arXiv preprint arXiv:2308.01825}.
+
+\bibitem[{Yue et~al.(2025)Yue, Chen, Lu, Zhao, Wang, Yue, Song, and
+  Huang}]{yue2025does}
+Yue, Y.; Chen, Z.; Lu, R.; Zhao, A.; Wang, Z.; Yue, Y.; Song, S.; and Huang, G.
+  2025.
+\newblock Does Reinforcement Learning Really Incentivize Reasoning Capacity in
+  {LLMs} Beyond the Base Model?
+\newblock In \emph{Advances in Neural Information Processing Systems
+  (NeurIPS)}.
+
+\bibitem[{Zelikman et~al.(2022)Zelikman, Wu, Mu, and
+  Goodman}]{zelikman2022star}
+Zelikman, E.; Wu, Y.; Mu, J.; and Goodman, N.~D. 2022.
+\newblock {STaR}: Bootstrapping Reasoning With Reasoning.
+\newblock In \emph{Advances in Neural Information Processing Systems
+  (NeurIPS)}.
+
+\bibitem[{Zhu et~al.(2025)Zhu, Xia, Wei, Chen, Chen, and
+  Meng}]{zhu2025surprising}
+Zhu, X.; Xia, M.; Wei, Z.; Chen, W.-L.; Chen, D.; and Meng, Y. 2025.
+\newblock The Surprising Effectiveness of Negative Reinforcement in {LLM}
+  Reasoning.
+\newblock In \emph{Advances in Neural Information Processing Systems
+  (NeurIPS)}.
+
+\end{thebibliography}

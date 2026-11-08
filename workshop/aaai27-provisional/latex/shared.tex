@@ -1,0 +1,260 @@
+% Official AAAI-27 author kit files (aaai2027.sty, aaai2027.bst) are unmodified.
+% The serif, sans-serif, and monospaced fonts are loaded by aaai2027.sty.
+% DO NOT add times, helvet, courier, hyperref, or geometry.
+\usepackage[hyphens]{url}
+\usepackage{graphicx}
+\urlstyle{rm}
+\def\UrlFont{\rm}
+\usepackage{natbib}
+\usepackage{caption}
+\frenchspacing
+\usepackage{booktabs}
+\pdfinfo{
+/TemplateVersion (2027.1)
+}
+\setcounter{secnumdepth}{2}
+
+\title{GRPO and Rejection-Sampling Fine-Tuning on a Procedural Counting Task}
+\author{Lakshya Chaudhry}
+\affiliations{Purdue University\\lchaudhr@purdue.edu}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We compare one GRPO recipe with one rejection-sampling fine-tuning (RFT) recipe on a procedural counting task. Both methods see the same prompts, the same program that checks an integer answer, and the same 4,352-token cap. The model is Qwen3-4B-Base with LoRA. Six primary arms cross the two methods with Easy, Mixed, and Curated prompt sets, three seeds each. Hypotheses were registered before training. RFT receives a 27-run sweep on seed 1. GRPO uses one recipe taken from prior work, with two stated changes. On curated prompts the test gap is 10.9 points. Those arms were registered, but the registered text asked for matched sampling budgets and the run did not match them (19,200 versus 14,016 rollouts). Every GRPO seed in that pair also exceeds a 5\% test truncation flag, so the protocol does not treat 10.9 as a headline number by itself. A post hoc bound that credits every truncated RFT completion and none of GRPO's still leaves a positive test gap. Out of distribution, truncation is too common for a conclusion. Two later comparisons with matched rollout counts also favor GRPO, by 8.4 points on easy prompts and 9.2 points on mixed prompts. Every GRPO seed in the mixed pair exceeds the same 5\% test truncation flag. Curating prompts does not help RFT, contrary to the registered prediction. Mixed prompts go with a 3.7 point test gain for RFT, in a comparison that also changes the selected epoch count. For GRPO, mixed versus easy is inconclusive. A secondary three-round RFT arm is 3.2 points above single-round RFT on the primary test scores. The adverse truncation bound on that gap is $+0.1$ points, interval $[-3.0, +3.2]$. The evidence is one synthetic task family, one base model, LoRA, and three seeds.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+Reinforcement learning with a verifiable reward, often through group relative policy optimization (GRPO; \citealp{shao2024deepseekmath}), changes both the objective and the data a model trains on. A prompt whose completions are all right or all wrong gives a GRPO group no advantage, so the update concentrates on prompts of intermediate difficulty. \citet{bauer2026} found that, in a low-data regime, mixed-difficulty prompts made GRPO much more sample-efficient than easy-only prompts on a procedural counting task. They did not test whether that benefit is specific to GRPO. \citet{lu2026why} attribute part of RL's advantage over supervised fine-tuning to this kind of implicit filter. If the filter is the whole story, a supervised method given the same prompts should recover the gain.
+
+Rejection-sampling fine-tuning (RFT; \citealp{yuan2023scaling}) uses the same checker differently. It samples completions, keeps those the checker marks correct, and fine-tunes on them. We ask a narrow question. With the same prompts and the same checker, does this GRPO recipe beat this RFT recipe on Bauer et al.'s counting task, and which of our registered predictions survive? We do not claim a new architecture, a symbolic solver inside the model, or a general result about reinforcement learning with verifiable rewards.
+
+The checker is an ordinary program. It scores a completion by whether the extracted integer matches the answer of an executable pipeline. GRPO uses that score as a binary reward. RFT uses it as an acceptance filter. Completions that hit the token cap score zero in both. Related work finds that filtered fine-tuning on samples from the current policy can perform close to GRPO \citep{xiong2025minimalist,samineni2025rl}. We test a weaker data condition: samples drawn once from the base model, plus a secondary arm of three rounds that resamples the current policy only twice.
+
+The design crosses three prompt sets with two training signals, six arms with three seeds each, plus two single-seed GRPO controls. RFT is tuned so that a GRPO lead is harder to dismiss as an untuned learning rate. That sweep does not fix the other limits of this RFT recipe, which samples once from the base model and keeps every correct sample. The registered prediction that curation would help RFT does not hold. The curated GRPO-versus-RFT gap is large on test, and it is also truncation-flagged and unmatched on rollouts. The rest of the paper states which comparisons were registered, which were added after test results were seen, and what the design does not separate.
+
+\section{Setup}
+\label{sec:setup}
+
+\subsection{Task, splits, and scoring}
+\label{sec:data}
+
+We use the procedural counting task of \citet{bauer2026}. A problem states an integer range, applies 1--4 filters and 0--3 transformations, and ends with one operation such as count, sum, or median. The answer is one integer, computed by running the pipeline. We tighten the generator in two ways: every step must change the set, and generation is stratified by range size and step count. The training pool has 6{,}000 problems with range spans 10--200 and 2--5 steps. The out-of-distribution set \texttt{ood\_hard\_200} uses spans 201--1{,}000 and 6--8 steps. No training, validation, or selection run sees it.
+
+Difficulty is measured on the model we train, not on an external panel. We draw 8 completions per problem from the base model at temperature 1 and label a problem easy if at least 6 of 8 are correct, medium if 2--5 are, and hard if at most 1 is. Splits are disjoint by problem and by pipeline structure: \texttt{train\_easy\_100} (100 easy problems); \texttt{train\_mixed\_100} (33 easy, 33 medium, 34 hard); \texttt{train\_curated}, the 73 mixed-set problems with 1--7 correct out of 8 (26 easy, 33 medium, 14 hard), fixed once and never re-selected; \texttt{val\_mixed\_100}, the only split used to choose RFT hyperparameters; and \texttt{test\_300}, 100 problems per tier. GSM8K, the first 500 test problems, is a secondary transfer set with no formal comparisons.
+
+Every run uses one plain-text prompt, with no chat template, asking for step-by-step reasoning and a final line \texttt{Answer: <integer>}. No \texttt{<think>} tags are used. The extracted answer is the last integer on an answer line, else in a boxed expression, else the last integer anywhere in the completion. Correctness is exact match. A completion that reaches the cap is a failure and is not scored from a trailing integer. The reward for every primary arm is this binary correctness, with no format bonus. The cap is 4{,}352 completion tokens for training and evaluation, taken from base-model lengths with Bauer et al.'s 2{,}048 as a floor. The same cap and extractor apply to every arm, control, and reference model. Reference models receive that prompt inside each model's chat template. The trained arms do not use a chat template. The cap was fixed before the splits existed: the larger of 2{,}048 and 1.25 times the largest per-cell 99th percentile of correct base-model lengths, rounded up to a multiple of 256. A later extractor would have given 4{,}096. We kept 4{,}352.
+
+\subsection{Arms and budgets}
+\label{sec:arms}
+
+All primary arms train a LoRA adapter (rank 64, $\alpha{=}16$, all linear layers) on Qwen3-4B-Base with AdamW, a cosine schedule with 10\% warmup, and gradient clipping at 1.0. Evaluation is at the last step. Table~\ref{tab:arms} lists budgets. Rollout counts are sampled completions available, then used for the update.
+
+\begin{table*}[t]
+\centering
+{\small
+\begin{tabular}{lccccr}
+\toprule
+Arm & Seeds & Prompts & Rollouts (avail./used) & Train tokens & Opt.\ steps \\
+\midrule
+RFT-Easy & 3 & 100 & 19{,}200 / 13{,}834 & 47.2M & 6{,}920 \\
+RFT-Mixed & 3 & 100 & 19{,}200 / 7{,}961 & 15.9M & 1{,}992 \\
+RFT-Curated & 3 & 73 & 14{,}016 / 6{,}653 & 13.4M & 1{,}664 \\
+GRPO-Easy & 3 & 100 & 19{,}200 / 19{,}200 & 12.4M & 300 \\
+GRPO-Mixed & 3 & 100 & 19{,}200 / 19{,}200 & 23.0M & 300 \\
+GRPO-Curated & 3 & 73 & 19{,}200 / 19{,}200 & 20.6M & 300 \\
+\midrule
+IterRFT-Curated (secondary) & 3 & 73 & 14{,}016 / 7{,}828 & 16.7M & 1{,}963 \\
+C1 random reward & 1 & 100 & 19{,}200 / 19{,}200 & 9.3M & 300 \\
+C2 format reward & 1 & 100 & 19{,}200 / 19{,}200 & 10.8M & 300 \\
+\bottomrule
+\end{tabular}
+}
+\caption{Arms and budgets (means per seed). Rollouts are sampled completions available / used for training. RFT-Mixed has a correct sample for only 95 of its 100 prompts. Iterated RFT and the controls are not primary arms.}
+\label{tab:arms}
+\end{table*}
+
+RFT samples 192 completions per prompt from the base model once, at temperature 1. All RFT arms and seeds share this draw. Each arm keeps the correct completions for its prompts, drops exact duplicates, and fine-tunes with a completion-only loss, including the end-of-sequence token. No other data is mixed in. Because the kept set follows the base model's pass rate, it is dominated by easy prompts: in RFT-Mixed, 595 of 7{,}961 kept samples come from hard prompts.
+
+GRPO \citep{shao2024deepseekmath} replaces a learned value function with a group baseline. We use TRL's \texttt{GRPOTrainer} (v1.13.0) for 300 steps. Each step takes 8 prompts and 8 completions per prompt, at learning rate $5{\times}10^{-5}$. The KL coefficient is 0, and there is one update per sampled batch. The loss is token-level normalized (\texttt{loss\_type=dapo}; \citealp{yu2025dapo}). Groups whose eight rewards are equal contribute no gradient. Capped completions stay in the loss with reward 0. Rollouts come from vLLM \citep{kwon2023vllm} with the current adapter at every step.
+
+Iterated RFT is secondary. It runs three rounds on the 73 curated prompts, 64 samples per prompt per round. Round 1 is the first 64 samples per prompt from the shared base draw. Rounds 2 and 3 are sampled from the current policy, so the sampler is refreshed twice after that draw, against GRPO's 300 updates. Each round continues the previous adapter, starts a fresh AdamW optimizer and cosine schedule, and keeps only correct samples. The reported checkpoint is the end of round 3.
+
+The controls run the GRPO recipe on the mixed 100-prompt set, seed 1 only. C1 uses a random Bernoulli(0.5) reward. C2 rewards any uncapped completion that states an explicit final answer, whether or not it is correct.
+
+\subsection{What is matched, and what was registered}
+\label{sec:budgets}
+
+Each RFT/GRPO pair uses the same prompts. The Easy and Mixed pairs also match rollout counts at 19{,}200. On the curated set, RFT has the 14{,}016 samples that belong to its 73 prompts, while GRPO still samples 19{,}200. The central comparison is therefore matched on prompts and not on rollouts. We do not equalize training tokens or optimizer steps. RFT trains for several epochs on correct samples only. GRPO trains once on every sample, correct or not, and uses within-group comparisons. That asymmetry is the mechanism under study, not an accident to be hidden.
+
+RFT is tuned and GRPO is not, so a GRPO lead is harder to attribute to an untuned learning rate. Each RFT arm gets a $3{\times}3$ sweep on seed 1 over learning rate ($10^{-5}$, $5{\times}10^{-5}$, $10^{-4}$) and epochs (2, 4, 8), 27 runs in total. We keep the configuration with the best greedy accuracy on \texttt{val\_mixed\_100}. Ties break toward fewer epochs, then a lower learning rate. The selected settings are Easy $5{\times}10^{-5}$ for 8 epochs, Mixed $5{\times}10^{-5}$ for 4 epochs, and Curated $10^{-5}$ for 4 epochs. On that validation set RFT-Mixed also scored 67\% at $10^{-4}$ for 4 epochs, and the tie-break kept the lower learning rate. Seed 1 is then one of the three seeds in the test mean. GRPO uses one recipe from \citet{bauer2026}, with two stated departures: binary correctness without their format bonus and step-count penalty, and 8 prompts per step. Iterated RFT reuses the curated RFT configuration and has no sweep of its own. The validation set has 100 problems, so the selected RFT configuration is the best of nine on that set, not a proven optimum.
+
+The primary metric is greedy accuracy on \texttt{test\_300} and \texttt{ood\_hard\_200}, generated with vLLM under the same prompt, extractor, and cap. We also report mean@8 at temperature 1, pass@$k$ for $k \leq 64$ on the first 100 test problems, per-tier accuracy, and truncation. For each arm we report the mean and the sample standard deviation over seeds. Arm contrasts are paired by seed. The interval is a paired bootstrap over problems, 10{,}000 resamples, as logged with the analysis (bootstrap seed 0). A contrast counts under the registered rule if its absolute test gap exceeds twice the pooled seed standard deviation and it has the same sign on \texttt{ood\_hard\_200}. This rule is not a formal significance test. Runs with more than 5\% truncation on \texttt{test\_300} are flagged and are not headline numbers as they stand.
+
+Three comparisons, their predictions, and this rule were committed on 2026-09-07 (predictions on 2026-09-12), before any training job. The first training job started on 2026-09-13. In short, the registered predictions were: mixed data would help both methods (H1); curation would recover most of GRPO's advantage over RFT-Mixed (H2); and GRPO-Curated would still lead RFT-Curated under identical prompt and sampling budgets (H3). The logged deviations that matter for reading the tables are these. RFT was restarted so that it trains the end-of-sequence token, after validation truncation rose during the first sweep. Only validation numbers from the discarded runs had been seen. Iterated RFT, the easy and mixed GRPO-versus-RFT comparisons, and the truncation bounds were added after the primary test results were seen. And the experiment as run does not match the registered H3 sentence on sampling budgets: the curated pair matches prompts, not rollouts (19{,}200 versus 14{,}016).
+
+\section{Results}
+\label{sec:results}
+
+Table~\ref{tab:main} is greedy accuracy. Table~\ref{tab:contrasts} is every paired comparison we discuss. Means match the logged per-seed greedy accuracies. The intervals match the logged paired bootstrap.
+
+\begin{table*}[t]
+\centering
+{\small
+\begin{tabular}{lcccc}
+\toprule
+ & \multicolumn{2}{c}{\texttt{test\_300}} & \multicolumn{2}{c}{\texttt{ood\_hard\_200}} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+Arm & acc. & trunc. & acc. & trunc. \\
+\midrule
+Base & 67.3 & 4.3 & 25.0 & 13.0 \\
+RFT-Easy & 65.9 $\pm$ 1.1 & 2.4 & 25.5 $\pm$ 0.5 & 10.5 \\
+RFT-Mixed & 69.6 $\pm$ 1.0 & 2.0 & 27.3 $\pm$ 1.2 & 12.2 \\
+RFT-Curated & 66.9 $\pm$ 1.1 & 3.1 & 28.5 $\pm$ 1.8 & 14.8 \\
+GRPO-Easy & 74.3 $\pm$ 3.9 & 3.0 & 33.8 $\pm$ 3.1 & 26.2 \\
+GRPO-Mixed & 78.8 $\pm$ 0.5 & 8.7$^\ddagger$ & 30.8 $\pm$ 2.3 & 47.5 \\
+GRPO-Curated & 77.8 $\pm$ 1.7 & 7.6$^\ddagger$ & 31.5 $\pm$ 3.9 & 34.8 \\
+\midrule
+IterRFT-Curated (secondary) & 70.1 $\pm$ 0.5 & 1.6 & 28.8 $\pm$ 2.4 & 15.0 \\
+C1 random reward & 47.7 & 4.7 & 22.0 & 7.5 \\
+C2 format reward & 63.7 & 1.0 & 27.0 & 10.5 \\
+\midrule
+Qwen3-4B (reference) & 74.7 & 4.0 & 45.5 & 22.5 \\
+\bottomrule
+\end{tabular}
+}
+\caption{Greedy accuracy (\%) and truncation at 4{,}352 tokens. Means $\pm$ sample standard deviation over 3 seeds. $^\ddagger$All three seeds exceed 5\% truncation on \texttt{test\_300}. Base, the controls, and Qwen3-4B are single runs. Qwen3-4B uses a chat template. The trained arms do not.}
+\label{tab:main}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+{\small
+\begin{tabular}{lcccc}
+\toprule
+Comparison (A $-$ B) & $\Delta$ test & $2\sigma$ & $\Delta$ OOD & Rule \\
+\midrule
+\multicolumn{5}{l}{\emph{Training signal: GRPO $-$ RFT on the same prompts}} \\
+GRPO-Curated $-$ RFT-Curated & $+10.9$ [$+6.7$, $+15.1$] & 2.8 & $+3.0$ [$-2.5$, $+8.5$] & yes \\
+GRPO-Easy $-$ RFT-Easy (post hoc) & $+8.4$ [$+4.8$, $+12.1$] & 5.8 & $+8.3$ [$+3.7$, $+13.0$] & yes \\
+GRPO-Mixed $-$ RFT-Mixed (post hoc) & $+9.2$ [$+4.8$, $+13.7$] & 1.6 & $+3.5$ [$-2.0$, $+9.0$] & yes \\
+\midrule
+\multicolumn{5}{l}{\emph{Prompt curation (registered)}} \\
+RFT-Curated $-$ RFT-Mixed & $-2.7$ [$-5.2$, $0.0$] & 2.1 & $+1.2$ [$-2.5$, $+5.3$] & no \\
+GRPO-Curated $-$ GRPO-Mixed & $-1.0$ [$-3.7$, $+1.7$] & 2.5 & $+0.7$ [$-2.7$, $+4.0$] & no \\
+\midrule
+\multicolumn{5}{l}{\emph{Mixed-difficulty data (registered)}} \\
+RFT-Mixed $-$ RFT-Easy & $+3.7$ [$+0.2$, $+7.0$] & 2.1 & $+1.8$ [$-2.0$, $+5.7$] & yes \\
+GRPO-Mixed $-$ GRPO-Easy & $+4.4$ [$+1.1$, $+7.9$] & 5.6 & $-3.0$ [$-7.3$, $+1.2$] & no \\
+\midrule
+\multicolumn{5}{l}{\emph{Iterated RFT (secondary)}} \\
+IterRFT $-$ RFT-Curated & $+3.2$ [$+0.2$, $+6.2$] & 1.7 & $+0.3$ [$-3.5$, $+3.8$] & yes \\
+GRPO-Curated $-$ IterRFT & $+7.7$ [$+3.7$, $+11.7$] & 2.5 & $+2.7$ [$-2.2$, $+7.3$] & yes \\
+\bottomrule
+\end{tabular}
+}
+\caption{Paired comparisons in percentage points. The interval is a paired bootstrap over problems, conditional on the three seeds. $2\sigma$ is twice the pooled seed standard deviation on test. ``Yes'' means $|\Delta_{\mathrm{test}}| > 2\sigma$ and the OOD sign agrees. That mechanical rule is not a hypothesis test. Rows marked post hoc or secondary were defined after the primary test results were seen. A ``yes'' does not override the 5\% truncation flag or the adverse truncation bounds in the text.}
+\label{tab:contrasts}
+\end{table*}
+
+\subsection{GRPO leads this RFT recipe on test}
+\label{sec:res-signal}
+
+On the curated prompts, GRPO is 10.9 points above RFT on \texttt{test\_300} (77.8\% versus 66.9\%). The three seed pairs are $+12.0$, $+10.3$, and $+10.3$ points. The OOD gap is $+3.0$ points and its interval includes zero, so the registered sign check passes and the OOD estimate is still weak. Every GRPO-Curated seed exceeds the 5\% test truncation flag (5.3\%, 9.3\%, 8.0\%). The protocol says a flagged run is not a headline number as it stands. The post hoc truncation bound is the check we report: if every truncated RFT completion is counted correct and every truncated GRPO completion is counted wrong, the three test gaps remain positive, at $+7.8$, $+6.0$, and $+7.2$ points for curated, easy, and mixed. On OOD, 20--55\% of GRPO completions are cut, depending on the seed, and we draw no OOD conclusion. Under the same adverse scoring, the curated OOD gap changes sign, to $-11.8$ points with interval $[-18.7, -5.2]$. The OOD sign in Table~\ref{tab:contrasts} is not an OOD result.
+
+The easy and mixed GRPO-versus-RFT comparisons were added after the test results were seen. They match rollout counts. On easy prompts the test gap is $+8.4$ and the OOD gap is $+8.3$, and neither arm exceeds the test truncation flag. On mixed prompts the test gap is $+9.2$ and the OOD gap is $+3.5$, and every GRPO-Mixed seed is truncation-flagged. The test ordering is similar whether or not GRPO samples more rollouts than RFT. That makes the extra curated rollouts a poor sole explanation of the curated gap. It does not isolate which other difference is responsible.
+
+Single-round RFT barely moves greedy test accuracy relative to the base model (67.3\%). RFT-Easy is 1.4 points below it. Per-seed test truncation for the RFT arms falls to 1.7--3.3\%, from 4.3\% for the base model. Mean@8 on test rises from 42.5\% for the base model to 51.2--54.4\% for single-round RFT and to 70.1--77.1\% for GRPO. The format-only control also raises mean@8, to 60.3\%, so a sampled-accuracy gain is not by itself evidence of better answers. On the first 100 test problems, pass@64 is 98.0\% for the base model and 95.7--96.7\% for the GRPO arms. GRPO makes a single sample more reliable here. It does not enlarge the set of problems solved in 64 tries. That pattern agrees with \citet{yue2025does} and with the pass@$k$ split in \citet{zhu2025surprising}. It is not a new coverage result.
+
+For GRPO-Mixed and GRPO-Curated, most of the test gain over the base model is on the hard tier. For GRPO-Easy the hard-tier gain is smaller. Hard-tier greedy accuracy is 29.0\% for the base model, 23.3--29.7\% for the RFT arms, and 40.7\%, 58.0\%, and 52.7\% for GRPO-Easy, GRPO-Mixed, and GRPO-Curated. On the easy tier the base model already scores 92.0\%, and all six primary arms stay between 92\% and 97\%. The hard tier is also where GRPO truncates most, so those GRPO hard-tier numbers are lower bounds under the cap.
+
+The controls share GRPO-Mixed's prompts, recipe, and seed 1. On test, the correctness reward scores 78.7\%, the format-only reward 63.7\%, and the random reward 47.7\%, against 67.3\% for the base model. Each control is one seed. These numbers are descriptive. Table~\ref{tab:seeds} lists every primary seed. The means in Table~\ref{tab:main} are the means of these logged greedy accuracies.
+
+\begin{table*}[t]
+\centering
+{\small
+\begin{tabular}{lcccccc}
+\toprule
+ & \multicolumn{3}{c}{\texttt{test\_300}} & \multicolumn{3}{c}{\texttt{ood\_hard\_200}} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+Arm & seed 1 & seed 2 & seed 3 & seed 1 & seed 2 & seed 3 \\
+\midrule
+RFT-Easy & 66.3 (2.3) & 64.7 (3.3) & 66.7 (1.7) & 25.0 (14.0) & 26.0 (9.5) & 25.5 (8.0) \\
+RFT-Mixed & 70.7 (2.7) & 68.7 (1.7) & 69.3 (1.7) & 28.0 (12.0) & 28.0 (11.0) & 26.0 (13.5) \\
+RFT-Curated & 67.3 (2.7) & 65.7 (3.3) & 67.7 (3.3) & 30.0 (14.0) & 29.0 (15.5) & 26.5 (15.0) \\
+GRPO-Easy & 77.7 (4.3) & 70.0 (3.3) & 75.3 (1.3) & 34.5 (38.0) & 30.5 (21.0) & 36.5 (19.5) \\
+GRPO-Mixed & 78.7 (6.7) & 79.3 (10.3) & 78.3 (9.0) & 29.5 (46.5) & 29.5 (54.5) & 33.5 (41.5) \\
+GRPO-Curated & 79.3 (5.3) & 76.0 (9.3) & 78.0 (8.0) & 36.0 (19.5) & 29.0 (45.0) & 29.5 (40.0) \\
+IterRFT-Curated & 69.7 (1.3) & 70.0 (1.7) & 70.7 (1.7) & 28.0 (14.5) & 27.0 (16.0) & 31.5 (14.5) \\
+\bottomrule
+\end{tabular}
+}
+\caption{Greedy accuracy (\%) by seed. Truncation at the cap is in parentheses. These are the logged final evaluations, not new runs.}
+\label{tab:seeds}
+\end{table*}
+
+\subsection{Curation does not help RFT}
+\label{sec:res-curation}
+
+The registered prediction was that training RFT on prompts with mixed base-model outcomes would recover most of GRPO's advantage over RFT-Mixed. It does not. RFT-Curated is 2.7 points below RFT-Mixed on test, interval $[-5.2, 0.0]$, and all three seed pairs are negative. On OOD the difference is $+1.2$ and the registered rule fails because the sign flips. The observed gap of GRPO-Curated over RFT-Mixed is 8.2 points. The share of that gap recovered by curation is negative. Curation does not help RFT in this experiment. We do not conclude that it hurts: the two arms selected different learning rates on validation ($10^{-5}$ versus $5{\times}10^{-5}$), and 2.7 points is about the size of cross-machine re-evaluation changes, up to 2.3 points on test.
+
+For GRPO, explicit curation changes nothing we can detect. The mean difference of GRPO-Curated minus GRPO-Mixed is $-1.0$ point, with interval $[-3.7, +1.7]$. That is what implicit filtering predicts. Groups with eight equal rewards contribute no gradient. The longer preprint plots this share on the mixed prompts rising from 26--29\% in the first 25 steps to 61--70\% in the last 25. This draft does not recompute those two ranges from the raw step logs. They are not a registered endpoint. GRPO drops uninformative groups during training, so dropping them in advance adds little.
+
+\subsection{Mixed prompts and the two methods}
+\label{sec:res-mixed}
+
+RFT-Mixed beats RFT-Easy by 3.7 points on test, interval $[+0.2, +7.0]$, with the same sign on OOD ($+1.8$). The mechanical rule holds on the primary scores. The adverse truncation bound on this test gap is $+1.2$ points, interval $[-2.4, +4.7]$, and the rule fails in that scenario. GRPO-Mixed minus GRPO-Easy is $+4.4$ points on test, below the $2\sigma$ threshold of 5.6 because GRPO-Easy varies widely across seeds (70.0--77.7\%). The OOD sign reverses ($-3.0$). Every GRPO-Mixed seed is truncation-flagged. The mixed-difficulty pattern \citet{bauer2026} report for GRPO also appears here for RFT on correct samples. For GRPO itself, this experiment does not confirm it.
+
+Two caveats sit on the RFT comparison. The arms were selected at different epoch counts (8 versus 4), so the data contrast carries an optimization difference. And the three RFT seeds share one base-model draw, so their spread, and the $2\sigma$ threshold, omits sampling variance. The 3.7-point gap is only somewhat larger than the cross-machine variation.
+
+\subsection{Three RFT rounds close part of the curated gap}
+\label{sec:res-iter}
+
+Iterated RFT was registered on 2026-09-20, after the six primary arms had been scored on test, and before any iterated-RFT sample existed. The prediction was a small positive gain over single-round RFT, possibly within seed noise. The observed test gain is $+3.2$ points, interval $[+0.2, +6.2]$, with $+0.3$ on OOD. The adverse truncation bound on that test gap is $+0.1$, interval $[-3.0, +3.2]$, and the mechanical rule fails there. GRPO still leads iterated RFT by 7.7 points on test. The two steps add to the curated GRPO-versus-RFT gap ($3.2 + 7.7 = 10.9$). As a description, not a registered fraction, three rounds account for about 30\% of that gap. The other 70\% is everything else GRPO does here: learning from failed samples, comparing samples inside a group, updating the policy 300 times rather than resampling twice, a larger learning rate, and more rollouts (19{,}200 versus 14{,}016).
+
+The 30\% figure is not a pure effect of fresher samples. Iterated RFT also takes more optimizer steps (1{,}963 versus 1{,}664) and trains on more kept samples (7{,}828 versus 6{,}653). The 3.2-point gain is close to the 2.3-point cross-machine variation. We did not run an RFT that refreshes at every GRPO step, so this arm does not contradict studies whose filtered methods resample every iteration \citep{xiong2025minimalist,samineni2025rl}.
+
+GSM8K greedy accuracy, same prompt and cap, is 88.0\% for the base model, 90.9--91.9\% for single-round RFT, 92.7--93.3\% for GRPO, and 92.1\% for iterated RFT. Truncation is at most 1.0\%. We computed no comparisons on this set.
+
+\section{Related work}
+\label{sec:related}
+
+STaR \citep{zelikman2022star}, RFT \citep{yuan2023scaling}, ReST \citep{gulcehre2023rest}, and ReST$^{EM}$ \citep{singh2024beyond} fine-tune on a model's own checked outputs, often in a loop. Our single-round RFT samples once from the base model and trains on the verified samples alone. Iterated RFT is three rounds of that loop.
+
+\citet{xiong2025minimalist} find that keeping only positively rewarded samples is competitive with GRPO, and they draw prompts from a much larger pool. \citet{samineni2025rl} argue that, under standard assumptions, GRPO reduces to an iterative filtered supervised update, and they report comparable performance, including with negative samples. \citet{zhu2025surprising} find that reinforcing correct samples raises pass@1 and can lower pass@$k$, while penalizing incorrect samples often matches GRPO. Our gap of about 8--11 points on test is a different setting: at most 100 prompts, one base-model draw for single-round RFT, and several epochs on the kept set. We do not read it as evidence against those studies.
+
+\citet{bauer2026} is the source of the task, the model family, and the GRPO recipe we start from, with the two departures in Section~\ref{sec:budgets}. They study counting, graph, and spatial tasks. We use counting only. \citet{lu2026why} show that a difficulty filter can help supervised fine-tuning in vision-language settings. Our curated set matches their medium-difficulty definition on eight samples from the initial model. Their strongest reported variant also keeps the easy samples, which we did not test as a separate arm. In our setting the medium-only filter did not help RFT, and RFT trains on the model's own reasoning rather than on ground-truth labels. Sample counts still follow the base model's pass rate. DAPO drops prompts whose completions are all correct or all incorrect inside RL training \citep{yu2025dapo}. Longer GRPO outputs have been traced to the objective itself \citep{liu2025understanding,samineni2025rl}. Our GRPO arms use DAPO's token-level normalization and still hit the cap more often than RFT.
+
+\section{Limitations}
+\label{sec:limitations}
+
+This is one synthetic counting family, one base model (Qwen3-4B-Base), LoRA only, and three seeds on the primary arms. \citet{bauer2026} also studied graph and spatial reasoning. We did not. Controls and the base model are single runs. The success rule compares a gap with seed variation and checks an OOD sign. It is not a formal test. The RFT seeds share one draw, so their spread omits sampling variance. Re-evaluating the same model on another machine moves test accuracy by up to 2.3 points and OOD accuracy by up to 5.0 points. The smaller effects, curation, mixed data for RFT, and iterated RFT, are close to that test figure.
+
+The curated pair does not match the registered ``identical sampling budgets'' sentence (19{,}200 versus 14{,}016 rollouts). Tokens and optimizer steps are not matched by design. Selected RFT hyperparameters differ across the data comparisons: epochs for mixed versus easy, learning rate for curated versus mixed. The sweep favors RFT relative to GRPO's single recipe, and it also confounds the RFT data comparisons with an optimization choice.
+
+This RFT recipe can understate filtered fine-tuning. It has no per-prompt cap, so easy prompts dominate the kept set. It samples once from the base model. The iterated arm resamples the current policy only twice, after one round taken from the base draw. Single-round RFT does not improve greedy test accuracy over the base model, so the GRPO gap is about as large as GRPO's gain over the base model. The result is that GRPO outperforms this RFT recipe at this budget. It is not a result about filtered fine-tuning in general, and it does not separate negative samples, group-relative advantages, and the number of policy refreshes.
+
+GRPO-Mixed and GRPO-Curated exceed the 5\% test truncation flag. The adverse test bound still leaves a GRPO lead. On OOD the truncation rate is large enough that we refuse an OOD conclusion. An exploratory re-generation at 8{,}704 tokens, decided after the test results were seen, is not a primary result and is not used in the registered rule. The models were still trained at 4{,}352.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+On this counting task, with Qwen3-4B-Base and LoRA, the GRPO recipe is 10.9 points above tuned single-round RFT on the curated test pair. Those arms were registered. The registered sampling budget was not the budget that ran, and every GRPO seed in the pair exceeds the truncation flag, so 10.9 is not a clean headline. The same ordering appears in two post hoc comparisons with matched rollouts. An adverse truncation bound leaves the test gaps positive and reverses the curated OOD sign. Curating prompts, which was predicted to recover most of the gap for RFT, does not help RFT. Mixed prompts go with a 3.7 point RFT gain that also changes the selected epoch count and sits near cross-machine variation. For GRPO, mixed versus easy is inconclusive. Three RFT rounds are 3.2 points above single-round RFT on test, about 30\% of the curated gap as a description, and that 3.2 point piece is close to both cross-machine variation and its adverse truncation bound. None of these statements is a general claim that reinforcement learning is more than the data.
+
+\subsection*{Reproducibility}
+\ifanon
+Per-seed metrics, the pre-registration, and the training code exist in a project repository that this file does not name. No new training run was executed for this condensation. Logged greedy accuracies for the selected seeds were checked against the committed result files. Registered and secondary intervals are in the phase-5 contrasts table. The two post hoc GRPO-minus-RFT intervals are in the phase-5 exploratory contrast note. Truncation bounds are in the phase-5 truncation-bound note. The analysis config hash prefix is \texttt{3ba220e48a66}, with 10{,}000 bootstrap resamples and bootstrap seed 0. Adapter weights were described as private and were not re-checked as public for this draft. The stack used for the logged runs was Python 3.11.16, PyTorch 2.13.0, Transformers 5.16.1, PEFT 0.20.0, TRL 1.13.0, and vLLM 0.28.0.
+\else
+Code, per-seed metrics, and the pre-registration are at \url{https://github.com/LakshyaChaudhry/rl-or-data}. This file condenses arXiv:2610.25812v1. No new training run was executed for the condensation. Logged greedy accuracies for the selected seeds were checked against \texttt{results/} while preparing this draft. Registered and secondary intervals are in \path{results/phase5/tables/contrasts.md}. The two post hoc GRPO-minus-RFT intervals are in \path{results/phase5/appendix/exploratory_grpo_vs_rft.md}. Truncation bounds are in \path{results/phase5/appendix/truncation_bounds.md}. The analysis config hash prefix is \texttt{3ba220e48a66}, with 10{,}000 bootstrap resamples and bootstrap seed 0. Hugging Face adapters were described as private at the time of the preprint and were not re-checked as public for this draft. The stack used for the logged runs was Python 3.11.16, PyTorch 2.13.0, Transformers 5.16.1, PEFT 0.20.0, TRL 1.13.0, and vLLM 0.28.0.
+\fi
+
+\subsection*{AI use statement}
+The research question, experimental design, hypotheses, and pre-registration are the author's, as are the core pieces that define the results: answer verification, RFT selection, the supervised loss, the reference GRPO implementation, and the evaluation metrics. An AI coding assistant (Claude) implemented surrounding engineering to the author's specifications and helped draft the preprint from the author's outlines. A later AI coding assistant condensed that preprint into this format, checked the reported seed means against the logged metrics, and did not run new experiments. The author directed the work and is responsible for the content.
+
+% aaai2027.sty already sets \bibliographystyle{aaai2027}.
+\bibliography{references}
+
+\end{document}

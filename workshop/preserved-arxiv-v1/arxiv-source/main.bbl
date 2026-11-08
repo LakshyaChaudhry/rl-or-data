@@ -1,0 +1,128 @@
+\begin{thebibliography}{16}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Bauer et~al.(2026)Bauer, Walshe, Pham, Vishwakarma, Parchami, Sala,
+  and Varma]{bauer2026}
+Justin Bauer, Thomas Walshe, Derek Pham, Harit Vishwakarma, Armin Parchami,
+  Frederic Sala, and Paroma Varma.
+\newblock Learning from less: Measuring the effectiveness of {RLVR} in low data
+  and compute regimes.
+\newblock In \emph{Proceedings of Machine Learning and Systems (MLSys)}, 2026.
+
+\bibitem[Gulcehre et~al.(2023)Gulcehre, Paine, Srinivasan, Konyushkova, Weerts,
+  Sharma, Siddhant, Ahern, Wang, Gu, Macherey, Doucet, Firat, and
+  de~Freitas]{gulcehre2023rest}
+Caglar Gulcehre, Tom~Le Paine, Srivatsan Srinivasan, Ksenia Konyushkova, Lotte
+  Weerts, Abhishek Sharma, Aditya Siddhant, Alex Ahern, Miaosen Wang, Chenjie
+  Gu, Wolfgang Macherey, Arnaud Doucet, Orhan Firat, and Nando de~Freitas.
+\newblock Reinforced self-training ({ReST}) for language modeling.
+\newblock \emph{arXiv preprint arXiv:2308.08998}, 2023.
+
+\bibitem[Guo et~al.(2025)Guo, Yang, Zhang, Song, Wang, et~al.]{deepseek2025r1}
+Daya Guo, Dejian Yang, Haowei Zhang, Junxiao Song, Peiyi Wang, et~al.
+\newblock {DeepSeek-R1} incentivizes reasoning in {LLMs} through reinforcement
+  learning.
+\newblock \emph{Nature}, 645\penalty0 (8081):\penalty0 633--638, 2025.
+\newblock \doi{10.1038/s41586-025-09422-z}.
+
+\bibitem[Kwon et~al.(2023)Kwon, Li, Zhuang, Sheng, Zheng, Yu, Gonzalez, Zhang,
+  and Stoica]{kwon2023vllm}
+Woosuk Kwon, Zhuohan Li, Siyuan Zhuang, Ying Sheng, Lianmin Zheng, Cody~Hao Yu,
+  Joseph~E. Gonzalez, Hao Zhang, and Ion Stoica.
+\newblock Efficient memory management for large language model serving with
+  {PagedAttention}.
+\newblock In \emph{Proceedings of the 29th Symposium on Operating Systems
+  Principles (SOSP)}, 2023.
+
+\bibitem[Liu et~al.(2025)Liu, Chen, Li, Qi, Pang, Du, Lee, and
+  Lin]{liu2025understanding}
+Zichen Liu, Changyu Chen, Wenjun Li, Penghui Qi, Tianyu Pang, Chao Du, Wee~Sun
+  Lee, and Min Lin.
+\newblock Understanding {R1-Zero}-like training: A critical perspective.
+\newblock \emph{arXiv preprint arXiv:2503.20783}, 2025.
+
+\bibitem[Lu et~al.(2026)Lu, Feng, Yuan, Li, and Sun]{lu2026why}
+Aojun Lu, Tao Feng, Hangjie Yuan, Wei Li, and Yanan Sun.
+\newblock Why does {RL} generalize better than {SFT}? a data-centric
+  perspective on {VLM} post-training.
+\newblock \emph{arXiv preprint arXiv:2602.10815}, 2026.
+
+\bibitem[Samineni et~al.(2025)Samineni, Kalwar, Valmeekam, Stechly, and
+  Kambhampati]{samineni2025rl}
+Soumya~Rani Samineni, Durgesh Kalwar, Karthik Valmeekam, Kaya Stechly, and
+  Subbarao Kambhampati.
+\newblock {RL} in name only? analyzing the structural assumptions in {RL}
+  post-training for {LLMs}.
+\newblock \emph{arXiv preprint arXiv:2505.13697}, 2025.
+
+\bibitem[Shao et~al.(2024)Shao, Wang, Zhu, Xu, Song, Bi, Zhang, Zhang, Li, Wu,
+  and Guo]{shao2024deepseekmath}
+Zhihong Shao, Peiyi Wang, Qihao Zhu, Runxin Xu, Junxiao Song, Xiao Bi, Haowei
+  Zhang, Mingchuan Zhang, Y.~K. Li, Y.~Wu, and Daya Guo.
+\newblock {DeepSeekMath}: Pushing the limits of mathematical reasoning in open
+  language models.
+\newblock \emph{arXiv preprint arXiv:2402.03300}, 2024.
+
+\bibitem[Singh et~al.(2024)Singh, Co-Reyes, Agarwal, et~al.]{singh2024beyond}
+Avi Singh, John~D. Co-Reyes, Rishabh Agarwal, et~al.
+\newblock Beyond human data: Scaling self-training for problem-solving with
+  language models.
+\newblock \emph{Transactions on Machine Learning Research}, 2024.
+\newblock arXiv:2312.06585.
+
+\bibitem[von Werra et~al.(2020)von Werra, Belkada, Tunstall, Beeching, Thrush,
+  Lambert, Huang, Rasul, and Gallouédec]{vonwerra2020trl}
+Leandro von Werra, Younes Belkada, Lewis Tunstall, Edward Beeching, Tristan
+  Thrush, Nathan Lambert, Shengyi Huang, Kashif Rasul, and Quentin Gallouédec.
+\newblock {TRL: Transformers Reinforcement Learning}, 2020.
+\newblock URL \url{https://github.com/huggingface/trl}.
+
+\bibitem[Xiong et~al.(2025)Xiong, Yao, Xu, Pang, Wang, Sahoo, Li, Jiang, Zhang,
+  Xiong, and Dong]{xiong2025minimalist}
+Wei Xiong, Jiarui Yao, Yuhui Xu, Bo~Pang, Lei Wang, Doyen Sahoo, Junnan Li, Nan
+  Jiang, Tong Zhang, Caiming Xiong, and Hanze Dong.
+\newblock A minimalist approach to {LLM} reasoning: from rejection sampling to
+  reinforce.
+\newblock \emph{arXiv preprint arXiv:2504.11343}, 2025.
+
+\bibitem[Yu et~al.(2025)Yu, Zhang, Zhu, et~al.]{yu2025dapo}
+Qiying Yu, Zheng Zhang, Ruofei Zhu, et~al.
+\newblock {DAPO}: An open-source {LLM} reinforcement learning system at scale.
+\newblock \emph{arXiv preprint arXiv:2503.14476}, 2025.
+
+\bibitem[Yuan et~al.(2023)Yuan, Yuan, Li, Dong, Lu, Tan, Zhou, and
+  Zhou]{yuan2023scaling}
+Zheng Yuan, Hongyi Yuan, Chengpeng Li, Guanting Dong, Keming Lu, Chuanqi Tan,
+  Chang Zhou, and Jingren Zhou.
+\newblock Scaling relationship on learning mathematical reasoning with large
+  language models.
+\newblock \emph{arXiv preprint arXiv:2308.01825}, 2023.
+
+\bibitem[Yue et~al.(2025)Yue, Chen, Lu, Zhao, Wang, Yue, Song, and
+  Huang]{yue2025does}
+Yang Yue, Zhiqi Chen, Rui Lu, Andrew Zhao, Zhaokai Wang, Yang Yue, Shiji Song,
+  and Gao Huang.
+\newblock Does reinforcement learning really incentivize reasoning capacity in
+  {LLMs} beyond the base model?
+\newblock In \emph{Advances in Neural Information Processing Systems
+  (NeurIPS)}, 2025.
+
+\bibitem[Zelikman et~al.(2022)Zelikman, Wu, Mu, and Goodman]{zelikman2022star}
+Eric Zelikman, Yuhuai Wu, Jesse Mu, and Noah~D. Goodman.
+\newblock {STaR}: Bootstrapping reasoning with reasoning.
+\newblock In \emph{Advances in Neural Information Processing Systems
+  (NeurIPS)}, 2022.
+
+\bibitem[Zhu et~al.(2025)Zhu, Xia, Wei, Chen, Chen, and
+  Meng]{zhu2025surprising}
+Xinyu Zhu, Mengzhou Xia, Zhepei Wei, Wei-Lin Chen, Danqi Chen, and Yu~Meng.
+\newblock The surprising effectiveness of negative reinforcement in {LLM}
+  reasoning.
+\newblock In \emph{Advances in Neural Information Processing Systems
+  (NeurIPS)}, 2025.
+
+\end{thebibliography}

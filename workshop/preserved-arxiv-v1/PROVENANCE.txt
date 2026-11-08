@@ -1,0 +1,28 @@
+Downloaded on 2026-11-07 (America/Los_Angeles) from public arXiv, without credentials.
+
+Paper: Is it RL or Data? A Controlled Comparison of GRPO and Rejection-Sampling Fine-Tuning
+arXiv: 2610.25812
+Version check: https://arxiv.org/abs/2610.25812v1 returned HTTP 200
+              https://arxiv.org/abs/2610.25812v2 returned HTTP 404
+              Therefore the live version as of 2026-11-07 is v1 only.
+
+Files:
+  2610.25812.pdf     from https://arxiv.org/pdf/2610.25812.pdf
+                     sha256 7d28a0b7186e789ce7680f0b37edfc924c50b1f28a235b1cc4b9358c50740074
+                     434975 bytes, 20 pages, US Letter
+                     PDF Title: Is it RL or Data? A Controlled Comparison of GRPO and Rejection-Sampling Fine-Tuning
+                     PDF Author: Lakshya Chaudhry
+                     Creator: arXiv GenPDF (tex2pdf:07e334b)
+  2610.25812.tar.gz  from https://arxiv.org/src/2610.25812
+                     sha256 c1dbeed9e16c70126e9dc0c9d4bb49f1a4c63875954c8cfe7bda26746a0d3980
+                     unpacked to arxiv-source/ (do not treat as a tested compile)
+  arxiv-source/      extracted copy of the arXiv source package
+                     00README.json process.compiler = pdflatex, texlive_version 2025
+                     toplevel file: main.tex
+                     style: iclr2027_conference.sty with \iclrfinalcopy set
+                     source file timestamps inside the archive are 2026-09-29
+                     00README.json timestamp 2026-10-18
+
+Compile status: not tested in this research pass.
+
+Do not overwrite these originals. Workshop variants should be created in a sibling directory.
