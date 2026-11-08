@@ -166,3 +166,30 @@ Recomputed from the logged per-seed greedy accuracies in `results/phase5/tables/
 - Bauer et al.'s sample-efficiency result. The condensation says "much more sample-efficient" and does not repeat the preprint's "up to 5x". I did not check the cited paper.
 - The exploratory 8,704-token accuracies. The condensation correctly keeps them out of the registered rule. I did not recompute them.
 - The bootstrap implementation itself. I checked that the published intervals match the logged tables. I did not rerun the 10,000 resamples.
+
+## Second pass
+
+Re-read of `main.pdf` (7 pages) and `shared.tex` after the editor's revision. The first-pass text above is unchanged. Status is against that revision only.
+
+1. **Fixed.** PDF p.1 and p.6. The abstract says the protocol does not treat 10.9 as a headline number by itself, because every GRPO seed in the pair exceeds the 5% flag. The conclusion says 10.9 is not a clean headline.
+2. **Fixed.** PDF p.1 and p.6. Both the abstract and the conclusion say the registered sampling budget was not the budget that ran (19,200 versus 14,016). Page 3 repeats the deviation.
+3. **Partly fixed.** PDF p.4, Table 3 caption. "Yes" is now labeled a mechanical rule and is said not to override the 5% flag or the adverse bounds. Still open: the paper does not say that with three seeds the pooled standard deviation has 4 degrees of freedom and a normal 95% range of about 0.60 to 2.87 times the estimate, so the 3.7-point "yes" (2σ = 2.1) is unstable under that range. It also does not say that the curated OOD seed gaps are +6.0, 0.0, and +3.0, or that the iterated-RFT OOD seed gaps are -2.0, -2.0, and +5.0.
+4. **Fixed.** PDF p.4, Table 3 caption. The interval is described as a paired bootstrap over problems, conditional on the three seeds.
+5. **Partly fixed.** PDF p.4 (§3.3) and p.5. The shared-draw omission and the failing adverse bound for the 3.7-point row are both stated. Table 3 on p.4 still marks that primary-score row "yes".
+6. **Fixed.** PDF p.1 and p.6. The 3.7-point sentence now says the comparison also changes the selected epoch count. The conclusion adds that the gain sits near cross-machine variation.
+7. **Partly fixed.** PDF p.3, p.4, and p.5. The new numbers match the logs: curated OOD adverse bound -11.8 [-18.7, -5.2]; RFT-Mixed minus RFT-Easy +1.2 [-2.4, +4.7], rule fails; IterRFT minus RFT-Curated +0.1 [-3.0, +3.2], rule fails. The conclusion on p.6 says the bound reverses the curated OOD sign and that the 3.2-point piece is close to its adverse bound. Still open in the abstract on p.1, which quotes only the bound that leaves a positive test gap and states the 3.2-point arm without that bound. The §3.4 heading on p.5 is still "recover about 30%".
+8. **Fixed.** PDF p.1 and p.2. The sweep is described as 27 runs on seed 1, and the text says seed 1 is then one of the three seeds in the test mean. The Mixed validation tie, 67% at 10^-4 for 4 epochs with the tie broken to the lower learning rate, matches the preprint sweep table.
+9. **Still open.** PDF p.3. The adverse test bounds are still only the three means +7.8, +6.0, and +7.2. The easy-set seed-level bounds, about +9.0, +2.0, and +7.0, are not reported.
+10. **Fixed.** PDF p.2 and p.4, Table 2 caption. Reference models receive the prompt inside a chat template. The trained arms do not.
+11. **Fixed.** PDF p.6. Registered and secondary intervals are attributed to `contrasts.md`, the two post hoc GRPO-minus-RFT intervals to `exploratory_grpo_vs_rft.md`, and the truncation bounds to `truncation_bounds.md`.
+12. **Fixed.** PDF p.2. Each iterated-RFT round continues the previous adapter and starts a fresh AdamW optimizer and cosine schedule.
+13. **Fixed.** PDF p.2. The fallback is the last integer anywhere in the completion, and a capped completion is not scored from a trailing integer.
+14. **Partly fixed.** PDF p.2 and p.5 now say round 1 is the base draw and the sampler is refreshed twice after that draw. PDF p.1 (introduction) and p.6 (limitations) still say the secondary arm refreshes the sampler three times.
+15. **Still open.** PDF p.3. "Most of GRPO's test gain over the base model is on the hard tier" is unchanged. The hard tier is still about 56% of the GRPO-Easy gain over base.
+16. **Still open.** PDF p.4. "Within 1.0 point" is still the sentence for GRPO-Curated minus GRPO-Mixed. Table 3 on the same page gives the interval [-3.7, +1.7].
+
+No new error in the accuracies, intervals, budgets, or the three newly printed bounds. Those bounds match `truncation_bounds.md`. The new count conflict is issue 14: "twice" in the setup and in §3.4, "three times" in the introduction and the limitations.
+
+Remaining blocker count: 0.
+
+The abstract still overstates a result. On p.1, "a secondary three-round RFT arm is 3.2 points above single-round RFT on test" states the primary-score gap and does not mention the adverse bound of +0.1, whose interval includes zero and whose mechanical rule fails. A smaller overstatement on the same page is "by 8.4 and 9.2 points": the 9.2 comparison is the mixed pair, and every GRPO-Mixed seed exceeds the 5% flag, which the abstract states for 10.9 and not for 9.2. The 10.9 sentence itself no longer overstates the registered comparison.
